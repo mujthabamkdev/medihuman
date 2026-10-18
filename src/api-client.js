@@ -45,4 +45,9 @@ export const api = {
   prescriptions: () => request('/prescriptions'),
   savePrescription: (prescription) => json('POST', '/prescriptions', prescription),
   saveReconciliation: (body) => json('POST', '/reconciliations', body),
+  doctorAccessRequests: () => request('/doctor/access-requests'),
+  requestPatient: (patientId) => json('POST', '/doctor/access-requests', { patientId }),
+  patientAccessRequests: () => request('/patient/access-requests'),
+  updateAccessRequest: (requestId, status) => json('PUT', `/patient/access-requests/${encodeURIComponent(requestId)}`, { status }),
+  doctorPatient: (patientId, resource = '') => request(`/doctor/patients/${encodeURIComponent(patientId)}${resource ? `/${resource}` : ''}`),
 };

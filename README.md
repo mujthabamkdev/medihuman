@@ -48,11 +48,17 @@ Then open <http://localhost:4173>.
 - Auth uses scrypt password hashes and short-lived HttpOnly SameSite session cookies. Production mode (`NODE_ENV=production`) adds the Secure cookie attribute.
 - Camera images stay in the browser capture flow; OCR is best-effort and every result opens an editable review step.
 - The composition screen uses a small, transparent reference/rule set for common medicines and profile context. Unknown medicines, supplements, interactions, dose decisions, and handwriting remain clinician/pharmacist review items.
+- Patient and doctor accounts use separate roles. Doctors request access by opaque patient ID; patients approve, reject, or revoke access before profile, medicine, prescription, or reconciliation records are visible.
+- Record summaries default to transparent rule-based findings. An approved OpenAI-compatible provider can be enabled server-side with `MEDIHUMAN_SUMMARY_URL`, `MEDIHUMAN_SUMMARY_API_KEY`, and `MEDIHUMAN_SUMMARY_MODEL`; keys never reach the browser. Provider output remains an AI-assisted draft requiring clinician verification and falls back to rule-based output on timeout or provider failure.
 - Safety and lifestyle content is general information, not a diagnosis or a replacement for clinician or pharmacist advice.
 
 ## API surface
 
 - `GET /api/csrf`, `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/me`
+- `GET /api/patient/access-requests`, `POST /api/patient/access-requests/:id/approve`, `POST /api/patient/access-requests/:id/revoke`, `PUT /api/patient/access-requests/:id`
+- `GET|POST /api/doctor/access-requests`, `POST /api/doctor/access-requests/:patientId`
+- `GET /api/doctor/patients/:patientId[/profile|/medicines|/prescriptions|/reconciliations|/summary]`
+- `GET /api/patient/summary` and `GET /api/summary`
 - `GET|PUT /api/patient/profile`
 - `GET|PUT /api/patient/medicines`
 - `GET|POST /api/prescriptions`, `GET|PUT|DELETE /api/prescriptions/:id`

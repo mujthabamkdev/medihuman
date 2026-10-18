@@ -3,30 +3,43 @@ import { analyzeMedicationSafety, medicationCompositionSummary } from './clinica
 import { api, ApiError } from './api-client.js';
 import { createOcrAdapter } from './ocr-adapter.js';
 
-const LOCAL_KEY = 'medihuman.frontend.v2';
+const LOCAL_KEY = 'medihuman.local-workspace.v3';
+const LOCAL_MODE_KEY = 'medihuman.mode';
 const root = document.querySelector('#app');
 const ocr = createOcrAdapter();
 const state = {
-  screen: 'auth', authMode: 'login', view: 'dashboard', localOnly: false, user: null,
+  screen: 'auth', authMode: 'login', authRole: 'patient', authRoleExplicit: false, role: 'patient', view: 'dashboard', localOnly: false, user: null,
   profile: { fullName: '', dateOfBirth: '', allergies: '', conditions: '' }, medicines: [],
   prescriptionText: '', dispensedText: '', ocrText: '', scanSource: '', consent: false,
+  doctorProfile: { displayName: '', specialty: '', registrationId: '', organization: '', verificationStatus: 'pending', verified: false },
+  patientRequests: [], doctorRequests: [], doctorRecords: {}, selectedPatientId: '', localExitPrompt: false,
   cameraStream: null, cameraError: '', questions: [
     { title: 'What should I ask before changing a dose?', meta: 'Starter question · not medical advice' },
     { title: 'How can I make my medication routine easier?', meta: 'Starter question · not medical advice' },
   ],
 };
 
-const navItems = [
+const patientNavItems = [
   ['dashboard', '⌂', 'Today'], ['patient', '♡', 'Patient'], ['medicines', '▣', 'Medicines'],
-  ['scan', '⌁', 'Scan prescription'], ['doctors', '◌', 'Doctor discussion'], ['lifestyle', '✦', 'Daily support'],
+  ['scan', '⌁', 'Scan prescription'], ['care-team', '♧', 'Care team'], ['doctors', '◌', 'Doctor discussion'], ['lifestyle', '✦', 'Daily support'],
 ];
+const doctorNavItems = [
+  ['dashboard', '⌂', 'Doctor dashboard'], ['doctor-patients', '♧', 'Approved patients'],
+];
+
+function emptyProfile() { return { fullName: '', dateOfBirth: '', allergies: '', conditions: '' }; }
 
 function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 }
 
 function saveLocal() {
-  const copy = { profile: state.profile, medicines: state.medicines, prescriptionText: state.prescriptionText, dispensedText: state.dispensedText, questions: state.questions, consent: state.consent };
+  if (!state.localOnly) return;
+  const copy = {
+    role: state.role, profile: state.profile, patientId: state.profile.patientId || state.user?.patientId || '', medicines: state.medicines,
+    prescriptionText: state.prescriptionText, dispensedText: state.dispensedText, questions: state.questions, consent: state.consent,
+    doctorProfile: state.doctorProfile, accessRequests: state.patientRequests,
+  };
   localStorage.setItem(LOCAL_KEY, JSON.stringify(copy));
 }
 
@@ -34,10 +47,13 @@ function loadLocal() {
   try {
     const saved = JSON.parse(localStorage.getItem(LOCAL_KEY) || '{}');
     if (saved.profile) state.profile = { ...state.profile, ...saved.profile };
+    if (saved.role === 'doctor' || saved.role === 'patient') state.role = state.authRole = saved.role;
     if (Array.isArray(saved.medicines)) state.medicines = saved.medicines;
     if (typeof saved.prescriptionText === 'string') state.prescriptionText = saved.prescriptionText;
     if (typeof saved.dispensedText === 'string') state.dispensedText = saved.dispensedText;
     if (Array.isArray(saved.questions)) state.questions = saved.questions;
+    if (Array.isArray(saved.accessRequests)) { state.patientRequests = saved.accessRequests; state.doctorRequests = saved.accessRequests; }
+    if (saved.doctorProfile) state.doctorProfile = { ...state.doctorProfile, ...saved.doctorProfile };
     state.consent = Boolean(saved.consent);
   } catch { localStorage.removeItem(LOCAL_KEY); }
 }
@@ -52,6 +68,7 @@ function button(label, action, className = 'button button-primary', extra = '') 
 
 function renderAuth() {
   const register = state.authMode === 'register';
+  const doctor = state.authRole === 'doctor';
   return `<main class="auth-layout">
     <section class="auth-brand-panel"><a class="brand brand-light" href="/" aria-label="MediHuman home"><span class="brand-mark">+</span>MediHuman</a>
       <div class="auth-intro"><p class="eyebrow eyebrow-light">A calmer medicine routine</p><h1>Care that keeps the human in view.</h1><p>Review prescriptions, capture what matters, and bring clearer questions to your care team.</p></div>
@@ -59,9 +76,11 @@ function renderAuth() {
     </section>
     <section class="auth-card-wrap"><div class="auth-card"><div class="auth-card-head"><span class="mini-mark">+</span><span class="privacy-chip">Private by default</span></div>
       <div class="auth-tabs" role="tablist"><button class="auth-tab ${!register ? 'active' : ''}" data-action="auth-login" role="tab" aria-selected="${!register}">Sign in</button><button class="auth-tab ${register ? 'active' : ''}" data-action="auth-register" role="tab" aria-selected="${register}">Create account</button></div>
-      <h2>${register ? 'Start your care workspace' : 'Welcome back'}</h2><p class="auth-subtitle">${register ? 'Use an account when you want your data available through this server.' : 'Sign in to continue your medication review.'}</p>${state.authError ? notice(escapeHtml(state.authError), 'info') : ''}
-      <form class="stack-form" data-form="auth"><label>Email address<input name="email" type="email" autocomplete="email" required placeholder="you@example.com"></label><label>Password<input name="password" type="password" autocomplete="${register ? 'new-password' : 'current-password'}" minlength="12" required placeholder="12+ characters"></label>
-      ${register ? `<label class="check-row"><input name="consent" type="checkbox" required><span>I understand MediHuman is an organizational aid, not medical advice, and agree to review sensitive information carefully.</span></label>` : ''}<div id="auth-error"></div><button class="button button-primary button-wide" type="submit">${register ? 'Create account' : 'Sign in'} <span>→</span></button></form>
+       <div class="role-picker" aria-label="Choose workspace role"><span class="role-picker-label">I am signing in as</span><div class="role-picker-buttons"><button type="button" class="role-choice ${!doctor ? 'active' : ''}" data-action="auth-role" data-role="patient">Patient</button><button type="button" class="role-choice ${doctor ? 'active' : ''}" data-action="auth-role" data-role="doctor">Doctor</button></div></div>
+       <h2>${register ? (doctor ? 'Create a doctor workspace' : 'Start your care workspace') : 'Welcome back'}</h2><p class="auth-subtitle">${register ? 'Use an account when you want your data available through this server.' : 'Sign in to continue your medication review.'}</p>${doctor && register ? notice('<strong>Verification pending.</strong> Doctor accounts are unverified until registration details are reviewed by your organization.', 'warning') : ''}${state.authError ? notice(escapeHtml(state.authError), 'info') : ''}
+       <form class="stack-form" data-form="auth"><label>Email address<input name="email" type="email" autocomplete="email" required placeholder="you@example.com"></label><label>Password<input name="password" type="password" autocomplete="${register ? 'new-password' : 'current-password'}" minlength="12" required placeholder="12+ characters"></label>
+       ${register && doctor ? `<label>Name<input name="name" required autocomplete="name" placeholder="Dr. Maya Johnson"></label><label>Specialty<input name="specialty" required placeholder="e.g. Family medicine"></label><label>Registration ID<input name="registrationId" required placeholder="Professional registration number"></label><label>Organization<input name="organization" required placeholder="Clinic or health system"></label>` : ''}${register && !doctor ? '<label>Name (optional)<input name="fullName" autocomplete="name" placeholder="Your name"></label>' : ''}
+       ${register ? `<label class="check-row"><input name="consent" type="checkbox" required><span>I understand MediHuman is an organizational aid, not medical advice, and agree to review sensitive information carefully.</span></label>` : ''}<div id="auth-error"></div><button class="button button-primary button-wide" type="submit">${register ? 'Create account' : 'Sign in'} <span>→</span></button></form>
       <div class="auth-divider"><span>or</span></div>${button('Continue without account', 'local-mode', 'button button-secondary button-wide')}
       <p class="form-footnote">Local-only mode keeps workspace data in this browser. No API key or secret is needed.</p>
     </div><p class="auth-disclaimer">MediHuman does not diagnose, prescribe, or verify handwriting. For urgent symptoms, call local emergency services.</p></section>
@@ -73,15 +92,19 @@ function renderTopbar(title) {
 }
 
 function renderSidebar() {
-  return `<aside class="sidebar" id="sidebar"><div class="sidebar-head"><a class="brand" href="/" aria-label="MediHuman home"><span class="brand-mark">+</span>MediHuman</a><button class="close-menu" data-action="toggle-menu" aria-label="Close navigation">×</button></div><div class="workspace-card"><span class="workspace-avatar">${escapeHtml(initials())}</span><div><strong>${escapeHtml(state.profile.fullName || 'Your workspace')}</strong><span>${state.localOnly ? 'Local-only mode' : escapeHtml(state.user?.email || 'Signed in')}</span></div></div><nav class="main-nav" aria-label="Main navigation">${navItems.map(([id, icon, label]) => `<button class="nav-item ${state.view === id ? 'active' : ''}" data-action="nav" data-view="${id}"><span class="nav-icon">${icon}</span><span>${label}</span>${id === 'scan' ? '<span class="nav-badge">New</span>' : ''}</button>`).join('')}</nav><div class="sidebar-bottom"><button class="nav-item" data-action="privacy"><span class="nav-icon">◈</span><span>Privacy & consent</span></button><button class="nav-item" data-action="logout"><span class="nav-icon">↪</span><span>${state.localOnly ? 'Exit local mode' : 'Sign out'}</span></button></div></aside>`;
+  const navItems = state.role === 'doctor' ? doctorNavItems : patientNavItems;
+  return `<aside class="sidebar" id="sidebar"><div class="sidebar-head"><a class="brand" href="/" aria-label="MediHuman home"><span class="brand-mark">+</span>MediHuman</a><button class="close-menu" data-action="toggle-menu" aria-label="Close navigation">×</button></div><div class="workspace-card"><span class="workspace-avatar">${escapeHtml(initials())}</span><div><strong>${escapeHtml(state.role === 'doctor' ? (state.doctorProfile.displayName || 'Doctor workspace') : (state.profile.fullName || 'Your workspace'))}</strong><span>${state.localOnly ? 'Local-only mode' : escapeHtml(state.user?.email || 'Signed in')}</span></div></div><nav class="main-nav" aria-label="Main navigation">${navItems.map(([id, icon, label]) => `<button class="nav-item ${state.view === id ? 'active' : ''}" data-action="nav" data-view="${id}"><span class="nav-icon">${icon}</span><span>${label}</span>${id === 'scan' ? '<span class="nav-badge">New</span>' : ''}</button>`).join('')}</nav><div class="sidebar-bottom"><button class="nav-item" data-action="privacy"><span class="nav-icon">◈</span><span>Privacy & consent</span></button><button class="nav-item" data-action="logout"><span class="nav-icon">↪</span><span>${state.localOnly ? 'Exit local mode' : 'Sign out'}</span></button></div></aside>`;
 }
 
 function renderShell() {
-  const titles = { dashboard: 'Good morning', patient: 'Patient profile', medicines: 'Current medicines', scan: 'Scan a prescription', review: 'Review captured text', reconcile: 'Reconciliation', composition: 'Composition & risk review', doctors: 'Doctor discussion', lifestyle: 'Daily support', privacy: 'Privacy & consent' };
-  return `<div class="app-shell">${renderSidebar()}<div class="shell-content">${renderTopbar(titles[state.view] || 'MediHuman')}<main class="content-page">${renderView()}</main><footer class="app-footer"><span>MediHuman is an organizational aid, not medical advice.</span><button data-action="privacy" class="footer-link">Privacy & consent</button></footer></div></div>`;
+  const titles = { dashboard: state.role === 'doctor' ? 'Doctor dashboard' : 'Good morning', patient: 'Patient profile', medicines: 'Current medicines', scan: 'Scan a prescription', review: 'Review captured text', reconcile: 'Reconciliation', composition: 'Composition & risk review', doctors: 'Doctor discussion', 'care-team': 'Care team', 'doctor-patients': 'Approved patients', lifestyle: 'Daily support', privacy: 'Privacy & consent' };
+  const exitPrompt = state.localExitPrompt ? `<div class="modal-backdrop"><section class="card local-exit-dialog" role="dialog" aria-modal="true" aria-labelledby="local-exit-title"><h3 id="local-exit-title">Exit local mode?</h3><p>Choose whether this browser keeps your local workspace for next time.</p><div class="modal-actions">${button('Keep data and exit', 'local-exit-preserve', 'button button-primary')}${button('Clear data and exit', 'local-exit-clear', 'button button-outline')}${button('Cancel', 'local-exit-cancel', 'button button-secondary')}</div></section></div>` : '';
+  return `<div class="app-shell">${renderSidebar()}<div class="shell-content">${renderTopbar(titles[state.view] || 'MediHuman')}<main class="content-page">${renderView()}</main><footer class="app-footer"><span>MediHuman is an organizational aid, not medical advice.</span><button data-action="privacy" class="footer-link">Privacy & consent</button></footer></div></div>${exitPrompt}`;
 }
 
 function renderView() {
+  if (state.role === 'doctor' && state.view === 'dashboard') return renderDoctorDashboard();
+  if (state.role === 'doctor' && state.view === 'doctor-patients') return renderDoctorPatients();
   if (state.view === 'patient') return renderPatient();
   if (state.view === 'medicines') return renderMedicines();
   if (state.view === 'scan') return renderScan();
@@ -89,6 +112,7 @@ function renderView() {
   if (state.view === 'reconcile') return renderReconcile();
   if (state.view === 'composition') return renderComposition();
   if (state.view === 'doctors') return renderDoctors();
+  if (state.view === 'care-team') return renderCareTeam();
   if (state.view === 'lifestyle') return renderLifestyle();
   if (state.view === 'privacy') return renderPrivacy();
   return renderDashboard();
@@ -108,7 +132,8 @@ function renderDashboard() {
 
 function renderPatient() {
   const p = state.profile;
-  return `<div class="section-intro"><p class="eyebrow">PATIENT PROFILE</p><h2 class="page-title">Keep the person in view.</h2><p>These details help you prepare questions. Share them with care teams only when you choose.</p></div><div class="two-column"><section class="card form-card"><div class="card-heading"><div><h3>About the patient</h3><p class="muted">Optional details. Edit anytime.</p></div><span class="soft-icon">♡</span></div><form class="stack-form" data-form="profile"><label>Full name<input name="fullName" value="${escapeHtml(p.fullName)}" autocomplete="name" placeholder="e.g. Maya Johnson"></label><label>Date of birth<input name="dateOfBirth" value="${escapeHtml(p.dateOfBirth)}" type="date"></label><label>Known conditions or diagnosis<textarea name="conditions" rows="3" placeholder="Only what you are comfortable recording">${escapeHtml(p.conditions)}</textarea></label><label>Allergies<textarea name="allergies" rows="3" placeholder="e.g. penicillin, or none known">${escapeHtml(p.allergies)}</textarea></label><div class="form-actions">${button('Save profile', 'save-profile', 'button button-primary')}<span class="save-note">Saved ${state.localOnly ? 'on this device' : 'to your account'}</span></div></form></section><aside class="card side-note">${notice('<strong>Privacy tip.</strong> Use only details needed for your care conversation. Clear this workspace from Privacy & consent when you are finished.', 'info')}<h3>What this does</h3><p>MediHuman surfaces your own notes beside medicine reviews. It does not determine whether a medicine is right for you.</p></aside></div>`;
+  const patientId = p.patientId || state.user?.patientId || 'Generated after account setup';
+  return `<div class="section-intro"><p class="eyebrow">PATIENT PROFILE</p><h2 class="page-title">Keep the person in view.</h2><p>These details help you prepare questions. Share them with care teams only when you choose.</p></div><div class="two-column"><section class="card form-card"><div class="card-heading"><div><h3>About the patient</h3><p class="muted">Optional details. Edit anytime.</p></div><span class="soft-icon">♡</span></div><form class="stack-form" data-form="profile"><label>Full name<input name="fullName" value="${escapeHtml(p.fullName)}" autocomplete="name" placeholder="e.g. Maya Johnson"></label><label>Date of birth<input name="dateOfBirth" value="${escapeHtml(p.dateOfBirth)}" type="date"></label><label>Known conditions or diagnosis<textarea name="conditions" rows="3" placeholder="Only what you are comfortable recording">${escapeHtml(p.conditions)}</textarea></label><label>Allergies<textarea name="allergies" rows="3" placeholder="e.g. penicillin, or none known">${escapeHtml(p.allergies)}</textarea></label><div class="form-actions">${button('Save profile', 'save-profile', 'button button-primary')}<span class="save-note">Saved ${state.localOnly ? 'on this device' : 'to your account'}</span></div></form></section><aside class="card side-note">${notice('<strong>Privacy tip.</strong> Use only details needed for your care conversation. Clear this workspace from Privacy & consent when you are finished.', 'info')}<div class="patient-id-card"><p class="card-kicker">OPAQUE PATIENT ID</p><code>${escapeHtml(patientId)}</code><p>Share this ID with a doctor you trust. It does not reveal your name.</p></div><h3>What this does</h3><p>MediHuman surfaces your own notes beside medicine reviews. It does not determine whether a medicine is right for you.</p>${button('Manage care-team requests', 'nav', 'button button-outline', 'data-view="care-team"')}</aside></div>`;
 }
 
 function medicineObject(name, extra = {}) { return { id: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`, name, strength: '', dose: '', route: '', timing: '', notes: '', ...extra }; }
@@ -146,13 +171,66 @@ function renderDoctors() {
   return `<div class="section-intro inline-intro"><div><p class="eyebrow">CONVERSATION PREP</p><h2 class="page-title">Bring better questions.</h2><p>Keep a short list for your clinician or pharmacist. MediHuman does not send messages.</p></div><span class="soft-icon large-soft">◌</span></div><section class="card question-card"><div class="card-heading"><div><h3>Questions for your care team</h3><p class="muted">Stored ${state.localOnly ? 'on this device' : 'in this workspace'}.</p></div></div><div class="question-list">${state.questions.map((question, index) => `<article class="question-item"><span class="question-number">${String(index + 1).padStart(2, '0')}</span><div><strong>${escapeHtml(question.title)}</strong><span>${escapeHtml(question.meta || 'Personal note')}</span></div><button class="remove-button" data-action="remove-question" data-index="${index}" aria-label="Remove question">×</button></article>`).join('')}</div><form class="add-question" data-form="question"><label class="sr-only" for="question-input">Add a question</label><input id="question-input" name="question" required placeholder="e.g. What should I do if I miss a dose?"><button class="button button-primary" type="submit">Add question</button></form></section>${notice('For urgent symptoms or a medication emergency, use local emergency services or contact a pharmacist directly. This list is not monitored.', 'warning')}</div>`;
 }
 
+function requestStatusPill(status) { return `<span class="status-pill ${status === 'approved' ? 'pill-green' : status === 'pending' ? 'pill-warn' : 'pill-neutral'}">${escapeHtml(status)}</span>`; }
+function requestRows(requests, perspective = 'patient') {
+  if (!requests.length) return '<div class="empty-state compact"><span class="empty-icon">♧</span><p>No access requests yet.</p></div>';
+  return `<div class="access-request-list">${requests.map((request) => `<article class="access-request"><div><strong>${escapeHtml(perspective === 'doctor' ? (request.patientId || 'Patient') : (request.doctor?.displayName || 'Doctor'))}</strong><span>${perspective === 'doctor' ? 'Opaque patient ID · ' : ''}${request.requestedAt ? new Date(request.requestedAt).toLocaleDateString() : 'Local request'}</span></div><div class="access-request-actions">${requestStatusPill(request.status)}${perspective === 'patient' && request.status === 'pending' ? `${button('Approve', 'care-request', 'button button-primary button-small', `data-id="${escapeHtml(request.id)}" data-status="approved"`)}${button('Reject', 'care-request', 'button button-outline button-small', `data-id="${escapeHtml(request.id)}" data-status="rejected"`)}` : ''}${perspective === 'patient' && request.status === 'approved' ? button('Revoke', 'care-request', 'button button-outline button-small', `data-id="${escapeHtml(request.id)}" data-status="revoked"`) : ''}</div></article>`).join('')}</div>`;
+}
+
+function renderCareTeam() {
+  return `<div class="section-intro inline-intro"><div><p class="eyebrow">SHARED CARE</p><h2 class="page-title">Choose who can see your records.</h2><p>Requests stay pending until you decide. Approved access can be revoked anytime.</p></div><span class="soft-icon large-soft">♧</span></div><section class="card care-team-card"><div class="card-heading"><div><h3>Doctor requests</h3><p class="muted">Your opaque patient ID is shared instead of your name.</p></div>${requestStatusPill(`${state.patientRequests.filter((request) => request.status === 'pending').length} pending`)}</div>${requestRows(state.patientRequests)}</section>${notice('<strong>Control stays with you.</strong> Approving access lets this doctor view profile, medicines, prescriptions, and reconciliation records. This app does not send messages.', 'info')}</div>`;
+}
+
+function localPatientRecords() {
+  return { profile: { ...state.profile, patientId: state.profile.patientId || state.user?.patientId }, medicines: state.medicines, prescriptions: [], reconciliations: [] };
+}
+
+function ruleSummary(records) {
+  const medicines = records?.medicines || [];
+  const findings = analyzeMedicationSafety(medicines, records?.profile || {}).map((finding) => ({ ...finding, source: 'Local rule set' }));
+  const mismatches = (records?.reconciliations || []).filter((item) => item.isExactMatch === false);
+  if (mismatches.length) findings.push({ severity: 'medium', title: 'Reconciliation needs follow-up', detail: `${mismatches.length} saved comparison${mismatches.length === 1 ? '' : 's'} contains a missing or unexpected medicine name.`, source: 'Reconciliation rule' });
+  return { headline: findings.some((finding) => finding.severity === 'high') ? 'Pause and review promptly' : findings.length ? 'Questions to review' : 'No rule-based flags recorded', findings };
+}
+
+function renderRuleSummary(records) {
+  const summary = records?.summary || ruleSummary(records);
+  const findings = summary.findings || [];
+  const aiAssisted = summary.isAiGenerated === true;
+  const normalizedFindings = findings.map((finding) => ({ severity: finding.severity === 'review' ? 'medium' : finding.severity || 'info', title: finding.title || `${finding.type || 'Record'} finding`, detail: finding.detail || finding.message || 'Recorded information is available for review.', source: finding.source || 'Rule-based record summary' }));
+  return `<section class="card doctor-summary"><div class="card-heading"><div><p class="card-kicker">${aiAssisted ? 'AI-ASSISTED DRAFT' : 'STRUCTURED REVIEW'}</p><h3>${escapeHtml(summary.headline || (aiAssisted ? 'AI-assisted record draft' : 'Rule-based review'))}</h3><p class="muted">${escapeHtml(summary.disclaimer || 'Rule-based, non-AI information organization. Not diagnostic and not a treatment recommendation.')}</p></div><span class="soft-icon">i</span></div>${normalizedFindings.length ? `<ul class="clinical-findings">${normalizedFindings.map((finding) => `<li class="clinical-finding finding-${escapeHtml(finding.severity)}"><span class="finding-severity">${escapeHtml(finding.severity)}</span><div><strong>${escapeHtml(finding.title)}</strong><p>${escapeHtml(finding.detail)}</p><small>${escapeHtml(finding.source)}</small></div></li>`).join('')}</ul>` : `<div class="empty-state compact"><p>No ${aiAssisted ? 'AI-assisted' : 'rule-based'} findings from available records.</p></div>`}${notice(aiAssisted ? 'AI output is an assistive draft. Verify every finding against source records and clinical judgment.' : 'This summary organizes recorded information for a care conversation. It does not diagnose, prescribe, or replace clinical judgment.', 'warning')}</section>`;
+}
+
+function renderDoctorDashboard() {
+  const pending = state.doctorRequests.filter((request) => request.status === 'pending');
+  const approved = state.doctorRequests.filter((request) => request.status === 'approved');
+  const doctor = state.doctorProfile || {};
+  return `<div class="section-intro"><p class="eyebrow">DOCTOR WORKSPACE</p><h2 class="page-title">Coordinate care with patient-controlled access.</h2><p>Request records by opaque patient ID, then review approved information in one place.</p></div>${notice(`<strong>Unverified doctor account · pending review.</strong> ${escapeHtml(doctor.organization || 'Registration details are awaiting organization verification.')}`, 'warning')}<div class="doctor-dashboard-grid"><section class="card"><div class="card-heading"><div><h3>Request a patient</h3><p class="muted">Ask for access using the patient’s opaque ID.</p></div><span class="soft-icon">＋</span></div><form class="stack-form" data-form="doctor-request"><label>Opaque patient ID<input name="patientId" required maxlength="200" placeholder="Paste patient ID"></label><button class="button button-primary" type="submit">Send access request</button><p class="form-footnote">Patient must approve before any health information is visible.</p></form></section><section class="card"><div class="card-heading"><div><h3>Pending requests</h3><p class="muted">${pending.length} awaiting patient decision</p></div>${requestStatusPill(String(pending.length))}</div>${requestRows(pending, 'doctor')}</section></div><section class="card approved-patients-card"><div class="card-heading"><div><h3>Approved patients</h3><p class="muted">${approved.length} patient${approved.length === 1 ? '' : 's'} available to review</p></div><button class="text-link" data-action="nav" data-view="doctor-patients">Open patient records →</button></div>${approved.length ? requestRows(approved, 'doctor') : '<div class="empty-state compact"><p>Approved patients appear here after consent.</p></div>'}</section>`;
+}
+
+function renderDoctorPatients() {
+  const approved = state.doctorRequests.filter((request) => request.status === 'approved');
+  const selected = approved.find((request) => request.patientId === state.selectedPatientId) || approved[0];
+  if (selected && state.selectedPatientId !== selected.patientId) state.selectedPatientId = selected.patientId;
+  const records = selected ? state.doctorRecords[selected.patientId] : null;
+  return `<div class="section-intro"><p class="eyebrow">APPROVED RECORDS</p><h2 class="page-title">Patient information, organized.</h2><p>Only approved patient records are shown. Review each section with the patient and your clinical workflow.</p></div>${approved.length ? `<section class="card patient-selector"><label>Approved patient<select id="doctor-patient-select" data-action="doctor-select-patient">${approved.map((request) => `<option value="${escapeHtml(request.patientId)}" ${request.patientId === state.selectedPatientId ? 'selected' : ''}>${escapeHtml(request.patientId)}</option>`).join('')}</select></label>${button('Refresh record', 'doctor-refresh-patient', 'button button-outline')}</section>${records ? renderDoctorRecord(records, selected.patientId) : `<section class="card empty-state"><p>Choose a patient to load approved records.</p></section>`}` : `<section class="card empty-state"><span class="empty-icon">♧</span><h3>No approved patients</h3><p>Send an access request from your dashboard. Patient approval is required before records can be viewed.</p>${button('Back to dashboard', 'nav', 'button button-primary', 'data-view="dashboard"')}</section>`}</div>`;
+}
+
+function renderDoctorRecord(records, patientId) {
+  const profile = records.profile || {};
+  const medicines = records.medicines || [];
+  const prescriptions = records.prescriptions || [];
+  const reconciliations = records.reconciliations || [];
+  return `<section class="doctor-record-stack"><div class="doctor-record-header"><div><p class="card-kicker">PATIENT ${escapeHtml(patientId)}</p><h3>${escapeHtml(profile.fullName || 'Patient record')}</h3><p class="muted">Approved record view · confirm details with patient.</p></div>${requestStatusPill('approved')}</div><div class="doctor-record-grid"><section class="card"><div class="card-heading"><h3>Profile</h3><span class="soft-icon">♡</span></div><dl class="record-list"><div><dt>Date of birth</dt><dd>${escapeHtml(profile.dateOfBirth || 'Not recorded')}</dd></div><div><dt>Allergies</dt><dd>${escapeHtml(profile.allergies || 'Not recorded')}</dd></div><div><dt>Conditions</dt><dd>${escapeHtml(profile.conditions || 'Not recorded')}</dd></div></dl></section><section class="card"><div class="card-heading"><h3>Medicines</h3><span class="soft-icon">▣</span></div>${medicines.length ? `<ul class="record-items">${medicines.map((medicine) => `<li><strong>${escapeHtml(medicine.name)}</strong><span>${escapeHtml([medicine.strength, medicine.dose, medicine.timing].filter(Boolean).join(' · ') || 'Details not recorded')}</span></li>`).join('')}</ul>` : '<p class="result-empty">No medicines recorded.</p>'}</section><section class="card"><div class="card-heading"><h3>Prescriptions</h3><span class="soft-icon">✎</span></div>${prescriptions.length ? `<ul class="record-items">${prescriptions.map((prescription) => `<li><strong>${escapeHtml(prescription.medicationName)}</strong><span>${escapeHtml([prescription.strength, prescription.frequency, prescription.instructions].filter(Boolean).join(' · ') || 'Details not recorded')}</span></li>`).join('')}</ul>` : '<p class="result-empty">No prescriptions recorded.</p>'}</section><section class="card"><div class="card-heading"><h3>Reconciliation</h3><span class="soft-icon">↔</span></div>${reconciliations.length ? `<ul class="record-items">${reconciliations.map((item) => `<li><strong>${item.isExactMatch ? 'Names matched' : 'Review needed'}</strong><span>${escapeHtml(new Date(item.createdAt || Date.now()).toLocaleDateString())} · ${escapeHtml(item.notes || 'No notes')}</span></li>`).join('')}</ul>` : '<p class="result-empty">No reconciliation recorded.</p>'}</section></div>${renderRuleSummary(records)}</section>`;
+}
+
 function renderLifestyle() {
   const notes = lifestyleGuidance;
   return `<div class="section-intro"><p class="eyebrow">DAILY SUPPORT</p><h2 class="page-title">Routines that leave room for life.</h2><p>General reminders can support a routine. Follow your own care team’s instructions first.</p></div><div class="lifestyle-grid">${notes.map((note, index) => `<article class="card lifestyle-tile"><span class="lifestyle-number">0${index + 1}</span><h3>${escapeHtml(note.split('. ')[0])}</h3><p>${escapeHtml(note.includes('. ') ? note.slice(note.indexOf('. ') + 2) : '')}</p></article>`).join('')}</div>${notice('<strong>Listen to your body.</strong> New or worsening symptoms deserve a conversation with a clinician. Seek urgent help for trouble breathing, facial swelling, fainting, or severe rash.', 'warning')}</div>`;
 }
 
 function renderPrivacy() {
-  return `<div class="section-intro"><p class="eyebrow">YOUR CONTROL</p><h2 class="page-title">Privacy that is easy to understand.</h2><p>Choose where your workspace lives and clear it when you are done.</p></div><div class="privacy-grid"><section class="card privacy-card"><div class="privacy-hero"><span class="privacy-lock">◈</span><div><p class="card-kicker">CURRENT STORAGE</p><h3>${state.localOnly ? 'This browser only' : 'Your MediHuman account'}</h3></div></div><p>${state.localOnly ? 'Profile, medicine lists, questions, and reviews are stored in this browser’s local storage. They are not sent to the MediHuman API in local-only mode.' : 'Your account workspace uses the MediHuman API over this session. Camera images stay in the browser flow and are not uploaded by this interface.'}</p>${notice('Do not enter information you do not need. Review any shared device before storing sensitive details.', 'info')}<button class="button button-outline" data-action="clear-data">Clear local workspace</button></section><section class="card consent-card"><p class="card-kicker">CONSENT CHECKPOINT</p><h3>Before you rely on a result</h3><label class="consent-toggle"><input id="consent-toggle" type="checkbox" ${state.consent ? 'checked' : ''}><span class="toggle-ui"></span><span>I understand this app organizes information; it does not diagnose, prescribe, verify handwriting, or replace a pharmacist or clinician.</span></label><p class="muted">${state.consent ? 'Acknowledged for this browser.' : 'Please acknowledge before saving a new local review.'}</p><button class="button button-primary" data-action="save-consent">Save preference</button></section></div>`;
+  return `<div class="section-intro"><p class="eyebrow">YOUR CONTROL</p><h2 class="page-title">Privacy that is easy to understand.</h2><p>Choose where your workspace lives and clear it when you are done.</p></div><div class="privacy-grid"><section class="card privacy-card"><div class="privacy-hero"><span class="privacy-lock">◈</span><div><p class="card-kicker">CURRENT STORAGE</p><h3>${state.localOnly ? 'This browser only' : 'Your MediHuman account'}</h3></div></div><p>${state.localOnly ? 'Profile, medicine lists, questions, and local care requests are stored in this browser’s local workspace. Remote account data is never copied into this storage.' : 'Your account workspace uses the MediHuman API over this session. Camera images stay in the browser flow and are not uploaded by this interface.'}</p>${notice('Do not enter information you do not need. Review any shared device before storing sensitive details.', 'info')}${button('Clear local workspace', 'clear-data', 'button button-outline')}${state.localOnly ? `<div class="privacy-actions">${button('Exit local mode', 'logout', 'button button-secondary')}<span class="save-note">You will choose whether to keep or clear local data.</span></div>` : ''}</section><section class="card consent-card"><p class="card-kicker">CONSENT CHECKPOINT</p><h3>Before you rely on a result</h3><label class="consent-toggle"><input id="consent-toggle" type="checkbox" ${state.consent ? 'checked' : ''}><span class="toggle-ui"></span><span>I understand this app organizes information; it does not diagnose, prescribe, verify handwriting, or replace a pharmacist or clinician.</span></label><p class="muted">${state.consent ? 'Acknowledged for this browser.' : 'Please acknowledge before saving a new local review.'}</p><button class="button button-primary" data-action="save-consent">Save preference</button></section></div>`;
 }
 
 function render() {
@@ -160,13 +238,54 @@ function render() {
   bindCamera();
 }
 
-function enterLocal() { state.authError = ''; state.localOnly = true; state.screen = 'shell'; loadLocal(); render(); }
+function bindCamera() {
+  const video = document.querySelector('#camera-video');
+  if (!video || !state.cameraStream) return;
+  if (video.srcObject !== state.cameraStream) video.srcObject = state.cameraStream;
+  video.play().catch(() => {
+    state.cameraError = 'Camera preview could not play. Tap Try camera again or use Upload photo.';
+  });
+}
+
+function setLocalMode(enabled) {
+  if (enabled) localStorage.setItem(LOCAL_MODE_KEY, 'local');
+  else localStorage.removeItem(LOCAL_MODE_KEY);
+}
+
+function ensureLocalIdentity() {
+  if (state.role === 'patient') {
+    const patientId = state.profile.patientId || state.user?.patientId || `local-patient-${crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+    state.profile.patientId = patientId;
+    state.user = { id: 'local-patient', email: 'local.patient@medihuman', role: 'patient', patientId };
+  } else {
+    state.user = { id: 'local-doctor', email: 'local.doctor@medihuman', role: 'doctor' };
+  }
+}
+
+function enterLocal() { const requestedRole = state.authRoleExplicit ? state.authRole : ''; state.authError = ''; state.localOnly = true; state.screen = 'shell'; loadLocal(); state.role = requestedRole || state.role || 'patient'; state.authRole = state.role; state.authRoleExplicit = false; ensureLocalIdentity(); setLocalMode(true); saveLocal(); render(); }
+
+async function loadRoleData() {
+  if (state.localOnly) return;
+  try {
+    if (state.role === 'patient') {
+      const response = await api.patientAccessRequests();
+      state.patientRequests = response.requests || [];
+    } else {
+      const response = await api.doctorAccessRequests();
+      state.doctorRequests = response.requests || [];
+    }
+  } catch (error) {
+    state.authError = error.message;
+  }
+}
 
 async function hydrateRemote() {
   try {
     const data = await api.me();
-    state.user = data.user; state.profile = data.profile || state.profile; state.medicines = data.medicines || [];
+    state.user = data.user; state.role = data.user.role || 'patient'; state.authRole = state.role; state.profile = data.profile || state.profile; state.medicines = data.medicines || [];
+    state.doctorProfile = data.user.doctorProfile || data.user.doctor || state.doctorProfile;
     state.localOnly = false; state.screen = 'shell';
+    await loadRoleData();
     render();
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401) state.authError = error.message;
@@ -180,9 +299,17 @@ async function submitAuth(form) {
   if (isRegister && data.consent !== 'on') return showAuthError('Please acknowledge the safety and privacy statement.');
   const submit = form.querySelector('button[type="submit"]'); submit.disabled = true;
   try {
-    const result = isRegister ? await api.register({ email: data.email, password: data.password, profile: {} }) : await api.login({ email: data.email, password: data.password });
-    state.authError = ''; state.user = result.user; state.profile = result.profile || state.profile; state.screen = 'shell'; state.localOnly = false;
-    try { const [profile, medicines] = await Promise.all([api.profile(), api.medicines()]); state.profile = profile.profile || state.profile; state.medicines = medicines.medicines || []; } catch { /* auth succeeded; empty workspace is valid */ }
+    const role = state.authRole;
+    const result = isRegister ? await api.register({ email: data.email, password: data.password, role, profile: role === 'patient' ? { fullName: data.fullName || '' } : {}, ...(role === 'doctor' ? { doctor: { displayName: data.name, specialty: data.specialty, registrationId: data.registrationId, organization: data.organization } } : {}) }) : await api.login({ email: data.email, password: data.password });
+    if (!isRegister && result.user.role !== role) {
+      try { await api.logout(); } catch { /* credentials remain untouched */ }
+      throw new Error(`This account is registered as ${result.user.role}. Choose that role to sign in.`);
+    }
+    state.authError = ''; state.user = result.user; state.role = result.user.role || role; state.doctorProfile = result.user.doctorProfile || result.user.doctor || state.doctorProfile; state.profile = result.profile || state.profile; state.screen = 'shell'; state.localOnly = false; setLocalMode(false);
+    if (state.role === 'patient') {
+      try { const [profile, medicines] = await Promise.all([api.profile(), api.medicines()]); state.profile = profile.profile || state.profile; state.medicines = medicines.medicines || []; } catch { /* auth succeeded; empty workspace is valid */ }
+    }
+    await loadRoleData();
     render();
   } catch (error) { showAuthError(error.message); submit.disabled = false; }
 }
@@ -224,9 +351,42 @@ async function saveReconciliation() {
 
 async function startCamera() {
   state.cameraError = '';
-  if (!navigator.mediaDevices?.getUserMedia) { state.cameraError = 'This browser does not offer camera access. Use Upload photo or Manual entry instead.'; render(); return; }
-  try { state.cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false }); render(); const video = document.querySelector('#camera-video'); if (video) { video.srcObject = state.cameraStream; await video.play(); } }
-  catch (error) { state.cameraStream = null; state.cameraError = error.name === 'NotAllowedError' ? 'Camera permission was denied. You can still upload a photo or enter details manually.' : 'Camera could not start. Check browser permissions or use another capture option.'; render(); }
+  const isLocal = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+  if (!window.isSecureContext && !isLocal) {
+    state.cameraError = 'Camera access requires HTTPS. Open this app through its HTTPS deployment, or use Upload photo / Manual entry.';
+    render();
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    state.cameraError = 'This browser does not expose camera access. Check browser support, then use Upload photo or Manual entry.';
+    render();
+    return;
+  }
+  const constraints = [
+    { video: { facingMode: { ideal: 'environment' } }, audio: false },
+    { video: true, audio: false },
+  ];
+  let lastError;
+  for (const constraint of constraints) {
+    try {
+      state.cameraStream = await navigator.mediaDevices.getUserMedia(constraint);
+      render();
+      return;
+    } catch (error) {
+      lastError = error;
+      if (error.name === 'NotAllowedError' || error.name === 'SecurityError') break;
+    }
+  }
+  state.cameraStream = null;
+  const errorMessages = {
+    NotAllowedError: 'Camera permission is blocked. Allow camera access for this site in browser settings, then try again.',
+    NotFoundError: 'No camera was found. Check that a camera is connected, then use Upload photo or Manual entry.',
+    NotReadableError: 'The camera is busy in another app. Close that app and try again.',
+    SecurityError: 'Camera access is blocked by browser security. Use HTTPS and check site permissions.',
+    OverconstrainedError: 'This camera does not support the requested mode. Try again or use Upload photo.',
+  };
+  state.cameraError = errorMessages[lastError?.name] || 'Camera could not start. Check HTTPS, browser permissions, and whether another app is using the camera.';
+  render();
 }
 
 function stopCamera() { state.cameraStream?.getTracks().forEach((track) => track.stop()); state.cameraStream = null; render(); }
@@ -234,21 +394,107 @@ function stopCamera() { state.cameraStream?.getTracks().forEach((track) => track
 async function captureCamera() {
   const video = document.querySelector('#camera-video'); if (!video || video.readyState < 2) return;
   const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0); state.scanSource = 'Camera capture · manual confirmation required';
-  const result = await ocr.recognize(canvas); state.ocrText = result.text || ''; state.view = 'review'; stopCamera();
+  try {
+    const result = await ocr.recognize(canvas); state.ocrText = result.text || ''; state.view = 'review';
+  } catch {
+    state.cameraError = 'OCR could not read this frame. Review the prescription manually or capture a clearer image.';
+    state.view = 'scan';
+  }
+  stopCamera();
 }
 
-async function readPhoto(file) { if (!file) return; state.scanSource = 'Uploaded photo · manual confirmation required'; const result = await ocr.recognize(file); state.ocrText = result.text || ''; state.view = 'review'; render(); }
+async function readPhoto(file) {
+  if (!file) return;
+  state.scanSource = 'Uploaded photo · manual confirmation required';
+  try {
+    const result = await ocr.recognize(file);
+    state.ocrText = result.text || '';
+    state.view = 'review';
+  } catch {
+    state.ocrText = '';
+    state.cameraError = 'OCR could not read this image. Review it manually or try a clearer, well-lit photo.';
+    state.view = 'scan';
+  }
+  render();
+}
 
 function submitQuestion(form) { const values = formValues(form); if (values.question?.trim()) { state.questions.push({ title: values.question.trim(), meta: 'Personal note · stored locally' }); saveLocal(); render(); } }
+
+async function requestPatient(form) {
+  const patientId = formValues(form).patientId?.trim();
+  if (!patientId) return;
+  try {
+    if (state.localOnly) {
+      const existing = state.patientRequests.find((request) => request.patientId === patientId && ['pending', 'approved'].includes(request.status));
+      if (existing) throw new Error('An active request already exists for this patient.');
+      state.doctorRequests.push({ id: `local-request-${Date.now()}`, patientId, status: 'pending', requestedAt: new Date().toISOString(), doctor: state.doctorProfile });
+      state.patientRequests.push({ id: state.doctorRequests.at(-1).id, patientId, status: 'pending', requestedAt: new Date().toISOString(), doctor: state.doctorProfile });
+      saveLocal();
+    } else {
+      const response = await api.requestPatient(patientId);
+      state.doctorRequests = [response.request, ...state.doctorRequests];
+    }
+    render();
+  } catch (error) { alert(error.message); }
+}
+
+async function updateCareRequest(requestId, status) {
+  try {
+    if (state.localOnly) {
+      const request = state.patientRequests.find((item) => item.id === requestId);
+      if (!request) return;
+      request.status = status;
+      request.respondedAt = new Date().toISOString();
+      if (status === 'revoked') request.revokedAt = request.respondedAt;
+      const doctorRequest = state.doctorRequests.find((item) => item.id === requestId);
+      if (doctorRequest) Object.assign(doctorRequest, request);
+      saveLocal();
+    } else {
+      const response = await api.updateAccessRequest(requestId, status);
+      state.patientRequests = state.patientRequests.map((request) => request.id === requestId ? response.request : request);
+    }
+    render();
+  } catch (error) { alert(error.message); }
+}
+
+async function loadDoctorPatient(patientId = state.selectedPatientId) {
+  if (!patientId) return;
+  try {
+    state.selectedPatientId = patientId;
+    state.doctorRecords[patientId] = state.localOnly ? localPatientRecords() : await api.doctorPatient(patientId);
+    if (!state.localOnly) {
+      try { const summary = await api.doctorPatient(patientId, 'summary'); state.doctorRecords[patientId].summary = summary.summary; } catch { /* record remains useful without summary endpoint */ }
+    }
+    render();
+  } catch (error) { alert(error.message); }
+}
+
+function clearLocalWorkspace() {
+  localStorage.removeItem(LOCAL_KEY);
+  state.profile = emptyProfile(); state.medicines = []; state.prescriptionText = ''; state.dispensedText = ''; state.questions = [];
+  state.patientRequests = []; state.doctorRequests = []; state.doctorRecords = {}; state.consent = false; state.profile.patientId = '';
+}
+
+function exitLocal(clear = false) {
+  stopCamera();
+  if (clear) clearLocalWorkspace();
+  setLocalMode(false);
+  state.localExitPrompt = false; state.screen = 'auth'; state.localOnly = false; state.user = null; state.role = state.authRole = 'patient'; state.view = 'dashboard';
+  render();
+}
 
 root.addEventListener('click', async (event) => {
   const target = event.target.closest('[data-action]'); if (!target) return; const action = target.dataset.action;
   if (action === 'auth-login' || action === 'auth-register') { state.authMode = action === 'auth-register' ? 'register' : 'login'; render(); return; }
+  if (action === 'auth-role') { state.authRole = target.dataset.role === 'doctor' ? 'doctor' : 'patient'; state.authRoleExplicit = true; render(); return; }
   if (action === 'local-mode') { enterLocal(); return; }
   if (action === 'toggle-menu') { document.querySelector('#sidebar')?.classList.toggle('open'); return; }
   if (action === 'nav') { state.view = target.dataset.view; document.querySelector('#sidebar')?.classList.remove('open'); render(); return; }
   if (action === 'privacy') { state.view = 'privacy'; render(); return; }
-  if (action === 'logout') { stopCamera(); if (!state.localOnly) { try { await api.logout(); } catch { /* clear UI regardless */ } } state.screen = 'auth'; state.user = null; state.localOnly = false; state.view = 'dashboard'; render(); return; }
+  if (action === 'logout') { if (state.localOnly) { state.localExitPrompt = true; render(); return; } stopCamera(); try { await api.logout(); } catch { /* clear UI regardless */ } setLocalMode(false); state.screen = 'auth'; state.user = null; state.localOnly = false; state.view = 'dashboard'; render(); return; }
+  if (action === 'local-exit-preserve') { exitLocal(false); return; }
+  if (action === 'local-exit-clear') { exitLocal(true); return; }
+  if (action === 'local-exit-cancel') { state.localExitPrompt = false; render(); return; }
   if (action === 'go-scan') { state.view = 'scan'; render(); return; }
   if (action === 'go-reconcile') { state.view = 'reconcile'; render(); return; }
   if (action === 'go-composition') { state.view = 'composition'; render(); return; }
@@ -262,14 +508,16 @@ root.addEventListener('click', async (event) => {
   if (action === 'manual-review') { state.prescriptionText = document.querySelector('#manual-prescription')?.value || ''; state.ocrText = state.prescriptionText; state.scanSource = 'Manual entry'; state.view = 'review'; saveLocal(); render(); return; }
    if (action === 'save-review') { state.prescriptionText = document.querySelector('#review-text')?.value || ''; state.view = 'reconcile'; saveLocal(); await persistPrescriptionReview(); render(); return; }
   if (action === 'run-reconcile') { await saveReconciliation(); return; }
+  if (action === 'care-request') { await updateCareRequest(target.dataset.id, target.dataset.status); return; }
+  if (action === 'doctor-refresh-patient') { await loadDoctorPatient(); return; }
   if (action === 'remove-question') { state.questions.splice(Number(target.dataset.index), 1); saveLocal(); render(); return; }
   if (action === 'save-consent') { state.consent = Boolean(document.querySelector('#consent-toggle')?.checked); saveLocal(); render(); return; }
-  if (action === 'clear-data') { if (window.confirm('Clear this browser’s MediHuman workspace?')) { localStorage.removeItem(LOCAL_KEY); state.profile = { fullName: '', dateOfBirth: '', allergies: '', conditions: '' }; state.medicines = []; state.prescriptionText = ''; state.dispensedText = ''; state.questions = []; state.consent = false; render(); } }
+  if (action === 'clear-data') { if (window.confirm('Clear this browser’s MediHuman workspace?')) { clearLocalWorkspace(); saveLocal(); render(); } }
 });
 
-root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); });
+root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); });
 root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); });
-root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); });
+root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); if (event.target.id === 'doctor-patient-select') loadDoctorPatient(event.target.value); });
 
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => undefined));
-hydrateRemote();
+if (localStorage.getItem(LOCAL_MODE_KEY) === 'local') enterLocal(); else hydrateRemote();

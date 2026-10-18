@@ -1,14 +1,17 @@
 import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { basename, dirname, join } from 'node:path';
 
+const CURRENT_VERSION = 2;
 const EMPTY_STATE = {
-  version: 1,
+  version: CURRENT_VERSION,
   users: [],
   sessions: [],
   profiles: [],
   medicines: [],
   prescriptions: [],
   reconciliations: [],
+  accessRequests: [],
 };
 
 function clone(value) {
@@ -16,13 +19,42 @@ function clone(value) {
 }
 
 function normalizeState(value) {
-  if (!value || typeof value !== 'object' || value.version !== 1) {
+  if (!value || typeof value !== 'object' || ![1, CURRENT_VERSION].includes(value.version)) {
     throw new Error('Unsupported data store format');
   }
+  const state = { ...clone(EMPTY_STATE), ...clone(value), version: CURRENT_VERSION };
   for (const collection of Object.keys(EMPTY_STATE).filter((key) => key !== 'version')) {
-    if (!Array.isArray(value[collection])) throw new Error(`Invalid data store collection: ${collection}`);
+    if (value[collection] !== undefined && !Array.isArray(value[collection])) {
+      throw new Error(`Invalid data store collection: ${collection}`);
+    }
+    if (!Array.isArray(state[collection])) state[collection] = [];
   }
-  return { ...EMPTY_STATE, ...value };
+  state.users = state.users.map((user) => {
+    const role = user.role === 'doctor' ? 'doctor' : 'patient';
+    const normalized = { ...user, role };
+    if (role === 'patient') {
+      normalized.patientId = typeof user.patientId === 'string' && user.patientId ? user.patientId : randomUUID();
+      delete normalized.doctorProfile;
+    } else {
+      const doctor = user.doctorProfile && typeof user.doctorProfile === 'object' ? user.doctorProfile : {
+        displayName: user.displayName,
+        specialty: user.specialty,
+        registrationId: user.registrationId,
+        organization: user.organization,
+      };
+      normalized.doctorProfile = {
+        displayName: typeof doctor.displayName === 'string' ? doctor.displayName : '',
+        specialty: typeof doctor.specialty === 'string' ? doctor.specialty : '',
+        registrationId: typeof doctor.registrationId === 'string' ? doctor.registrationId : '',
+        organization: typeof doctor.organization === 'string' ? doctor.organization : '',
+        verificationStatus: 'pending',
+        verified: false,
+      };
+      delete normalized.patientId;
+    }
+    return normalized;
+  });
+  return state;
 }
 
 /**
@@ -42,6 +74,7 @@ export class JsonDataStore {
     try {
       const raw = await readFile(this.filePath, 'utf8');
       this.state = normalizeState(JSON.parse(raw));
+      await this.persist();
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
       this.state = clone(EMPTY_STATE);

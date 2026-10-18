@@ -4,6 +4,7 @@ import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compareMedicines } from '../medication-logic.js';
 import { JsonDataStore } from './store.js';
+import { buildSummary } from './summary.js';
 import {
   SESSION_TTL_MS,
   createToken,
@@ -20,6 +21,7 @@ const MAX_BODY_BYTES = 256 * 1024;
 const MAX_LIST_ITEMS = 100;
 const COOKIE_SESSION = 'mh_session';
 const COOKIE_CSRF = 'mh_csrf';
+const PATIENT_ROLES = new Set(['patient', 'doctor']);
 const mimeTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -197,6 +199,24 @@ function profileValue(input = {}) {
   };
 }
 
+function roleValue(value) {
+  const role = stringValue(value === undefined ? 'patient' : value, 'role', { max: 20 }).toLowerCase();
+  if (!PATIENT_ROLES.has(role)) throw new HttpError(400, 'INVALID_FIELD', 'role must be patient or doctor.');
+  return role;
+}
+
+function doctorRegistrationValue(input = {}) {
+  allowedKeys(input, ['displayName', 'specialty', 'registrationId', 'organization']);
+  return {
+    displayName: stringValue(input.displayName, 'displayName', { required: true, max: 160 }),
+    specialty: stringValue(input.specialty, 'specialty', { required: true, max: 160 }),
+    registrationId: stringValue(input.registrationId, 'registrationId', { required: true, max: 200 }),
+    organization: stringValue(input.organization, 'organization', { required: true, max: 200 }),
+    verificationStatus: 'pending',
+    verified: false,
+  };
+}
+
 function medicineValue(input, index = 0) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new HttpError(400, 'INVALID_FIELD', `medicines[${index}] must be an object.`);
   allowedKeys(input, ['id', 'name', 'strength', 'dose', 'route', 'timing', 'notes']);
@@ -236,18 +256,39 @@ function listValue(value, field) {
   return value.map((item, index) => stringValue(item, `${field}[${index}]`, { required: true, max: 240 }));
 }
 
-function publicUser(user) {
-  return { id: user.id, email: user.email, createdAt: user.createdAt };
+function publicDoctor(doctor = {}) {
+  return {
+    displayName: doctor.displayName,
+    specialty: doctor.specialty,
+    organization: doctor.organization,
+    verificationStatus: 'pending',
+    status: 'pending',
+    verified: false,
+  };
 }
 
-function publicProfile(profile) {
-  return {
+function publicUser(user) {
+  const result = { id: user.id, email: user.email, role: user.role || 'patient', createdAt: user.createdAt };
+  if (result.role === 'patient') result.patientId = user.patientId;
+  if (result.role === 'doctor') {
+    result.doctor = publicDoctor(user.doctorProfile);
+    result.doctorProfile = result.doctor;
+    result.verificationStatus = 'pending';
+    result.verified = false;
+  }
+  return result;
+}
+
+function publicProfile(profile, user = null) {
+  const result = {
     fullName: profile.fullName,
     dateOfBirth: profile.dateOfBirth,
     allergies: profile.allergies,
     conditions: profile.conditions,
     updatedAt: profile.updatedAt,
   };
+  if (user?.role === 'patient') result.patientId = user.patientId;
+  return result;
 }
 
 function publicPrescription(prescription) {
@@ -258,6 +299,19 @@ function publicPrescription(prescription) {
 function publicReconciliation(reconciliation) {
   const { userId, ...safeReconciliation } = reconciliation;
   return safeReconciliation;
+}
+
+function publicAccessRequest(request, patient, doctor) {
+  return {
+    id: request.id,
+    patientId: patient?.patientId,
+    doctor: doctor ? publicDoctor(doctor.doctorProfile) : undefined,
+    doctorId: doctor?.id,
+    status: request.status,
+    requestedAt: request.requestedAt,
+    respondedAt: request.respondedAt,
+    revokedAt: request.revokedAt,
+  };
 }
 
 function clientIp(request) {
@@ -295,6 +349,37 @@ async function getAuth(store, request, now) {
 function requireAuth(auth) {
   if (!auth) throw new HttpError(401, 'UNAUTHENTICATED', 'Authentication required.');
   return auth;
+}
+
+function requireRole(auth, role) {
+  const current = requireAuth(auth);
+  if ((current.user.role || 'patient') !== role) throw new HttpError(403, 'FORBIDDEN', `${role} access required.`);
+  return current;
+}
+
+function decodePathValue(value, field) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    throw new HttpError(400, 'INVALID_FIELD', `${field} is invalid.`);
+  }
+}
+
+function findPatientByPublicId(state, patientId) {
+  return state.users.find((user) => user.role === 'patient' && user.patientId === patientId);
+}
+
+function hasApprovedAccess(state, doctorId, patientId) {
+  return state.accessRequests.some((request) => request.doctorUserId === doctorId && request.patientUserId === patientId && request.status === 'approved');
+}
+
+function patientRecords(state, patient, { includeSensitive = true } = {}) {
+  const profile = state.profiles.find((item) => item.userId === patient.id) || profileValue();
+  const medicines = state.medicines.find((item) => item.userId === patient.id)?.items || [];
+  const prescriptions = state.prescriptions.filter((item) => item.userId === patient.id).map(publicPrescription);
+  const reconciliations = state.reconciliations.filter((item) => item.userId === patient.id).map(publicReconciliation);
+  if (!includeSensitive) return { profile: publicProfile(profile, patient) };
+  return { profile: publicProfile(profile, patient), medicines, prescriptions, reconciliations };
 }
 
 function requireCsrf(request, auth) {
@@ -378,20 +463,47 @@ export async function createApp({ dataFile = DEFAULT_DATA_FILE, publicRoot = ROO
       const isLogout = pathname === '/api/auth/logout' || pathname === '/api/logout';
       if (isRegister && method === 'POST') {
         const body = await readJson(request);
-        allowedKeys(body, ['email', 'password', 'profile']);
+        allowedKeys(body, ['email', 'password', 'profile', 'role', 'displayName', 'specialty', 'registrationId', 'organization', 'doctor', 'doctorProfile']);
         const email = emailValue(body.email);
         const password = passwordValue(body.password);
+        const role = roleValue(body.role);
         const profile = body.profile === undefined ? profileValue() : profileValue(body.profile);
+        let doctorProfile = null;
+        if (role === 'doctor') {
+          const nestedDoctor = body.doctor ?? body.doctorProfile;
+          if (nestedDoctor !== undefined) {
+            if (body.doctor !== undefined && body.doctorProfile !== undefined) throw new HttpError(400, 'INVALID_FIELD', 'Use one doctor registration object.');
+            if (!nestedDoctor || typeof nestedDoctor !== 'object' || Array.isArray(nestedDoctor)) throw new HttpError(400, 'INVALID_FIELD', 'doctor must be an object.');
+            allowedKeys(body, ['email', 'password', 'profile', 'role', 'doctor', 'doctorProfile']);
+            doctorProfile = doctorRegistrationValue(nestedDoctor);
+          } else {
+            doctorProfile = doctorRegistrationValue({
+              displayName: body.displayName,
+              specialty: body.specialty,
+              registrationId: body.registrationId,
+              organization: body.organization,
+            });
+          }
+        } else if (['displayName', 'specialty', 'registrationId', 'organization', 'doctor', 'doctorProfile'].some((key) => body[key] !== undefined)) {
+          throw new HttpError(400, 'INVALID_FIELD', 'Doctor registration fields require role doctor.');
+        }
         const existing = await dataStore.read((state) => state.users.some((user) => user.email === email));
         if (existing) throw new HttpError(409, 'ACCOUNT_EXISTS', 'Account already exists.');
-        const user = { id: newId(), email, passwordHash: await hashPassword(password), createdAt: new Date(now).toISOString() };
+        const user = {
+          id: newId(),
+          email,
+          role,
+          ...(role === 'patient' ? { patientId: newId() } : { doctorProfile }),
+          passwordHash: await hashPassword(password),
+          createdAt: new Date(now).toISOString(),
+        };
         await dataStore.transact((state) => {
           state.users.push(user);
           state.profiles.push({ userId: user.id, ...profile, updatedAt: new Date(now).toISOString() });
         });
         const session = await createSession(dataStore, user.id, now);
         setAuthCookies(response, session.sessionToken, session.csrfToken, secureCookies);
-        sendJson(response, 201, { user: publicUser(user), profile });
+        sendJson(response, 201, { user: publicUser(user), profile: publicProfile(profile, user) });
         return;
       }
       if (isLogin && method === 'POST') {
@@ -416,7 +528,7 @@ export async function createApp({ dataFile = DEFAULT_DATA_FILE, publicRoot = ROO
       if (pathname === '/api/me' && method === 'GET') {
         const current = requireAuth(auth);
         const data = await dataStore.read((state) => ({
-          profile: publicProfile(state.profiles.find((item) => item.userId === current.user.id) || profileValue()),
+          profile: publicProfile(state.profiles.find((item) => item.userId === current.user.id) || profileValue(), current.user),
           medicines: state.medicines.find((item) => item.userId === current.user.id)?.items || [],
         }));
         sendJson(response, 200, { user: publicUser(current.user), ...data });
@@ -424,12 +536,109 @@ export async function createApp({ dataFile = DEFAULT_DATA_FILE, publicRoot = ROO
       }
 
       const current = requireAuth(auth);
+      const doctorRequestPath = pathname.match(/^\/api\/doctor\/access-requests(?:\/([^/]+))?$/);
+      if (doctorRequestPath && method === 'POST') {
+        requireRole(current, 'doctor');
+        const body = doctorRequestPath[1] ? {} : await readJson(request);
+        if (!doctorRequestPath[1]) allowedKeys(body, ['patientId']);
+        const patientId = stringValue(doctorRequestPath[1] ? decodePathValue(doctorRequestPath[1], 'patientId') : body.patientId, 'patientId', { required: true, max: 200 });
+        const patient = await dataStore.read((state) => findPatientByPublicId(state, patientId));
+        if (!patient) throw new HttpError(404, 'PATIENT_NOT_FOUND', 'Patient not found.');
+        const existing = await dataStore.read((state) => state.accessRequests.find((request) =>
+          request.doctorUserId === current.user.id && request.patientUserId === patient.id && ['pending', 'approved'].includes(request.status)));
+        if (existing) throw new HttpError(409, 'ACCESS_REQUEST_EXISTS', 'An active access request already exists for this patient.');
+        const requestRecord = {
+          id: newId(),
+          doctorUserId: current.user.id,
+          patientUserId: patient.id,
+          status: 'pending',
+          requestedAt: new Date(now).toISOString(),
+        };
+        await dataStore.transact((state) => state.accessRequests.push(requestRecord));
+        sendJson(response, 201, { request: publicAccessRequest(requestRecord, patient, current.user) });
+        return;
+      }
+      if (pathname === '/api/doctor/access-requests' && method === 'GET') {
+        requireRole(current, 'doctor');
+        const requests = await dataStore.read((state) => state.accessRequests
+          .filter((request) => request.doctorUserId === current.user.id)
+          .map((request) => publicAccessRequest(request, state.users.find((user) => user.id === request.patientUserId), current.user)));
+        sendJson(response, 200, { requests });
+        return;
+      }
+
+      const patientAccessAction = pathname.match(/^\/api\/patient\/access-requests\/([^/]+)(?:\/(approve|reject|revoke))?$/);
+      if (patientAccessAction && (method === 'PUT' || (method === 'POST' && patientAccessAction[2]))) {
+        requireRole(current, 'patient');
+        const requestId = decodePathValue(patientAccessAction[1], 'requestId');
+        let action = patientAccessAction[2];
+        if (method === 'PUT') {
+          const body = await readJson(request);
+          allowedKeys(body, ['status']);
+          action = stringValue(body.status, 'status', { required: true, max: 20 }).toLowerCase();
+          action = { approved: 'approve', rejected: 'reject', revoked: 'revoke' }[action] || action;
+          if (!['approve', 'reject', 'revoke'].includes(action)) throw new HttpError(400, 'INVALID_FIELD', 'status must be approve, reject, or revoke.');
+        }
+        const existing = await dataStore.read((state) => state.accessRequests.find((request) => request.id === requestId && request.patientUserId === current.user.id));
+        if (!existing) throw new HttpError(404, 'NOT_FOUND', 'Access request not found.');
+        const requiredStatus = action === 'revoke' ? 'approved' : 'pending';
+        const actionLabel = { approve: 'approved', reject: 'rejected', revoke: 'revoked' }[action];
+        if (existing.status !== requiredStatus) throw new HttpError(409, 'INVALID_REQUEST_STATUS', `Only ${requiredStatus} access requests can be ${actionLabel}.`);
+        const status = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'revoked';
+        const updated = { ...existing, status, respondedAt: new Date(now).toISOString(), ...(status === 'revoked' ? { revokedAt: new Date(now).toISOString() } : {}) };
+        await dataStore.transact((state) => {
+          const item = state.accessRequests.find((request) => request.id === requestId && request.patientUserId === current.user.id);
+          if (!item || item.status !== requiredStatus) throw new HttpError(409, 'INVALID_REQUEST_STATUS', `Only ${requiredStatus} access requests can be ${actionLabel}.`);
+          Object.assign(item, updated);
+        });
+        const doctor = await dataStore.read((state) => state.users.find((user) => user.id === existing.doctorUserId));
+        sendJson(response, 200, { request: publicAccessRequest(updated, current.user, doctor) });
+        return;
+      }
+      if (pathname === '/api/patient/access-requests' && method === 'GET') {
+        requireRole(current, 'patient');
+        const requests = await dataStore.read((state) => state.accessRequests
+          .filter((request) => request.patientUserId === current.user.id)
+          .map((request) => publicAccessRequest(request, current.user, state.users.find((user) => user.id === request.doctorUserId))));
+        sendJson(response, 200, { requests });
+        return;
+      }
+
+      const doctorPatientMatch = pathname.match(/^\/api\/doctor\/patients\/([^/]+)(?:\/(profile|medicines|prescriptions|reconciliations|summary))?$/);
+      if (doctorPatientMatch && method === 'GET') {
+        requireRole(current, 'doctor');
+        const patientId = decodePathValue(doctorPatientMatch[1], 'patientId');
+        const patient = await dataStore.read((state) => findPatientByPublicId(state, patientId));
+        if (!patient) throw new HttpError(404, 'PATIENT_NOT_FOUND', 'Patient not found.');
+        const approved = await dataStore.read((state) => hasApprovedAccess(state, current.user.id, patient.id));
+        if (!approved) throw new HttpError(403, 'PATIENT_ACCESS_REQUIRED', 'Patient approval is required.');
+        const records = await dataStore.read((state) => patientRecords(state, patient));
+        const resource = doctorPatientMatch[2];
+        if (resource === 'summary') {
+          sendJson(response, 200, { summary: await buildSummary(records) });
+        } else if (resource) {
+          sendJson(response, 200, { [resource]: records[resource] });
+        } else {
+          sendJson(response, 200, records);
+        }
+        return;
+      }
+
+      if ((pathname === '/api/summary' || pathname === '/api/patient/summary') && method === 'GET') {
+        requireRole(current, 'patient');
+        const records = await dataStore.read((state) => patientRecords(state, current.user));
+        sendJson(response, 200, { summary: await buildSummary(records) });
+        return;
+      }
+
       if ((pathname === '/api/patient/profile' || pathname === '/api/profile') && method === 'GET') {
-        const profile = await dataStore.read((state) => publicProfile(state.profiles.find((item) => item.userId === current.user.id) || profileValue()));
+        requireRole(current, 'patient');
+        const profile = await dataStore.read((state) => publicProfile(state.profiles.find((item) => item.userId === current.user.id) || profileValue(), current.user));
         sendJson(response, 200, { profile });
         return;
       }
       if ((pathname === '/api/patient/profile' || pathname === '/api/profile') && method === 'PUT') {
+        requireRole(current, 'patient');
         const input = await readJson(request);
         allowedKeys(input, ['fullName', 'dateOfBirth', 'allergies', 'conditions']);
         const existingProfile = await dataStore.read((state) => state.profiles.find((item) => item.userId === current.user.id) || {});
@@ -444,15 +653,17 @@ export async function createApp({ dataFile = DEFAULT_DATA_FILE, publicRoot = ROO
           if (existing) Object.assign(existing, profile, { updatedAt: new Date(now).toISOString() });
           else state.profiles.push({ userId: current.user.id, ...profile, updatedAt: new Date(now).toISOString() });
         });
-        sendJson(response, 200, { profile });
+        sendJson(response, 200, { profile: publicProfile(profile, current.user) });
         return;
       }
       if ((pathname === '/api/patient/medicines' || pathname === '/api/medicines') && method === 'GET') {
+        requireRole(current, 'patient');
         const medicines = await dataStore.read((state) => state.medicines.find((item) => item.userId === current.user.id)?.items || []);
         sendJson(response, 200, { medicines });
         return;
       }
       if ((pathname === '/api/patient/medicines' || pathname === '/api/medicines') && method === 'PUT') {
+        requireRole(current, 'patient');
         const body = await readJson(request);
         allowedKeys(body, ['medicines']);
         const medicines = medicineListValue(body.medicines);
@@ -466,11 +677,13 @@ export async function createApp({ dataFile = DEFAULT_DATA_FILE, publicRoot = ROO
       }
 
       if (pathname === '/api/prescriptions' && method === 'GET') {
+        requireRole(current, 'patient');
         const prescriptions = await dataStore.read((state) => state.prescriptions.filter((item) => item.userId === current.user.id).map(publicPrescription));
         sendJson(response, 200, { prescriptions });
         return;
       }
       if (pathname === '/api/prescriptions' && method === 'POST') {
+        requireRole(current, 'patient');
         const prescription = prescriptionValue(await readJson(request));
         const record = { id: newId(), userId: current.user.id, ...prescription, createdAt: new Date(now).toISOString(), updatedAt: new Date(now).toISOString() };
         await dataStore.transact((state) => state.prescriptions.push(record));
@@ -479,6 +692,7 @@ export async function createApp({ dataFile = DEFAULT_DATA_FILE, publicRoot = ROO
       }
       const prescriptionMatch = pathname.match(/^\/api\/prescriptions\/([^/]+)$/);
       if (prescriptionMatch) {
+        requireRole(current, 'patient');
         const id = decodeURIComponent(prescriptionMatch[1]);
         const existing = await dataStore.read((state) => state.prescriptions.find((item) => item.id === id && item.userId === current.user.id));
         if (!existing) throw new HttpError(404, 'NOT_FOUND', 'Prescription not found.');
@@ -501,11 +715,13 @@ export async function createApp({ dataFile = DEFAULT_DATA_FILE, publicRoot = ROO
       }
 
       if (pathname === '/api/reconciliations' && method === 'GET') {
+        requireRole(current, 'patient');
         const reconciliations = await dataStore.read((state) => state.reconciliations.filter((item) => item.userId === current.user.id).map(publicReconciliation));
         sendJson(response, 200, { reconciliations });
         return;
       }
       if (pathname === '/api/reconciliations' && method === 'POST') {
+        requireRole(current, 'patient');
         const body = await readJson(request);
         allowedKeys(body, ['prescriptionMedicines', 'dispensedMedicines', 'notes']);
         const prescriptionMedicines = listValue(body.prescriptionMedicines, 'prescriptionMedicines');
@@ -523,6 +739,7 @@ export async function createApp({ dataFile = DEFAULT_DATA_FILE, publicRoot = ROO
       }
       const reconciliationMatch = pathname.match(/^\/api\/reconciliations\/([^/]+)$/);
       if (reconciliationMatch && method === 'GET') {
+        requireRole(current, 'patient');
         const id = decodeURIComponent(reconciliationMatch[1]);
         const reconciliation = await dataStore.read((state) => state.reconciliations.find((item) => item.id === id && item.userId === current.user.id));
         if (!reconciliation) throw new HttpError(404, 'NOT_FOUND', 'Reconciliation not found.');
