@@ -5,6 +5,7 @@
   "description": "Local-first prescription and dispensed medicine reconciliation MVP",
   "type": "module",
   "scripts": {
+    "build": "node scripts/build-static.js",
     "start": "node server.js",
     "test": "node --test"
   },

@@ -40,7 +40,22 @@ Then open <http://localhost:4173>.
 
 ## Vercel deployment
 
-Vercel serves the PWA files directly and routes `/api` requests through the Node function adapters in `api/`. `vercel.json` also prevents stale service-worker caching.
+Use Vercel's **Other** framework preset for a static frontend plus separate `api/` functions. The checked-in `vercel.json` sets `framework: null`, `buildCommand: "npm run build"`, and `outputDirectory: "public"`; it also prevents stale service-worker caching. Do not select a Node/server framework or rewrite all requests to a function: Vercel's automatic `server.js` backend detection can make `/api/health` work while `/`, `/index.html`, and `/styles.css` return JSON 404 responses.
+
+In the Vercel dashboard, set **Project Settings → Build and Deployment** as follows before redeploying:
+
+- **Framework Preset:** Other.
+- **Root Directory:** the directory containing this `package.json` and `vercel.json` (`medihuman` when importing the parent repository; leave empty when this directory is the repository root).
+- **Build Command:** `npm run build`.
+- **Output Directory:** `public`.
+- **Install Command:** leave the default; this project has no dependencies.
+- **Node.js Version:** 22.x.
+
+Remove conflicting dashboard overrides or align them with these values. `npm start` remains the local/Docker server command, not the Vercel build command.
+
+`npm run build` recreates `public/` from an explicit browser-asset allowlist in `scripts/build-static.js`: HTML, stylesheets, service worker, both manifests, browser entrypoint/API client/OCR/domain modules, client modules, and icon. Add new browser assets to that allowlist when needed. Backend code, `server.js`, `.data`, environment files, and secrets are never copied. Generated `public/` is ignored by Git and Vercel uploads and rebuilt during deployment. The build module exports `buildStatic(outputDirectory)` for isolated checks; importing it does not run a build.
+
+Vercel serves these files directly from its CDN and deploys the existing `api/index.js` and `api/[...path].js` adapters separately, using the shared serverless handler. After deployment, check `/`, `/index.html`, `/styles.css`, and `/api/health`; the first three should return HTML/CSS, and health should return JSON. If runtime logs report `No exports found in module "/var/task/server.mjs"`, confirm `server.js` includes its default handler export and recheck the Other preset. `/var/task` is Vercel's runtime filesystem, not a local project folder.
 
 ```sh
 npm install --global vercel
@@ -56,7 +71,7 @@ Set production environment variables in Vercel Project Settings or with `vercel 
 - `MEDIHUMAN_SUMMARY_API_KEY` (optional, server-side only)
 - `MEDIHUMAN_SUMMARY_MODEL` (optional)
 
-Vercel functions use `/tmp/medihuman.json` by default. Vercel `/tmp` storage is ephemeral and instance-local; this deployment setup is suitable for preview/demo use, not durable patient accounts. Production deployment needs a persistent database adapter for `src/backend/store.js`, plus secret management, audit logging, backups, and privacy/legal review.
+Vercel functions use `/tmp/medihuman.json` by default. Vercel `/tmp` storage is ephemeral and instance-local: accounts, sessions, and patient records may disappear on cold starts or redeployments and may differ between function instances. This deployment setup is suitable for preview/demo use, not durable patient accounts. Production deployment needs a persistent database adapter for `src/backend/store.js`, plus secret management, audit logging, backups, and privacy/legal review.
 
 ## Architecture
 

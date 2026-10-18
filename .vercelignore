@@ -1,4 +1,7 @@
 .data
+public
+.env
+.env.*
 test
 Dockerfile
 README.md
