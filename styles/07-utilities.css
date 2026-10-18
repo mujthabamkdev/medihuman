@@ -5,22 +5,22 @@
 .auth-error { margin-bottom: 10px; }
 
 /* Consistent medical-product icon system. */
-.ui-icon { display: block; width: 1.15em; height: 1.15em; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+svg:not(.brand-svg) { display: block; width: 1.15em; height: 1.15em; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .brand-mark { display: grid; place-items: center; width: 32px; height: 32px; background: transparent; font-size: 0; }
 .brand-mark .brand-svg { width: 32px; height: 32px; color: var(--teal); }
 .brand-light .brand-mark .brand-svg { color: #43a898; }
 .mini-mark { width: 31px; height: 31px; border-radius: 10px; display: grid; place-items: center; background: var(--mint); color: var(--teal-dark); font-weight: 700; font-size: 0; }
 .mini-mark .brand-svg { width: 25px; height: 25px; color: var(--teal); }
 .nav-icon { display: grid; place-items: center; }
-.nav-icon .ui-icon { width: 18px; height: 18px; }
-.icon-button .ui-icon { width: 16px; height: 16px; margin: auto; }
-.soft-icon .ui-icon { width: 20px; height: 20px; }
-.today-orb .ui-icon { width: 28px; height: 28px; }
+.nav-icon svg { width: 18px; height: 18px; }
+.icon-button svg { width: 16px; height: 16px; margin: auto; }
+.soft-icon svg { width: 20px; height: 20px; }
+.today-orb svg { width: 28px; height: 28px; }
 .scan-illustration span { display: grid; place-items: center; }
-.scan-illustration span .ui-icon { width: 76px; height: 76px; stroke-width: 1.25; }
-.empty-icon .ui-icon { width: 22px; height: 22px; }
-.safety-symbol .ui-icon { width: 22px; height: 22px; }
-.privacy-lock .ui-icon { width: 25px; height: 25px; }
+.scan-illustration span svg { width: 76px; height: 76px; stroke-width: 1.25; }
+.empty-icon svg { width: 22px; height: 22px; }
+.safety-symbol svg { width: 22px; height: 22px; }
+.privacy-lock svg { width: 25px; height: 25px; }
 
 /* Footer belongs to shell, not centered page content. */
 .shell-content { min-height: 100vh; }

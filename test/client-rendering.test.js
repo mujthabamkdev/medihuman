@@ -5,8 +5,9 @@ import { brandIcon, svgIcon } from '../src/client/ui.js';
 import { createViewRenderer } from '../src/client/views.js';
 
 test('client UI primitives render accessible SVG markup', () => {
-  assert.match(svgIcon('home'), /<svg class="ui-icon/);
+  assert.match(svgIcon('home'), /<svg /);
   assert.match(svgIcon('home'), /aria-hidden="true"/);
+  assert.doesNotMatch(svgIcon('home'), /ui-[a-z-]+/);
   assert.match(brandIcon(), /class="brand-svg"/);
 });
 
