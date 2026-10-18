@@ -87,7 +87,7 @@ export function getSafetyNotes({ allergies = '', conditions = '' } = {}, compari
 
 export const lifestyleGuidance = [
   'Use a simple daily routine or reminder to take medicines at the prescribed times.',
-  'Keep water, meals, sleep, and gentle activity consistent unless your care team gave different instructions.',
+  'Follow your care team’s specific instructions for fluids, meals, sleep, and activity.',
   'Write down new symptoms, side effects, home readings, and questions for the next appointment.',
-  'Follow the prescriber’s diet and activity guidance; this general guidance does not replace individual care.',
+  'This general guidance cannot replace advice tailored to your health and treatment plan.',
 ];
