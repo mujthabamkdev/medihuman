@@ -11,7 +11,7 @@
   .mobile-menu { display: block; }
   .topbar { gap: 12px; }
   .secure-label { display: none; }
-  .shell-content { width: 100%; }
+  .shell-content { width: 100%; max-width: 100%; flex: 0 0 100%; }
   .content-page { padding-top: 32px; }
   .topbar h1 { white-space: normal; }
   .section-intro { max-width: 100%; }
@@ -31,6 +31,15 @@
   .access-request { align-items: flex-start; flex-direction: column; }
   .access-request-actions { justify-content: flex-start; }
   .patient-selector { align-items: stretch; flex-direction: column; }
+  .shell-content > .app-footer {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 17px 22px 22px;
+    line-height: 1.5;
+  }
+  .app-footer .footer-link { display: block; margin-top: 7px; }
 }
 
 @media (max-width: 600px) {
@@ -78,7 +87,7 @@
   .add-question { display: block; align-items: stretch; flex-direction: column; }
   .add-question .button { margin-top: 9px; width: 100%; }
   .add-question input { flex: none; width: 100%; }
-  .app-footer { width: 100%; padding: 17px 14px 22px; display: block; line-height: 1.5; }
+  .shell-content > .app-footer { width: 100%; min-width: 100%; padding: 17px 14px 22px; display: block; line-height: 1.5; }
   .app-footer .footer-link { display: block; margin-top: 7px; }
   .camera-stage { height: 235px; }
   .camera-actions .button,

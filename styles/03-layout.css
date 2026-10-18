@@ -28,7 +28,7 @@
 .check-row input,
 .consent-toggle input { width: 16px; height: 16px; flex: none; margin-top: 1px; accent-color: var(--teal); }
 
-.app-shell { min-height: 100vh; display: flex; }
+.app-shell { width: 100%; min-height: 100vh; display: flex; }
 .sidebar { width: 252px; background: #fff; border-right: 1px solid var(--line); display: flex; flex-direction: column; flex: none; padding: 25px 16px 18px; z-index: 10; }
 .sidebar-head { padding: 0 11px 30px; display: flex; justify-content: space-between; align-items: center; }
 .close-menu,
@@ -57,13 +57,12 @@
 .status-dot { width: 7px; height: 7px; background: #52b39f; border-radius: 50%; }
 .avatar { width: 38px; height: 38px; border-radius: 12px; }
 .content-page { width: min(1100px, calc(100% - 48px)); margin: 0 auto; padding: 45px 0 55px; flex: 1; }
-.app-footer { width: min(1100px, calc(100% - 48px)); margin: 0 auto; padding: 17px 0 22px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 20px; color: var(--muted); font-size: .69rem; }
 .footer-link,
 .text-link { border: 0; background: none; color: var(--teal-dark); font-size: .72rem; font-weight: 700; padding: 0; }
 .mobile-menu { border: 0; background: none; font-size: 1.25rem; color: var(--ink); padding: 6px; }
 
 /* Wide-screen guardrails prevent flex shrink from collapsing page copy. */
-.shell-content { min-width: 0; width: auto; flex: 1; }
+.shell-content { min-width: 0; width: calc(100% - 252px); max-width: calc(100% - 252px); flex: 1 1 auto; }
 .topbar > div:first-of-type { min-width: 0; flex: 1; }
 .topbar h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .content-page { display: block; width: 100%; max-width: 1440px; min-width: 0; margin: 0 auto; padding: 48px clamp(22px, 4vw, 58px) 42px; }

@@ -24,4 +24,21 @@
 
 /* Footer belongs to shell, not centered page content. */
 .shell-content { min-height: 100vh; }
-.app-footer { width: 100%; max-width: none; align-self: stretch; flex: none; padding: 17px clamp(22px, 4vw, 58px) 22px; }
+.shell-content > .app-footer {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  min-width: 100%;
+  max-width: none;
+  margin: 0;
+  align-self: stretch;
+  flex: none;
+  border-top: 1px solid var(--line);
+  justify-content: space-between;
+  gap: 20px;
+  color: var(--muted);
+  font-size: .69rem;
+  padding: 17px clamp(22px, 4vw, 58px) 22px;
+}
+.app-footer > span { min-width: 0; flex: 1 1 auto; }
+.app-footer > .footer-link { flex: 0 0 auto; }
