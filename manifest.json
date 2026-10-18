@@ -1,0 +1,10 @@
+{
+  "name": "MediHuman medication companion",
+  "short_name": "MediHuman",
+  "description": "A calm, private workspace for reviewing medicine lists.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f8f6",
+  "theme_color": "#123c3a",
+  "icons": [{ "src": "/src/icon.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
