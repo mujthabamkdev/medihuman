@@ -1,0 +1,18 @@
+/* Base normalization and document defaults. */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { background: var(--canvas); scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; background: var(--canvas); }
+button,
+input,
+textarea { font: inherit; }
+button { cursor: pointer; }
+button:disabled { opacity: .6; cursor: wait; }
+h1,
+h2,
+h3,
+h4,
+a { color: inherit; }
+.app-root { min-height: 100vh; }

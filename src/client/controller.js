@@ -1,0 +1,294 @@
+import { compareMedicines } from '../medication-logic.js';
+import { api, ApiError } from '../api-client.js';
+import { createOcrAdapter } from '../ocr-adapter.js';
+import {
+  LOCAL_KEY,
+  emptyProfile,
+  ensureLocalIdentity,
+  loadLocal,
+  medicineObject,
+  saveLocal,
+  setLocalMode,
+} from './state.js';
+import { escapeHtml, notice } from './ui.js';
+
+/** Orchestrate browser events, API calls, persistence, and camera/OCR lifecycle. */
+export function createController({ root, state, views, ocr = createOcrAdapter() }) {
+  function render() {
+    root.innerHTML = state.screen === 'auth' ? views.renderAuth() : views.renderShell();
+    bindCamera();
+  }
+
+  function bindCamera() {
+    const video = document.querySelector('#camera-video');
+    if (!video || !state.cameraStream) return;
+    if (video.srcObject !== state.cameraStream) video.srcObject = state.cameraStream;
+    video.play().catch(() => {
+      state.cameraError = 'Camera preview could not play. Tap Try camera again or use Upload photo.';
+    });
+  }
+
+
+
+  function enterLocal() { const requestedRole = state.authRoleExplicit ? state.authRole : ''; state.authError = ''; state.localOnly = true; state.screen = 'shell'; loadLocal(state); state.role = requestedRole || state.role || 'patient'; state.authRole = state.role; state.authRoleExplicit = false; ensureLocalIdentity(state); setLocalMode(true); saveLocal(state); render(); }
+
+  async function loadRoleData() {
+    if (state.localOnly) return;
+    try {
+      if (state.role === 'patient') {
+        const response = await api.patientAccessRequests();
+        state.patientRequests = response.requests || [];
+      } else {
+        const response = await api.doctorAccessRequests();
+        state.doctorRequests = response.requests || [];
+      }
+    } catch (error) {
+      state.authError = error.message;
+    }
+  }
+
+  async function hydrateRemote() {
+    try {
+      const data = await api.me();
+      state.user = data.user; state.role = data.user.role || 'patient'; state.authRole = state.role; state.profile = data.profile || state.profile; state.medicines = data.medicines || [];
+      state.doctorProfile = data.user.doctorProfile || data.user.doctor || state.doctorProfile;
+      state.localOnly = false; state.screen = 'shell';
+      await loadRoleData();
+      render();
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 401) state.authError = error.message;
+      render();
+    }
+  }
+
+  async function submitAuth(form) {
+    const data = Object.fromEntries(new FormData(form).entries());
+    const isRegister = state.authMode === 'register';
+    if (isRegister && data.consent !== 'on') return showAuthError('Please acknowledge the safety and privacy statement.');
+    const submit = form.querySelector('button[type="submit"]'); submit.disabled = true;
+    try {
+      const role = state.authRole;
+      const result = isRegister ? await api.register({ email: data.email, password: data.password, role, profile: role === 'patient' ? { fullName: data.fullName || '' } : {}, ...(role === 'doctor' ? { doctor: { displayName: data.name, specialty: data.specialty, registrationId: data.registrationId, organization: data.organization } } : {}) }) : await api.login({ email: data.email, password: data.password });
+      if (!isRegister && result.user.role !== role) {
+        try { await api.logout(); } catch { /* credentials remain untouched */ }
+        throw new Error(`This account is registered as ${result.user.role}. Choose that role to sign in.`);
+      }
+      state.authError = ''; state.user = result.user; state.role = result.user.role || role; state.doctorProfile = result.user.doctorProfile || result.user.doctor || state.doctorProfile; state.profile = result.profile || state.profile; state.screen = 'shell'; state.localOnly = false; setLocalMode(false);
+      if (state.role === 'patient') {
+        try { const [profile, medicines] = await Promise.all([api.profile(), api.medicines()]); state.profile = profile.profile || state.profile; state.medicines = medicines.medicines || []; } catch { /* auth succeeded; empty workspace is valid */ }
+      }
+      await loadRoleData();
+      render();
+    } catch (error) { showAuthError(error.message); submit.disabled = false; }
+  }
+
+  function showAuthError(message) { const target = document.querySelector('#auth-error'); if (target) target.innerHTML = notice(escapeHtml(message), 'warning'); }
+
+  function formValues(form) { return Object.fromEntries(new FormData(form).entries()); }
+
+  async function saveProfile() {
+    const form = document.querySelector('[data-form="profile"]'); state.profile = formValues(form); saveLocal(state);
+    if (!state.localOnly) { try { const response = await api.saveProfile(state.profile); state.profile = response.profile || state.profile; } catch (error) { alert(error.message); } }
+    render();
+  }
+
+  function updateMedicineField(target) { const item = state.medicines[Number(target.dataset.medIndex)]; if (item) { item[target.dataset.medKey] = target.value; saveLocal(state); } }
+
+  async function saveMedicines() {
+    state.medicines = state.medicines.filter((item) => item.name.trim()); saveLocal(state);
+    if (!state.localOnly) { try { const response = await api.saveMedicines(state.medicines); state.medicines = response.medicines || state.medicines; } catch (error) { alert(error.message); } }
+    render();
+  }
+
+  function goReconcile() { const fields = { prescribed: document.querySelector('#prescribed-list'), dispensed: document.querySelector('#dispensed-list') }; if (fields.prescribed) { state.prescriptionText = fields.prescribed.value; state.dispensedText = fields.dispensed.value; saveLocal(state); } }
+
+  async function persistPrescriptionReview() {
+    if (state.localOnly) return;
+    const lines = state.prescriptionText.split(/[\n,]+/).map((line) => line.trim()).filter(Boolean);
+    for (const medicationName of lines.slice(0, 100)) {
+      try { await api.savePrescription({ medicationName, instructions: 'Captured and reviewed by patient.' }); } catch { break; }
+    }
+  }
+
+  async function saveReconciliation() {
+    goReconcile();
+    const comparison = compareMedicines(state.prescriptionText, state.dispensedText);
+    if (!state.localOnly && (comparison.prescribed.length || comparison.dispensed.length)) { try { await api.saveReconciliation({ prescriptionMedicines: comparison.prescribed, dispensedMedicines: comparison.dispensed, notes: 'Reviewed in MediHuman.' }); } catch { /* local result remains useful if persistence is unavailable */ } }
+    state.view = 'reconcile'; render();
+  }
+
+  async function startCamera() {
+    state.cameraError = '';
+    const isLocal = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+    if (!window.isSecureContext && !isLocal) {
+      state.cameraError = 'Camera access requires HTTPS. Open this app through its HTTPS deployment, or use Upload photo / Manual entry.';
+      render();
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      state.cameraError = 'This browser does not expose camera access. Check browser support, then use Upload photo or Manual entry.';
+      render();
+      return;
+    }
+    const constraints = [
+      { video: { facingMode: { ideal: 'environment' } }, audio: false },
+      { video: true, audio: false },
+    ];
+    let lastError;
+    for (const constraint of constraints) {
+      try {
+        state.cameraStream = await navigator.mediaDevices.getUserMedia(constraint);
+        render();
+        return;
+      } catch (error) {
+        lastError = error;
+        if (error.name === 'NotAllowedError' || error.name === 'SecurityError') break;
+      }
+    }
+    state.cameraStream = null;
+    const errorMessages = {
+      NotAllowedError: 'Camera permission is blocked. Allow camera access for this site in browser settings, then try again.',
+      NotFoundError: 'No camera was found. Check that a camera is connected, then use Upload photo or Manual entry.',
+      NotReadableError: 'The camera is busy in another app. Close that app and try again.',
+      SecurityError: 'Camera access is blocked by browser security. Use HTTPS and check site permissions.',
+      OverconstrainedError: 'This camera does not support the requested mode. Try again or use Upload photo.',
+    };
+    state.cameraError = errorMessages[lastError?.name] || 'Camera could not start. Check HTTPS, browser permissions, and whether another app is using the camera.';
+    render();
+  }
+
+  function stopCamera() { state.cameraStream?.getTracks().forEach((track) => track.stop()); state.cameraStream = null; render(); }
+
+  async function captureCamera() {
+    const video = document.querySelector('#camera-video'); if (!video || video.readyState < 2) return;
+    const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0); state.scanSource = 'Camera capture · manual confirmation required';
+    try {
+      const result = await ocr.recognize(canvas); state.ocrText = result.text || ''; state.view = 'review';
+    } catch {
+      state.cameraError = 'OCR could not read this frame. Review the prescription manually or capture a clearer image.';
+      state.view = 'scan';
+    }
+    stopCamera();
+  }
+
+  async function readPhoto(file) {
+    if (!file) return;
+    state.scanSource = 'Uploaded photo · manual confirmation required';
+    try {
+      const result = await ocr.recognize(file);
+      state.ocrText = result.text || '';
+      state.view = 'review';
+    } catch {
+      state.ocrText = '';
+      state.cameraError = 'OCR could not read this image. Review it manually or try a clearer, well-lit photo.';
+      state.view = 'scan';
+    }
+    render();
+  }
+
+  function submitQuestion(form) { const values = formValues(form); if (values.question?.trim()) { state.questions.push({ title: values.question.trim(), meta: 'Personal note · stored locally' }); saveLocal(state); render(); } }
+
+  async function requestPatient(form) {
+    const patientId = formValues(form).patientId?.trim();
+    if (!patientId) return;
+    try {
+      if (state.localOnly) {
+        const existing = state.patientRequests.find((request) => request.patientId === patientId && ['pending', 'approved'].includes(request.status));
+        if (existing) throw new Error('An active request already exists for this patient.');
+        state.doctorRequests.push({ id: `local-request-${Date.now()}`, patientId, status: 'pending', requestedAt: new Date().toISOString(), doctor: state.doctorProfile });
+        state.patientRequests.push({ id: state.doctorRequests.at(-1).id, patientId, status: 'pending', requestedAt: new Date().toISOString(), doctor: state.doctorProfile });
+        saveLocal(state);
+      } else {
+        const response = await api.requestPatient(patientId);
+        state.doctorRequests = [response.request, ...state.doctorRequests];
+      }
+      render();
+    } catch (error) { alert(error.message); }
+  }
+
+  async function updateCareRequest(requestId, status) {
+    try {
+      if (state.localOnly) {
+        const request = state.patientRequests.find((item) => item.id === requestId);
+        if (!request) return;
+        request.status = status;
+        request.respondedAt = new Date().toISOString();
+        if (status === 'revoked') request.revokedAt = request.respondedAt;
+        const doctorRequest = state.doctorRequests.find((item) => item.id === requestId);
+        if (doctorRequest) Object.assign(doctorRequest, request);
+        saveLocal(state);
+      } else {
+        const response = await api.updateAccessRequest(requestId, status);
+        state.patientRequests = state.patientRequests.map((request) => request.id === requestId ? response.request : request);
+      }
+      render();
+    } catch (error) { alert(error.message); }
+  }
+
+  function localPatientRecords() {
+    return { profile: { ...state.profile, patientId: state.profile.patientId || state.user?.patientId }, medicines: state.medicines, prescriptions: [], reconciliations: [] };
+  }
+
+  async function loadDoctorPatient(patientId = state.selectedPatientId) {
+    if (!patientId) return;
+    try {
+      state.selectedPatientId = patientId;
+      state.doctorRecords[patientId] = state.localOnly ? localPatientRecords() : await api.doctorPatient(patientId);
+      if (!state.localOnly) {
+        try { const summary = await api.doctorPatient(patientId, 'summary'); state.doctorRecords[patientId].summary = summary.summary; } catch { /* record remains useful without summary endpoint */ }
+      }
+      render();
+    } catch (error) { alert(error.message); }
+  }
+
+  function clearLocalWorkspace() {
+    localStorage.removeItem(LOCAL_KEY);
+    state.profile = emptyProfile(); state.medicines = []; state.prescriptionText = ''; state.dispensedText = ''; state.questions = [];
+    state.patientRequests = []; state.doctorRequests = []; state.doctorRecords = {}; state.consent = false; state.profile.patientId = '';
+  }
+
+  function exitLocal(clear = false) {
+    stopCamera();
+    if (clear) clearLocalWorkspace();
+    setLocalMode(false);
+    state.localExitPrompt = false; state.screen = 'auth'; state.localOnly = false; state.user = null; state.role = state.authRole = 'patient'; state.view = 'dashboard';
+    render();
+  }
+
+  root.addEventListener('click', async (event) => {
+    const target = event.target.closest('[data-action]'); if (!target) return; const action = target.dataset.action;
+    if (action === 'auth-login' || action === 'auth-register') { state.authMode = action === 'auth-register' ? 'register' : 'login'; render(); return; }
+    if (action === 'auth-role') { state.authRole = target.dataset.role === 'doctor' ? 'doctor' : 'patient'; state.authRoleExplicit = true; render(); return; }
+    if (action === 'local-mode') { enterLocal(); return; }
+    if (action === 'toggle-menu') { document.querySelector('#sidebar')?.classList.toggle('open'); return; }
+    if (action === 'nav') { state.view = target.dataset.view; document.querySelector('#sidebar')?.classList.remove('open'); render(); return; }
+    if (action === 'privacy') { state.view = 'privacy'; render(); return; }
+    if (action === 'logout') { if (state.localOnly) { state.localExitPrompt = true; render(); return; } stopCamera(); try { await api.logout(); } catch { /* clear UI regardless */ } setLocalMode(false); state.screen = 'auth'; state.user = null; state.localOnly = false; state.view = 'dashboard'; render(); return; }
+    if (action === 'local-exit-preserve') { exitLocal(false); return; }
+    if (action === 'local-exit-clear') { exitLocal(true); return; }
+    if (action === 'local-exit-cancel') { state.localExitPrompt = false; render(); return; }
+    if (action === 'go-scan') { state.view = 'scan'; render(); return; }
+    if (action === 'go-reconcile') { state.view = 'reconcile'; render(); return; }
+    if (action === 'go-composition') { state.view = 'composition'; render(); return; }
+    if (action === 'save-profile') { await saveProfile(); return; }
+    if (action === 'add-medicine') { state.medicines.push(medicineObject('')); render(); return; }
+    if (action === 'remove-medicine') { state.medicines.splice(Number(target.dataset.index), 1); saveLocal(state); render(); return; }
+    if (action === 'save-medicines') { await saveMedicines(); return; }
+    if (action === 'camera-start') { await startCamera(); return; }
+    if (action === 'camera-stop') { stopCamera(); return; }
+    if (action === 'camera-capture') { await captureCamera(); return; }
+    if (action === 'manual-review') { state.prescriptionText = document.querySelector('#manual-prescription')?.value || ''; state.ocrText = state.prescriptionText; state.scanSource = 'Manual entry'; state.view = 'review'; saveLocal(state); render(); return; }
+     if (action === 'save-review') { state.prescriptionText = document.querySelector('#review-text')?.value || ''; state.view = 'reconcile'; saveLocal(state); await persistPrescriptionReview(); render(); return; }
+    if (action === 'run-reconcile') { await saveReconciliation(); return; }
+    if (action === 'care-request') { await updateCareRequest(target.dataset.id, target.dataset.status); return; }
+    if (action === 'doctor-refresh-patient') { await loadDoctorPatient(); return; }
+    if (action === 'remove-question') { state.questions.splice(Number(target.dataset.index), 1); saveLocal(state); render(); return; }
+    if (action === 'save-consent') { state.consent = Boolean(document.querySelector('#consent-toggle')?.checked); saveLocal(state); render(); return; }
+    if (action === 'clear-data') { if (window.confirm('Clear this browser’s MediHuman workspace?')) { clearLocalWorkspace(); saveLocal(state); render(); } }
+  });
+
+  root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); });
+  root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); });
+  root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); if (event.target.id === 'doctor-patient-select') loadDoctorPatient(event.target.value); });
+  return { enterLocal, hydrateRemote, render };
+}

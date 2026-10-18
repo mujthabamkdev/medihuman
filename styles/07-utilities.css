@@ -1,0 +1,27 @@
+/* Accessibility, icon alignment, and shell-level utility adjustments. */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.noscript { max-width: 500px; margin: 80px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: 15px; }
+.noscript h1 { font-family: Fraunces, Georgia, serif; }
+.auth-error { margin-bottom: 10px; }
+
+/* Consistent medical-product icon system. */
+.ui-icon { display: block; width: 1.15em; height: 1.15em; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.brand-mark { display: grid; place-items: center; width: 32px; height: 32px; background: transparent; font-size: 0; }
+.brand-mark .brand-svg { width: 32px; height: 32px; color: var(--teal); }
+.brand-light .brand-mark .brand-svg { color: #43a898; }
+.mini-mark { width: 31px; height: 31px; border-radius: 10px; display: grid; place-items: center; background: var(--mint); color: var(--teal-dark); font-weight: 700; font-size: 0; }
+.mini-mark .brand-svg { width: 25px; height: 25px; color: var(--teal); }
+.nav-icon { display: grid; place-items: center; }
+.nav-icon .ui-icon { width: 18px; height: 18px; }
+.icon-button .ui-icon { width: 16px; height: 16px; margin: auto; }
+.soft-icon .ui-icon { width: 20px; height: 20px; }
+.today-orb .ui-icon { width: 28px; height: 28px; }
+.scan-illustration span { display: grid; place-items: center; }
+.scan-illustration span .ui-icon { width: 76px; height: 76px; stroke-width: 1.25; }
+.empty-icon .ui-icon { width: 22px; height: 22px; }
+.safety-symbol .ui-icon { width: 22px; height: 22px; }
+.privacy-lock .ui-icon { width: 25px; height: 25px; }
+
+/* Footer belongs to shell, not centered page content. */
+.shell-content { min-height: 100vh; }
+.app-footer { width: 100%; max-width: none; align-self: stretch; flex: none; padding: 17px clamp(22px, 4vw, 58px) 22px; }

@@ -1,0 +1,122 @@
+/* Responsive corrections are last so breakpoint behavior always wins. */
+@media (max-width: 850px) {
+  .auth-layout { grid-template-columns: 1fr; }
+  .auth-brand-panel { min-height: 330px; padding: 28px; }
+  .auth-intro { margin: 55px 0 28px; }
+  .auth-intro h1 { font-size: 3rem; }
+  .auth-quote { display: none; }
+  .sidebar { position: fixed; inset: 0 auto 0 0; transform: translateX(-105%); transition: transform .25s; box-shadow: 10px 0 30px rgba(18, 60, 58, .12); }
+  .sidebar.open { transform: translateX(0); }
+  .close-menu { display: block; border: 0; background: none; color: var(--muted); font-size: 1.5rem; }
+  .mobile-menu { display: block; }
+  .topbar { gap: 12px; }
+  .secure-label { display: none; }
+  .shell-content { width: 100%; }
+  .content-page { padding-top: 32px; }
+  .topbar h1 { white-space: normal; }
+  .section-intro { max-width: 100%; }
+  .dashboard-grid { grid-template-columns: 1fr 1fr; }
+  .feature-card { grid-column: span 2; }
+  .scan-grid,
+  .risk-grid,
+  .two-column,
+  .list-input-grid,
+  .result-columns,
+  .lifestyle-grid,
+  .doctor-dashboard-grid,
+  .doctor-record-grid { grid-template-columns: 1fr; }
+  .result-col + .result-col { border-left: 0; border-top: 1px solid var(--line); }
+  .result-board-head { align-items: flex-start; display: block; }
+  .result-board-head .button { margin-top: 14px; }
+  .access-request { align-items: flex-start; flex-direction: column; }
+  .access-request-actions { justify-content: flex-start; }
+  .patient-selector { align-items: stretch; flex-direction: column; }
+}
+
+@media (max-width: 600px) {
+  .auth-card-wrap { padding: 26px 16px 35px; }
+  .auth-card { padding: 24px 19px; }
+  .auth-brand-panel { min-height: 255px; }
+  .auth-intro { margin: 45px 0 0; }
+  .auth-intro h1 { font-size: 2.45rem; margin-bottom: 14px; }
+  .auth-intro p:not(.eyebrow) { font-size: .88rem; }
+  .content-page { width: calc(100% - 28px); }
+  .topbar { padding: 16px 14px; min-height: 75px; }
+  .topbar h1 { font-size: 1.25rem; }
+  .page-title { font-size: 2.25rem; }
+  .welcome-row { align-items: flex-start; }
+  .today-orb { width: 46px; height: 46px; font-size: 1.1rem; box-shadow: 0 0 0 7px rgba(255, 242, 200, .4); }
+  .dashboard-grid { display: block; }
+  .dashboard-grid > * { margin-bottom: 14px; }
+  .feature-card { min-height: 240px; }
+  .scan-illustration { right: -43px; }
+  .card { padding: 19px; }
+  .inline-intro { display: block; }
+  .inline-intro > .button,
+  .inline-intro > .status-pill { margin-top: 14px; }
+  .two-column,
+  .list-input-grid,
+  .privacy-grid,
+  .lifestyle-grid { display: block; }
+  .two-column > * + *,
+  .privacy-grid > * + *,
+  .lifestyle-grid > * + * { margin-top: 14px; }
+  .result-board-head { padding: 18px 19px; }
+  .result-columns { display: block; padding: 0 19px; }
+  .result-col,
+  .result-col + .result-col { border-left: 0; border-top: 1px solid var(--line); padding: 17px 0; }
+  .result-col { padding: 17px 19px; }
+  .result-col:first-child { border-top: 0; }
+  .list-input-grid { gap: 12px; }
+  .medicine-fields { grid-template-columns: 1fr 1fr; }
+  .medicine-fields label:first-child { grid-column: span 2; }
+  .medicine-actions,
+  .reconcile-actions { align-items: stretch; flex-wrap: wrap; flex-direction: column; }
+  .form-actions { align-items: flex-start; flex-wrap: wrap; }
+  .reconcile-actions .button,
+  .medicine-actions .button { width: 100%; }
+  .add-question { display: block; align-items: stretch; flex-direction: column; }
+  .add-question .button { margin-top: 9px; width: 100%; }
+  .add-question input { flex: none; width: 100%; }
+  .app-footer { width: 100%; padding: 17px 14px 22px; display: block; line-height: 1.5; }
+  .app-footer .footer-link { display: block; margin-top: 7px; }
+  .camera-stage { height: 235px; }
+  .camera-actions .button,
+  .camera-actions .file-button { flex: 1; min-width: 0; }
+  .camera-error { padding: 22px 16px; }
+  .camera-error h4 { font-size: 1.05rem; }
+  .composition-row { align-items: flex-start; flex-direction: column; }
+  .composition-chip { max-width: 100%; text-align: left; }
+  .role-picker { margin-bottom: 20px; }
+  .doctor-record-header { display: block; }
+  .doctor-record-header .status-pill { display: inline-flex; margin-top: 12px; }
+  .record-list div { grid-template-columns: 1fr; gap: 4px; }
+  .modal-actions { display: grid; }
+  .modal-actions .button { width: 100%; }
+  .privacy-actions { align-items: stretch; flex-direction: column; }
+  .privacy-actions .button { width: 100%; }
+}
+
+@media (min-width: 851px) {
+  .content-page { max-width: none; }
+  .content-page > .section-intro { width: 100%; max-width: 1200px; }
+  .content-page > .section-intro .page-title { max-width: 900px; font-size: clamp(2.8rem, 4.6vw, 5.2rem); }
+  .content-page > .inline-intro > div:first-child { min-width: 0; flex: 1; }
+  .content-page > .card,
+  .content-page > .two-column,
+  .content-page > .scan-grid,
+  .content-page > .risk-grid,
+  .content-page > .lifestyle-grid,
+  .content-page > .result-board,
+  .content-page > .privacy-grid { width: 100%; max-width: 1200px; }
+  .content-page > .two-column,
+  .content-page > .scan-grid,
+  .content-page > .risk-grid,
+  .content-page > .lifestyle-grid,
+  .content-page > .privacy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .content-page > .lifestyle-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .question-card,
+  .medicine-editor,
+  .review-card,
+  .reconciliation-card { width: 100%; max-width: 1200px; }
+}

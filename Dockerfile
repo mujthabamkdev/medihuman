@@ -6,6 +6,7 @@ ENV PORT=4173
 
 COPY package.json ./
 COPY server.js index.html styles.css ./
+COPY styles ./styles
 COPY src ./src
 
 EXPOSE 4173

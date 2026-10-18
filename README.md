@@ -38,6 +38,31 @@ docker run --rm -p 4173:4173 medihuman
 
 Then open <http://localhost:4173>.
 
+## Architecture
+
+MediHuman uses small, dependency-free modules with one direction of ownership:
+
+```text
+index.html
+└─ src/app.js                  composition entrypoint
+   ├─ src/client/state.js      state shape and browser persistence
+   ├─ src/client/ui.js         HTML primitives and SVG icons
+   ├─ src/client/views.js      pure view rendering
+   └─ src/client/controller.js events, API calls, camera/OCR lifecycle
+
+src/backend/api.js              HTTP composition and route order
+├─ auth.js                      sessions, CSRF, roles, public users
+├─ http.js                      parsing, responses, static files
+├─ validation.js                request validation
+├─ records.js                   record queries and serializers
+└─ routes/                      system, auth, patient, access, doctor
+
+styles.css                      stable stylesheet entrypoint
+└─ styles/*.css                 ordered tokens, base, layout, components, views, roles, utilities, responsive
+```
+
+Keep these boundaries strict: views render; controllers coordinate effects; state owns browser persistence; route modules own HTTP behavior; domain modules own medication rules. Preserve `data-action`, `data-form`, API contracts, and `medihuman.local-workspace.v3` when changing internals.
+
 ## Behavior
 
 - Lists accept one medicine per line; commas are also accepted.

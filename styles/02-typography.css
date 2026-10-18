@@ -1,0 +1,17 @@
+/* Shared type hierarchy and brand lockups. */
+.brand { color: var(--ink); font-size: 1.12rem; font-weight: 700; letter-spacing: -.035em; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.brand-mark { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; color: #fff; background: var(--teal); font-family: Arial, sans-serif; font-size: 1.35rem; line-height: 1; }
+.brand-light { color: #fff; }
+.brand-light .brand-mark { background: #43a898; }
+.eyebrow,
+.card-kicker { color: var(--teal); font-size: .68rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; margin: 0 0 9px; }
+.eyebrow-light { color: #9fdcd0; }
+.muted,
+.save-note,
+.privacy-caption { color: var(--muted); font-size: .8rem; }
+.page-title { font-family: Fraunces, Georgia, serif; font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.055em; line-height: 1.04; margin: 0 0 11px; }
+.section-intro { max-width: 720px; margin: 5px 0 30px; }
+.section-intro > p:last-child,
+.page-lede { color: var(--muted); font-size: .96rem; line-height: 1.6; max-width: 620px; }
+.inline-intro { max-width: none; display: flex; align-items: flex-end; justify-content: space-between; gap: 25px; }
+.inline-intro .button { flex: 0 0 auto; }
