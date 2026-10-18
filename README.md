@@ -40,7 +40,7 @@ Then open <http://localhost:4173>.
 
 ## Vercel deployment
 
-Use Vercel's **Other** framework preset for a static frontend plus separate `api/` functions. The checked-in `vercel.json` sets `framework: null`, `buildCommand: "npm run build"`, and `outputDirectory: "public"`; it also prevents stale service-worker caching. Do not select a Node/server framework or rewrite all requests to a function: Vercel's automatic `server.js` backend detection can make `/api/health` work while `/`, `/index.html`, and `/styles.css` return JSON 404 responses.
+Use Vercel's **Other** framework preset for a static frontend plus one shared `api/index.js` function. The checked-in `vercel.json` sets `framework: null`, `buildCommand: "npm run build"`, `outputDirectory: "public"`, and rewrites `/api/:path*` to that function; it also prevents stale service-worker caching. Do not select a Node/server framework or rewrite all non-API requests to a function: Vercel's automatic `server.js` backend detection can make `/api/health` work while `/`, `/index.html`, and `/styles.css` return JSON 404 responses.
 
 In the Vercel dashboard, set **Project Settings → Build and Deployment** as follows before redeploying:
 
@@ -55,7 +55,7 @@ Remove conflicting dashboard overrides or align them with these values. `npm sta
 
 `npm run build` recreates `public/` from an explicit browser-asset allowlist in `scripts/build-static.js`: HTML, stylesheets, service worker, both manifests, browser entrypoint/API client/OCR/domain modules, client modules, and icon. Add new browser assets to that allowlist when needed. Backend code, `server.js`, `.data`, environment files, and secrets are never copied. Generated `public/` is ignored by Git and Vercel uploads and rebuilt during deployment. The build module exports `buildStatic(outputDirectory)` for isolated checks; importing it does not run a build.
 
-Vercel serves these files directly from its CDN and deploys the existing `api/index.js` and `api/[...path].js` adapters separately, using the shared serverless handler. After deployment, check `/`, `/index.html`, `/styles.css`, and `/api/health`; the first three should return HTML/CSS, and health should return JSON. If runtime logs report `No exports found in module "/var/task/server.mjs"`, confirm `server.js` includes its default handler export and recheck the Other preset. `/var/task` is Vercel's runtime filesystem, not a local project folder.
+Vercel serves these files directly from its CDN and routes every `/api/:path*` request through `api/index.js`, which uses the shared serverless handler. This explicit rewrite avoids relying on catch-all function filenames for nested API paths. After deployment, check `/`, `/index.html`, `/styles.css`, `/api/health`, and a nested API path such as `/api/patient/profile`; the first three should return HTML/CSS, health should return JSON, and the nested path should return an application JSON response rather than a Vercel platform 404. If runtime logs report `No exports found in module "/var/task/server.mjs"`, confirm `server.js` includes its default handler export and recheck the Other preset. `/var/task` is Vercel's runtime filesystem, not a local project folder.
 
 ```sh
 npm install --global vercel

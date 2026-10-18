@@ -34,6 +34,12 @@ test('deployed entrypoint serves HTML, assets, and API without binding its own p
       const csrf = await fetch(origin + '/api/csrf');
       assert.equal(csrf.status, 200);
       assert.match(csrf.headers.get('set-cookie'), /Secure/);
+      for (const path of ['/api/patient/profile', '/api/auth/login', '/api/doctor/patients/x']) {
+        const response = await fetch(origin + path);
+        assert.equal(response.status, 401, path);
+        assert.match(response.headers.get('content-type'), /application\\/json/);
+        await response.text();
+      }
     } finally {
       await new Promise((resolve) => server.close(resolve));
     }
@@ -94,5 +100,9 @@ test('Vercel explicitly builds static output rather than detecting a server fram
   assert.equal(config.framework, null);
   assert.equal(config.buildCommand, 'npm run build');
   assert.equal(config.outputDirectory, 'public');
-  assert.ok(config.functions['api/[...path].js']);
+  assert.deepEqual(config.rewrites, [
+    { source: '/api/:path*', destination: '/api/index.js' },
+  ]);
+  assert.deepEqual(config.functions['api/index.js'], { maxDuration: 10 });
+  assert.equal(config.functions['api/[...path].js'], undefined);
 });
