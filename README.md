@@ -38,6 +38,26 @@ docker run --rm -p 4173:4173 medihuman
 
 Then open <http://localhost:4173>.
 
+## Vercel deployment
+
+Vercel serves the PWA files directly and routes `/api` requests through the Node function adapters in `api/`. `vercel.json` also prevents stale service-worker caching.
+
+```sh
+npm install --global vercel
+vercel login
+vercel
+vercel --prod
+```
+
+Set production environment variables in Vercel Project Settings or with `vercel env add`:
+
+- `NODE_ENV=production`
+- `MEDIHUMAN_SUMMARY_URL` (optional)
+- `MEDIHUMAN_SUMMARY_API_KEY` (optional, server-side only)
+- `MEDIHUMAN_SUMMARY_MODEL` (optional)
+
+Vercel functions use `/tmp/medihuman.json` by default. Vercel `/tmp` storage is ephemeral and instance-local; this deployment setup is suitable for preview/demo use, not durable patient accounts. Production deployment needs a persistent database adapter for `src/backend/store.js`, plus secret management, audit logging, backups, and privacy/legal review.
+
 ## Architecture
 
 MediHuman uses small, dependency-free modules with one direction of ownership:
