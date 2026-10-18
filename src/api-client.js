@@ -10,7 +10,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request(path, options = {}) {
+async function request(path, options = {}, retryingCsrf = false) {
   const method = options.method || 'GET';
   if (method !== 'GET' && method !== 'HEAD') {
     if (!csrfToken) await request('/csrf');
@@ -27,7 +27,18 @@ async function request(path, options = {}) {
   try { payload = await response.json(); } catch { /* empty response */ }
   if (path === '/csrf' && response.ok) csrfToken = payload.csrfToken || '';
   if (response.ok && (path === '/auth/login' || path === '/auth/register')) await request('/csrf');
-  if (!response.ok) throw new ApiError(payload.error?.message || 'Request could not be completed.', response.status, payload.error?.code);
+  if (!response.ok && payload.error?.code === 'CSRF_INVALID' && method !== 'GET' && !retryingCsrf) {
+    csrfToken = '';
+    return request(path, options, true);
+  }
+  if (!response.ok) {
+    const fallback = response.status === 404
+      ? 'MediHuman API endpoint was not found. Start the MediHuman server and reload this page.'
+      : response.status >= 500
+        ? 'MediHuman server could not complete this request. Check the server log and try again.'
+        : `Request failed with status ${response.status}.`;
+    throw new ApiError(payload.error?.message || fallback, response.status, payload.error?.code);
+  }
   return payload;
 }
 
@@ -37,7 +48,7 @@ export const api = {
   me: () => request('/me'),
   login: (body) => json('POST', '/auth/login', body),
   register: (body) => json('POST', '/auth/register', body),
-  logout: () => json('POST', '/auth/logout', {}),
+  logout: async () => { const result = await json('POST', '/auth/logout', {}); csrfToken = ''; return result; },
   profile: () => request('/patient/profile'),
   saveProfile: (profile) => json('PUT', '/patient/profile', profile),
   medicines: () => request('/patient/medicines'),
