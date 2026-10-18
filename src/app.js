@@ -20,17 +20,46 @@ const state = {
 };
 
 const patientNavItems = [
-  ['dashboard', '⌂', 'Today'], ['patient', '♡', 'Patient'], ['medicines', '▣', 'Medicines'],
-  ['scan', '⌁', 'Scan prescription'], ['care-team', '♧', 'Care team'], ['doctors', '◌', 'Doctor discussion'], ['lifestyle', '✦', 'Daily support'],
+  ['dashboard', 'home', 'Today'], ['patient', 'profile', 'Patient'], ['medicines', 'medicines', 'Medicines'],
+  ['scan', 'scan', 'Scan prescription'], ['care-team', 'care-team', 'Care team'], ['doctors', 'questions', 'Doctor discussion'], ['lifestyle', 'support', 'Daily support'],
 ];
 const doctorNavItems = [
-  ['dashboard', '⌂', 'Doctor dashboard'], ['doctor-patients', '♧', 'Approved patients'],
+  ['dashboard', 'home', 'Doctor dashboard'], ['doctor-patients', 'care-team', 'Approved patients'],
 ];
 
 function emptyProfile() { return { fullName: '', dateOfBirth: '', allergies: '', conditions: '' }; }
 
 function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+}
+
+const ICON_PATHS = {
+  home: '<path d="m3.5 10 8.5-6.5 8.5 6.5v9.5a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z"/><path d="M9 20.5v-6h6v6"/>',
+  profile: '<circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c.8-3.4 3.3-5 7.5-5s6.7 1.6 7.5 5"/>',
+  medicines: '<path d="M8.5 4.5a4 4 0 0 1 5.7 0l5.3 5.3a4 4 0 0 1-5.7 5.7l-5.3-5.3a4 4 0 0 1 0-5.7Z"/><path d="m10.5 6.5 7 7"/>',
+  scan: '<rect x="5" y="6" width="14" height="12" rx="2"/><path d="M8 4v2M16 4v2M8 18v2M16 18v2M8 10h8M8 13h5"/>',
+  'care-team': '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3.5 20c.5-3.2 2.3-5 5.5-5s5 1.8 5.5 5M15 15c2.8 0 4.6 1.5 5 4"/>',
+  questions: '<path d="M5 5.5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-7l-4 3v-3H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z"/><path d="M8 10h8M8 13h5"/>',
+  support: '<path d="M12 20s-7-4.3-7-10a4 4 0 0 1 7-2.4A4 4 0 0 1 19 10c0 5.7-7 10-7 10Z"/><path d="M12 10v4M10 12h4"/>',
+  privacy: '<path d="M12 3.5 19 6v5.2c0 4.6-2.8 7.7-7 9.3-4.2-1.6-7-4.7-7-9.3V6z"/><path d="m8.8 12 2.1 2.1 4.3-4.3"/>',
+  signout: '<path d="M10 5H5.5a1.5 1.5 0 0 0-1.5 1.5v11A1.5 1.5 0 0 0 5.5 19H10"/><path d="M14 8l4 4-4 4M9 12h9"/>',
+  spark: '<path d="m12 3 1.5 6.5L20 12l-6.5 2.5L12 21l-1.5-6.5L4 12l6.5-2.5z"/>',
+  document: '<path d="M7 3.5h7l4 4V20.5H7a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2Z"/><path d="M14 3.5v4h4M8.5 12h5M8.5 15h5"/>',
+  arrow: '<path d="M5 12h13M13 7l5 5-5 5"/>',
+  add: '<path d="M12 5v14M5 12h14"/>',
+  safety: '<path d="M12 3.5 19 6v5.2c0 4.6-2.8 7.7-7 9.3-4.2-1.6-7-4.7-7-9.3V6z"/><path d="m8.5 12 2.2 2.2 4.8-4.8"/>',
+  edit: '<path d="m5 16.5-.8 3.3 3.3-.8L18 8.5 15.5 6z"/><path d="m14.5 7 2.5 2.5"/>',
+  compare: '<path d="M6 5v14M18 5v14M3.5 8.5H8.5M15.5 15.5h5M8 6.5l2-1.5-2-1.5M16 16.5l-2 1.5 2 1.5"/>',
+  info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 10.5v5M12 7.5h.01"/>',
+  lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2"/>',
+};
+
+function svgIcon(name, className = '') {
+  return `<svg class="ui-icon ${className}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICON_PATHS[name] || ICON_PATHS.info}</svg>`;
+}
+
+function brandIcon() {
+  return '<svg class="brand-svg" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect x="1" y="1" width="30" height="30" rx="10" fill="currentColor"/><path d="M16 8v16M8 16h16" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><circle cx="25" cy="7" r="3" fill="#9fdcd0"/></svg>';
 }
 
 function saveLocal() {
@@ -70,11 +99,11 @@ function renderAuth() {
   const register = state.authMode === 'register';
   const doctor = state.authRole === 'doctor';
   return `<main class="auth-layout">
-    <section class="auth-brand-panel"><a class="brand brand-light" href="/" aria-label="MediHuman home"><span class="brand-mark">+</span>MediHuman</a>
+     <section class="auth-brand-panel"><a class="brand brand-light" href="/" aria-label="MediHuman home"><span class="brand-mark">${brandIcon()}</span>MediHuman</a>
        <div class="auth-intro"><p class="eyebrow eyebrow-light">Medication information, organised</p><h1>Prepare for better care conversations.</h1><p>Review prescriptions, organise medicine details, and bring clearer questions to your care team.</p></div>
       <div class="auth-quote"><span class="quote-mark">“</span><p>Organized information helps conversations. It never replaces them.</p></div>
     </section>
-     <section class="auth-card-wrap"><div class="auth-card"><div class="auth-card-head"><span class="mini-mark">+</span><span class="privacy-chip">Privacy-focused workspace</span></div>
+     <section class="auth-card-wrap"><div class="auth-card"><div class="auth-card-head"><span class="mini-mark">${brandIcon()}</span><span class="privacy-chip">Privacy-focused workspace</span></div>
       <div class="auth-tabs" role="tablist"><button class="auth-tab ${!register ? 'active' : ''}" data-action="auth-login" role="tab" aria-selected="${!register}">Sign in</button><button class="auth-tab ${register ? 'active' : ''}" data-action="auth-register" role="tab" aria-selected="${register}">Create account</button></div>
        <div class="role-picker" aria-label="Choose workspace role"><span class="role-picker-label">I am signing in as</span><div class="role-picker-buttons"><button type="button" class="role-choice ${!doctor ? 'active' : ''}" data-action="auth-role" data-role="patient">Patient</button><button type="button" class="role-choice ${doctor ? 'active' : ''}" data-action="auth-role" data-role="doctor">Doctor</button></div></div>
         <h2>${register ? (doctor ? 'Create a clinician workspace' : 'Create your care workspace') : 'Welcome back'}</h2><p class="auth-subtitle">${register ? 'Create an account to save your information to your MediHuman workspace.' : 'Sign in to continue organising your medication information.'}</p>${doctor && register ? notice('<strong>Verification pending.</strong> Clinician accounts remain unverified until registration details are reviewed by your organisation.', 'warning') : ''}${state.authError ? notice(escapeHtml(state.authError), 'info') : ''}
@@ -320,8 +349,43 @@ function improveUiCopy(markup) {
   return UI_COPY_REPLACEMENTS.reduce((output, [from, to]) => output.replaceAll(from, to), markup);
 }
 
+function improveUiIcons(markup) {
+  const replacements = [
+    ['<span class="brand-mark">+</span>', `<span class="brand-mark">${brandIcon()}</span>`],
+    ['<span class="mini-mark">+</span>', `<span class="mini-mark">${brandIcon()}</span>`],
+    ['<span class="nav-icon">home</span>', `<span class="nav-icon">${svgIcon('home')}</span>`],
+    ['<span class="nav-icon">profile</span>', `<span class="nav-icon">${svgIcon('profile')}</span>`],
+    ['<span class="nav-icon">medicines</span>', `<span class="nav-icon">${svgIcon('medicines')}</span>`],
+    ['<span class="nav-icon">scan</span>', `<span class="nav-icon">${svgIcon('scan')}</span>`],
+    ['<span class="nav-icon">care-team</span>', `<span class="nav-icon">${svgIcon('care-team')}</span>`],
+    ['<span class="nav-icon">questions</span>', `<span class="nav-icon">${svgIcon('questions')}</span>`],
+    ['<span class="nav-icon">support</span>', `<span class="nav-icon">${svgIcon('support')}</span>`],
+    ['<span class="nav-icon">◈</span>', `<span class="nav-icon">${svgIcon('privacy')}</span>`],
+    ['<span class="nav-icon">↪</span>', `<span class="nav-icon">${svgIcon('signout')}</span>`],
+    ['<span class="today-orb">✦</span>', `<span class="today-orb">${svgIcon('spark')}</span>`],
+    ['<div class="scan-illustration"><span>✣</span>', `<div class="scan-illustration"><span>${svgIcon('document')}</span>`],
+    ['aria-label="View medicines">→</button>', `aria-label="View medicines">${svgIcon('arrow')}</button>`],
+    ['<span>→</span>', svgIcon('arrow')],
+    ['<span class="empty-icon">＋</span>', `<span class="empty-icon">${svgIcon('add')}</span>`],
+    ['<span class="empty-icon">▣</span>', `<span class="empty-icon">${svgIcon('medicines')}</span>`],
+    ['<span class="empty-icon">♧</span>', `<span class="empty-icon">${svgIcon('care-team')}</span>`],
+    ['<span class="safety-symbol">♥</span>', `<span class="safety-symbol">${svgIcon('safety')}</span>`],
+    ['<span class="soft-icon">♡</span>', `<span class="soft-icon">${svgIcon('profile')}</span>`],
+    ['<span class="soft-icon">▣</span>', `<span class="soft-icon">${svgIcon('medicines')}</span>`],
+    ['<span class="soft-icon">⌁</span>', `<span class="soft-icon">${svgIcon('scan')}</span>`],
+    ['<span class="soft-icon">✎</span>', `<span class="soft-icon">${svgIcon('edit')}</span>`],
+    ['<span class="soft-icon">↔</span>', `<span class="soft-icon">${svgIcon('compare')}</span>`],
+    ['<span class="soft-icon">?</span>', `<span class="soft-icon">${svgIcon('info')}</span>`],
+    ['<span class="soft-icon">◌</span>', `<span class="soft-icon">${svgIcon('questions')}</span>`],
+    ['<span class="soft-icon">♧</span>', `<span class="soft-icon">${svgIcon('care-team')}</span>`],
+    ['<span class="soft-icon">i</span>', `<span class="soft-icon">${svgIcon('info')}</span>`],
+    ['<span class="privacy-lock">◈</span>', `<span class="privacy-lock">${svgIcon('lock')}</span>`],
+  ];
+  return replacements.reduce((output, [from, to]) => output.replaceAll(from, to), markup);
+}
+
 function render() {
-  root.innerHTML = improveUiCopy(state.screen === 'auth' ? renderAuth() : renderShell());
+  root.innerHTML = improveUiIcons(improveUiCopy(state.screen === 'auth' ? renderAuth() : renderShell()));
   bindCamera();
 }
 

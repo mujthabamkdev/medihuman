@@ -19,6 +19,24 @@
 .clinical-findings,.composition-list{display:grid;gap:10px;margin:20px 0;padding:0;list-style:none}.clinical-finding{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fbfdfc}.clinical-finding strong{display:block;font-size:.84rem}.clinical-finding p{color:var(--muted);font-size:.78rem;line-height:1.45;margin:4px 0 0}.finding-severity{align-self:start;border-radius:999px;padding:4px 7px;color:var(--teal-dark);background:var(--mint);font-size:.65rem;font-weight:900;text-transform:uppercase}.finding-high{border-color:#efb8ae;background:#fff8f6}.finding-high .finding-severity{color:var(--rose-ink);background:var(--rose)}.finding-medium{border-color:#ead49a;background:#fffdf6}.finding-medium .finding-severity{color:var(--yellow-ink);background:var(--yellow)}.composition-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}.composition-row strong,.composition-row span{display:block}.composition-row>div>span{color:var(--muted);font-size:.75rem;margin-top:4px}.composition-chip{max-width:50%;color:var(--teal-dark);background:var(--mint);border-radius:999px;padding:6px 8px;font-size:.68rem;font-weight:800;text-align:right}.risk-ring-high{background:var(--rose)!important;color:var(--rose-ink)!important}
 @media(max-width:600px){.composition-row{align-items:flex-start;flex-direction:column}.composition-chip{max-width:100%;text-align:left}}
 
+/* Consistent medical-product icon system. */
+.ui-icon{display:block;width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.brand-mark{display:grid;place-items:center;width:32px;height:32px;background:transparent;font-size:0}
+.brand-mark .brand-svg{width:32px;height:32px;color:var(--teal)}
+.brand-light .brand-mark .brand-svg{color:#43a898}
+.mini-mark{display:grid;place-items:center;font-size:0}
+.mini-mark .brand-svg{width:25px;height:25px;color:var(--teal)}
+.nav-icon{display:grid;place-items:center}
+.nav-icon .ui-icon{width:18px;height:18px}
+.icon-button .ui-icon{width:16px;height:16px;margin:auto}
+.soft-icon .ui-icon{width:20px;height:20px}
+.today-orb .ui-icon{width:28px;height:28px}
+.scan-illustration span{display:grid;place-items:center}
+.scan-illustration span .ui-icon{width:76px;height:76px;stroke-width:1.25}
+.empty-icon .ui-icon{width:22px;height:22px}
+.safety-symbol .ui-icon{width:22px;height:22px}
+.privacy-lock .ui-icon{width:25px;height:25px}
+
 /* Footer belongs to shell, not centered page content. */
 .shell-content{min-height:100vh}
 .app-footer{width:100%;max-width:none;align-self:stretch;flex:none;padding:17px clamp(22px,4vw,58px) 22px}

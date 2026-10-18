@@ -1,7 +1,7 @@
 {
-  "name": "MediHuman medication companion",
+  "name": "MediHuman medication information organiser",
   "short_name": "MediHuman",
-  "description": "A calm, private workspace for reviewing medicine lists.",
+  "description": "A privacy-focused workspace for organising medication information.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f8f6",

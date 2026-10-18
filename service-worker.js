@@ -1,4 +1,4 @@
-const CACHE = 'medihuman-shell-v1';
+const CACHE = 'medihuman-shell-v2';
 const SHELL = ['/', '/index.html', '/styles.css', '/src/app.js', '/src/api-client.js', '/src/ocr-adapter.js', '/src/medication-logic.js', '/src/clinical-logic.js', '/src/icon.svg', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
