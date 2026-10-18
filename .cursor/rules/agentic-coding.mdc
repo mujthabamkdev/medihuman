@@ -1,0 +1,41 @@
+---
+description: Fast, safe, behavior-preserving rules for every MediHuman agent task
+alwaysApply: true
+---
+
+# MediHuman Agent Rules
+
+## Fast path
+- Read `README.md` architecture section and `git status` before editing.
+- Reproduce reported bug first; identify smallest responsible module.
+- Make narrow patches. Preserve unrelated working-tree changes.
+- Run `npm test`, relevant `node --check` commands, and `git diff --check`.
+- Never claim browser, camera, Docker, or deployment checks unless actually run.
+
+## Architecture boundaries
+- `src/app.js`: composition entrypoint only.
+- `src/client/state.js`: state shape and local storage (`medihuman.local-workspace.v3`).
+- `src/client/views.js`: pure HTML rendering; no DOM writes or side effects.
+- `src/client/controller.js`: events, API calls, camera/OCR, persistence orchestration.
+- `src/client/ui.js`: escaping, buttons, notices, SVG primitives.
+- `src/backend/api.js`: HTTP composition and route order only.
+- `src/backend/routes/`: endpoint behavior by feature.
+- `src/backend/auth.js`, `http.js`, `validation.js`, `records.js`: focused shared concerns.
+- `styles.css`: stable entrypoint; keep `styles/*.css` import order: tokens → base → typography → layout → components → views → roles → utilities → responsive.
+
+## Compatibility contracts
+- Preserve `data-action`, `data-form`, DOM IDs, API paths/status/payloads, CSRF cookies, and role gates.
+- Preserve local storage keys and v1→v2 backend migration behavior.
+- New client modules must be added to `service-worker.js` shell cache.
+- New CSS files must be copied by `Dockerfile` and served by the static server.
+
+## Safety
+- Never commit credentials, tokens, `.data/`, logs, or private patient data.
+- Keep medication logic cautious and non-diagnostic.
+- Doctors see records only after patient approval.
+- Add tests for changed boundaries; prefer pure tests over dependencies.
+
+## Git
+- Use conventional commits: `fix:`, `feat:`, `refactor:`, `test:`, `docs:`.
+- Stage only intended files. Inspect status, diff, and recent log before commit.
+- Push only when requested or when established task workflow requires it.
