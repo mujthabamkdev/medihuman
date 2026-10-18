@@ -4,7 +4,10 @@ const DATA_FILE = process.env.DATA_FILE || '/tmp/medihuman.json';
 let appPromise;
 
 function getApp() {
-  appPromise ||= createApp({ dataFile: DATA_FILE });
+  // Vercel bundles files under /var/task; process.cwd() is deployment root.
+  // Explicit publicRoot keeps static assets available if a request is routed
+  // through this function instead of Vercel's static file handler.
+  appPromise ||= createApp({ dataFile: DATA_FILE, publicRoot: process.cwd() });
   return appPromise;
 }
 
