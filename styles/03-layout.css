@@ -36,6 +36,7 @@
 .workspace-card { display: flex; gap: 10px; align-items: center; background: var(--mint-2); border: 1px solid #d8eee6; border-radius: 13px; padding: 11px; margin: 0 0 24px; }
 .workspace-avatar,
 .avatar { width: 31px; height: 31px; border-radius: 10px; background: var(--teal); color: #fff; display: grid; place-items: center; font-size: .68rem; font-weight: 700; flex: none; }
+.workspace-card > div { min-width: 0; }
 .workspace-card strong,
 .workspace-card span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-card strong { font-size: .78rem; max-width: 160px; }
@@ -48,27 +49,20 @@
 .nav-item.active { background: var(--mint); color: var(--teal-dark); font-weight: 700; }
 .nav-icon { width: 18px; text-align: center; font-size: 1rem; }
 .nav-badge { margin-left: auto; color: var(--teal-dark); background: #a9ddcf; border-radius: 5px; font-size: .57rem; padding: 3px 5px; font-weight: 700; }
-.shell-content { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.shell-content { min-width: 0; min-height: 100vh; flex: 1; display: flex; flex-direction: column; }
 .topbar { min-height: 91px; background: #fff; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 20px clamp(22px, 4vw, 58px); }
+.topbar > div:first-of-type { min-width: 0; flex: 1; }
 .topbar-kicker { font-size: .66rem; color: var(--muted); text-transform: uppercase; letter-spacing: .14em; margin: 0 0 4px; }
-.topbar h1 { font-family: Fraunces, Georgia, serif; letter-spacing: -.045em; font-size: 1.55rem; margin: 0; }
+.topbar h1 { font-family: Fraunces, Georgia, serif; letter-spacing: -.045em; font-size: 1.55rem; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar-actions { display: flex; gap: 19px; align-items: center; }
 .secure-label { color: var(--muted); font-size: .7rem; display: flex; align-items: center; gap: 7px; }
 .status-dot { width: 7px; height: 7px; background: #52b39f; border-radius: 50%; }
 .avatar { width: 38px; height: 38px; border-radius: 12px; }
-.content-page { width: min(1100px, calc(100% - 48px)); margin: 0 auto; padding: 45px 0 55px; flex: 1; }
+.content-page { display: block; width: 100%; min-width: 0; margin: 0 auto; padding: 48px clamp(22px, 4vw, 58px) 42px; flex: 1; }
 .footer-link,
 .text-link { border: 0; background: none; color: var(--teal-dark); font-size: .72rem; font-weight: 700; padding: 0; }
 .mobile-menu { border: 0; background: none; font-size: 1.25rem; color: var(--ink); padding: 6px; }
 
-/* Wide-screen guardrails prevent flex shrink from collapsing page copy. */
-.shell-content { min-width: 0; width: calc(100% - 252px); max-width: calc(100% - 252px); flex: 1 1 auto; }
-.topbar > div:first-of-type { min-width: 0; flex: 1; }
-.topbar h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.content-page { display: block; width: 100%; max-width: 1440px; min-width: 0; margin: 0 auto; padding: 48px clamp(22px, 4vw, 58px) 42px; }
-.section-intro { width: 100%; max-width: 760px; min-width: 0; }
-.section-intro .page-title { max-width: 100%; overflow-wrap: normal; word-break: normal; }
-.inline-intro { max-width: 100%; }
 .lifestyle-grid,
 .risk-grid,
 .scan-grid,

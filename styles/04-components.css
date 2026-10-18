@@ -9,25 +9,29 @@
 .button-wide { width: 100%; }
 .button-small { padding: 7px 10px; font-size: .68rem; }
 .icon-button { border: 0; border-radius: 9px; background: var(--mint); color: var(--teal-dark); width: 31px; height: 31px; }
-.card { background: #fff; border: 1px solid var(--line); border-radius: 17px; padding: 24px; box-shadow: 0 9px 28px rgba(18, 60, 58, .035); }
+.card { min-width: 0; overflow-wrap: anywhere; background: #fff; border: 1px solid var(--line); border-radius: 17px; padding: 24px; box-shadow: 0 9px 28px rgba(18, 60, 58, .035); }
 .card h3 { font-family: Fraunces, Georgia, serif; letter-spacing: -.035em; font-size: 1.25rem; margin: 0; }
 .card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 21px; }
-.soft-icon { width: 35px; height: 35px; border-radius: 11px; background: var(--mint); color: var(--teal-dark); display: grid; place-items: center; font-size: 1.15rem; }
+.card-heading > div { min-width: 0; }
+.soft-icon { width: 35px; height: 35px; flex: none; border-radius: 11px; background: var(--mint); color: var(--teal-dark); display: grid; place-items: center; font-size: 1.15rem; }
 .large-soft { width: 49px; height: 49px; font-size: 1.5rem; }
 .stack-form { display: grid; gap: 17px; }
 .stack-form label,
-.large-label { display: flex; flex-direction: column; gap: 7px; color: var(--ink-soft); font-size: .76rem; font-weight: 700; }
+.large-label { min-width: 0; display: flex; flex-direction: column; gap: 7px; color: var(--ink-soft); font-size: .76rem; font-weight: 700; }
 .stack-form input,
 .stack-form textarea,
 .large-label textarea,
 .large-label input,
 .medicine-fields input,
-.add-question input { width: 100%; background: #fbfdfc; border: 1px solid #cbdcd6; border-radius: 9px; color: var(--ink); padding: 11px 12px; outline: 0; font-size: .83rem; font-weight: 400; }
+.add-question input { width: 100%; min-width: 0; background: #fbfdfc; border: 1px solid #cbdcd6; border-radius: 9px; color: var(--ink); padding: 11px 12px; font-size: .83rem; font-weight: 400; }
+.stack-form .check-row { flex-direction: row; font-weight: 400; }
+.stack-form .check-row input { width: 16px; height: 16px; padding: 0; border-radius: 0; }
 .stack-form textarea,
 .large-label textarea { resize: vertical; line-height: 1.5; }
 .stack-form input:focus,
 .stack-form textarea:focus,
 .large-label textarea:focus,
+.large-label input:focus,
 .medicine-fields input:focus,
 .add-question input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(22, 124, 112, .12); }
 .form-actions { display: flex; align-items: center; gap: 15px; margin-top: 3px; }

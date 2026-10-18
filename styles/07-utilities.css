@@ -3,6 +3,9 @@
 .noscript { max-width: 500px; margin: 80px auto; padding: 30px; background: #fff; border: 1px solid var(--line); border-radius: 15px; }
 .noscript h1 { font-family: Fraunces, Georgia, serif; }
 .auth-error { margin-bottom: 10px; }
+:is(button, a, input, textarea, select, [tabindex]):focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+.file-button:focus-within,
+.consent-toggle input:focus-visible ~ .toggle-ui { outline: 2px solid var(--teal); outline-offset: 3px; }
 
 /* Consistent medical-product icon system. */
 svg:not(.brand-svg) { display: block; width: 1.15em; height: 1.15em; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
@@ -23,12 +26,11 @@ svg:not(.brand-svg) { display: block; width: 1.15em; height: 1.15em; fill: none;
 .privacy-lock svg { width: 25px; height: 25px; }
 
 /* Footer belongs to shell, not centered page content. */
-.shell-content { min-height: 100vh; }
 .shell-content > .app-footer {
   box-sizing: border-box;
   display: flex;
   width: 100%;
-  min-width: 100%;
+  min-width: 0;
   max-width: none;
   margin: 0;
   align-self: stretch;
@@ -40,6 +42,8 @@ svg:not(.brand-svg) { display: block; width: 1.15em; height: 1.15em; fill: none;
   gap: 8px;
   color: var(--muted);
   font-size: .69rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
   padding: 17px clamp(22px, 4vw, 58px) 22px;
 }
 .app-footer > span { min-width: 0; flex: none; }

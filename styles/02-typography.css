@@ -10,8 +10,10 @@
 .save-note,
 .privacy-caption { color: var(--muted); font-size: .8rem; }
 .page-title { font-family: Fraunces, Georgia, serif; font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.055em; line-height: 1.04; margin: 0 0 11px; }
-.section-intro { max-width: 720px; margin: 5px 0 30px; }
+.section-intro { width: 100%; max-width: 760px; min-width: 0; margin: 5px 0 30px; }
 .section-intro > p:last-child,
 .page-lede { color: var(--muted); font-size: .96rem; line-height: 1.6; max-width: 620px; }
-.inline-intro { max-width: none; display: flex; align-items: flex-end; justify-content: space-between; gap: 25px; }
-.inline-intro .button { flex: 0 0 auto; }
+.inline-intro { max-width: none; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 25px; }
+.inline-intro > div:first-child { min-width: 0; flex: 1 1 30rem; }
+.inline-intro > .button,
+.inline-intro > .status-pill { flex: none; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
