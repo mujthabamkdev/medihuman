@@ -69,6 +69,21 @@ STORE_BACKEND=supabase npm run migrate:supabase
 
 Migration refuses to overwrite a non-empty Supabase state. Set `SUPABASE_MIGRATE_OVERWRITE=1` only after an explicit backup and review.
 
+Create a private JSON backup before migrations or maintenance. Backup files are written outside Git-tracked paths with mode `0600`:
+
+```sh
+STORE_BACKEND=supabase npm run backup:supabase
+```
+
+Restore a reviewed backup only as an explicit operation:
+
+```sh
+DATA_FILE=.supabase-backups/medihuman-YYYY-MM-DDTHH-MM-SS-sssZ.json \
+STORE_BACKEND=supabase SUPABASE_MIGRATE_OVERWRITE=1 npm run migrate:supabase
+```
+
+The Supabase revision column plus `medihuman_commit_state` RPC provide optimistic multi-instance locking. Conflicting writes retry twice and never fall back to `/tmp` or local JSON. Vercel now defaults to `STORE_BACKEND=supabase`; set `STORE_BACKEND=json` only for intentional local/preview runs.
+
 ## Vercel deployment
 
 Use Vercel's **Other** framework preset for a static frontend plus one shared `api/index.js` function. The checked-in `vercel.json` sets `framework: null`, `buildCommand: "npm run build"`, `outputDirectory: "public"`, and rewrites `/api/:path*` to that function; it also prevents stale service-worker caching. Do not select a Node/server framework or rewrite all non-API requests to a function: Vercel's automatic `server.js` backend detection can make `/api/health` work while `/`, `/index.html`, and `/styles.css` return JSON 404 responses.
@@ -106,7 +121,7 @@ Set production environment variables in Vercel Project Settings or with `vercel 
 - `MEDIHUMAN_SUMMARY_API_KEY` (optional, server-side only)
 - `MEDIHUMAN_SUMMARY_MODEL` (optional)
 
-Vercel `/tmp` storage remains available only for local/preview JSON mode. With `STORE_BACKEND=supabase`, accounts, sessions, and patient records use the linked Supabase database. Production still needs secret management, audit logging, backups, and privacy/legal review.
+Vercel `/tmp` storage is not used by default. With `STORE_BACKEND=supabase`, accounts, sessions, and patient records use the linked Supabase database. Production still needs scheduled backup execution, audit logging, backups retention, and privacy/legal review.
 
 ## Architecture
 

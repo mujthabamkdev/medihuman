@@ -30,7 +30,7 @@ export async function createApp({
   googleRedirectUri,
   fetchImpl = globalThis.fetch,
 } = {}) {
-  const selectedBackend = process.env.STORE_BACKEND || 'json';
+  const selectedBackend = process.env.STORE_BACKEND || (process.env.VERCEL === '1' ? 'supabase' : 'json');
   const dataStore = store || await (selectedBackend === 'supabase'
     ? new SupabaseDataStore({ fetchImpl }).init()
     : selectedBackend === 'json'

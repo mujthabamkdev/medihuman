@@ -50,6 +50,7 @@ test('deployed entrypoint serves HTML, assets, and API without binding its own p
       ...process.env,
       VERCEL: '1',
       NODE_ENV: 'production',
+      STORE_BACKEND: 'json',
       DATA_FILE: join(directory, 'data.json'),
     },
     encoding: 'utf8',
