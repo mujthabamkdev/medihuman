@@ -5,7 +5,7 @@ import { getAuth, googleAuthConfig, requireAuth, requireCsrf } from './auth.js';
 import { HttpError } from './errors.js';
 import { clientIp, sendError, staticResponse } from './http.js';
 import { RateLimiter } from './rate-limit.js';
-import { JsonDataStore } from './store.js';
+import { JsonDataStore, SupabaseDataStore } from './store.js';
 import { handleAccessRoute } from './routes/access.js';
 import { handleAuthRoute } from './routes/auth.js';
 import { handleDoctorRoute } from './routes/doctor.js';
@@ -30,7 +30,12 @@ export async function createApp({
   googleRedirectUri,
   fetchImpl = globalThis.fetch,
 } = {}) {
-  const dataStore = store || await new JsonDataStore(dataFile).init();
+  const selectedBackend = process.env.STORE_BACKEND || 'json';
+  const dataStore = store || await (selectedBackend === 'supabase'
+    ? new SupabaseDataStore({ fetchImpl }).init()
+    : selectedBackend === 'json'
+      ? new JsonDataStore(dataFile).init()
+      : Promise.reject(new Error('STORE_BACKEND must be json or supabase.')));
   const protectedDataFile = resolve(dataFile);
   const protectedDataDirectory = resolve(dataFile, '..');
   if (store && !store.state) await store.init();
@@ -46,6 +51,7 @@ export async function createApp({
       }
 
       rateLimiter.check(clientIp(request), AUTH_PATHS.has(pathname), now);
+      if (pathname !== '/api/health' && typeof dataStore.refresh === 'function') await dataStore.refresh();
       const auth = await getAuth(dataStore, request, now);
       const method = request.method || 'GET';
       const stateChanging = !['GET', 'HEAD', 'OPTIONS'].includes(method);

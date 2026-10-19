@@ -38,6 +38,37 @@ docker run --rm -p 4173:4173 medihuman
 
 Then open <http://localhost:4173>.
 
+## Supabase persistence
+
+Supabase is an optional server-side persistence backend. The app uses direct Node `fetch` against PostgREST; no Supabase SDK is bundled into the browser. This keeps dependencies and client egress small, and the service-role key never reaches the frontend.
+
+The checked-in migration creates one locked-down `medihuman_state` row plus an atomic revision function. The app fetches only the row revision at request start and downloads the full JSON state only on cold start or when another instance changed it. Writes return no state payload. This keeps Supabase egress low while preserving the existing backend contract.
+
+Apply schema to linked project:
+
+```sh
+supabase link --project-ref hagplohwjudzbenftljk
+supabase db push
+```
+
+Set server-only environment variables before starting the app or deploying:
+
+```sh
+STORE_BACKEND=supabase
+SUPABASE_URL=https://hagplohwjudzbenftljk.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=replace-me
+```
+
+Never put `SUPABASE_SERVICE_ROLE_KEY` in browser, `index.html`, `public/`, or `NEXT_PUBLIC_*` variables. Local JSON remains default until `STORE_BACKEND=supabase` is set.
+
+To import existing local `.data/medihuman.json`, first back it up, then run:
+
+```sh
+STORE_BACKEND=supabase npm run migrate:supabase
+```
+
+Migration refuses to overwrite a non-empty Supabase state. Set `SUPABASE_MIGRATE_OVERWRITE=1` only after an explicit backup and review.
+
 ## Vercel deployment
 
 Use Vercel's **Other** framework preset for a static frontend plus one shared `api/index.js` function. The checked-in `vercel.json` sets `framework: null`, `buildCommand: "npm run build"`, `outputDirectory: "public"`, and rewrites `/api/:path*` to that function; it also prevents stale service-worker caching. Do not select a Node/server framework or rewrite all non-API requests to a function: Vercel's automatic `server.js` backend detection can make `/api/health` work while `/`, `/index.html`, and `/styles.css` return JSON 404 responses.
@@ -68,11 +99,14 @@ npx --yes vercel --prod
 Set production environment variables in Vercel Project Settings or with `vercel env add`:
 
 - `NODE_ENV=production`
+- `STORE_BACKEND=supabase`
+- `SUPABASE_URL=https://hagplohwjudzbenftljk.supabase.co`
+- `SUPABASE_SERVICE_ROLE_KEY` (server-only Supabase service-role key)
 - `MEDIHUMAN_SUMMARY_URL` (optional)
 - `MEDIHUMAN_SUMMARY_API_KEY` (optional, server-side only)
 - `MEDIHUMAN_SUMMARY_MODEL` (optional)
 
-Vercel functions use `/tmp/medihuman.json` by default. Vercel `/tmp` storage is ephemeral and instance-local: accounts, sessions, and patient records may disappear on cold starts or redeployments and may differ between function instances. This deployment setup is suitable for preview/demo use, not durable patient accounts. Production deployment needs a persistent database adapter for `src/backend/store.js`, plus secret management, audit logging, backups, and privacy/legal review.
+Vercel `/tmp` storage remains available only for local/preview JSON mode. With `STORE_BACKEND=supabase`, accounts, sessions, and patient records use the linked Supabase database. Production still needs secret management, audit logging, backups, and privacy/legal review.
 
 ## Architecture
 
