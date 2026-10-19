@@ -1,5 +1,6 @@
 export const LOCAL_KEY = 'medihuman.local-workspace.v3';
 export const LOCAL_MODE_KEY = 'medihuman.mode';
+export const LOCAL_TTL_MS = 30 * 60 * 1000;
 
 export const patientNavItems = [
   ['dashboard', 'home', 'Today'], ['medicines', 'medicines', 'Medicines'],
@@ -37,12 +38,13 @@ export function saveLocal(state) {
     prescriptions: state.prescriptions, reconciliations: state.reconciliations, indications: state.indications, notifications: state.notifications, prescriptionText: state.prescriptionText, dispensedText: state.dispensedText, questions: state.questions, consent: state.consent,
     doctorProfile: state.doctorProfile, accessRequests: state.patientRequests,
   };
-  localStorage.setItem(LOCAL_KEY, JSON.stringify(copy));
+    sessionStorage.setItem(LOCAL_KEY, JSON.stringify({ ...copy, expiresAt: Date.now() + LOCAL_TTL_MS }));
 }
 
 export function loadLocal(state) {
   try {
-    const saved = JSON.parse(localStorage.getItem(LOCAL_KEY) || '{}');
+    const saved = JSON.parse(sessionStorage.getItem(LOCAL_KEY) || '{}');
+    if (saved.expiresAt && Number(saved.expiresAt) <= Date.now()) { sessionStorage.removeItem(LOCAL_KEY); return; }
     if (saved.profile) state.profile = { ...state.profile, ...saved.profile };
     if (saved.role === 'doctor' || saved.role === 'patient') state.role = state.authRole = saved.role;
     if (Array.isArray(saved.medicines)) state.medicines = saved.medicines;
@@ -56,7 +58,7 @@ export function loadLocal(state) {
     if (Array.isArray(saved.accessRequests)) { state.patientRequests = saved.accessRequests; state.doctorRequests = saved.accessRequests; }
     if (saved.doctorProfile) state.doctorProfile = { ...state.doctorProfile, ...saved.doctorProfile };
     state.consent = Boolean(saved.consent);
-  } catch { localStorage.removeItem(LOCAL_KEY); }
+  } catch { sessionStorage.removeItem(LOCAL_KEY); }
 }
 
 export function setLocalMode(enabled) {

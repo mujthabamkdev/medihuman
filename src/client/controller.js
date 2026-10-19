@@ -400,7 +400,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
   }
 
   function clearLocalWorkspace() {
-    localStorage.removeItem(LOCAL_KEY);
+    sessionStorage.removeItem(LOCAL_KEY);
     state.profile = emptyProfile(); state.medicines = []; state.prescriptionText = ''; state.dispensedText = ''; state.questions = [];
     state.patientRequests = []; state.doctorRequests = []; state.doctorRecords = {}; state.prescriptions = []; state.reconciliations = []; state.indications = []; state.notifications = []; state.consent = false; state.profile.patientId = '';
   }
