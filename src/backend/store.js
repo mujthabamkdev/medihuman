@@ -15,6 +15,7 @@ const EMPTY_STATE = {
   indications: [],
   notifications: [],
   accessRequests: [],
+  auditLogs: [],
 };
 
 function clone(value) {

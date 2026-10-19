@@ -147,6 +147,9 @@ test('auth uses scrypt, HttpOnly cookies, CSRF, and stores no raw password', asy
   assert.equal(stored.users[0].passwordHash.algorithm, 'scrypt');
   assert.equal(JSON.stringify(stored).includes('correct horse battery staple'), false);
   assert.equal(JSON.stringify(stored).includes(cookie), false);
+  assert.ok(stored.auditLogs.some((event) => event.action === 'auth.register' && event.outcome === 'success'));
+  assert.ok(stored.auditLogs.some((event) => event.action === 'record.profile_update'));
+  assert.ok(stored.auditLogs.some((event) => event.action === 'record.reconciliation_create'));
 });
 
 test('invalid JSON and login failures return safe JSON errors', async (t) => {

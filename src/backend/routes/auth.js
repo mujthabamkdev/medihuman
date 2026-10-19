@@ -8,6 +8,7 @@ import {
   setAuthCookies, setGoogleStateCookie,
 } from '../http.js';
 import { publicProfile } from '../records.js';
+import { addAuditEvent } from '../audit.js';
 import { hashPassword, newId, safeEqualText, verifyPassword } from '../security.js';
 import {
   allowedKeys, doctorRegistrationValue, emailValue, passwordValue, profileValue, roleValue,
@@ -114,6 +115,7 @@ export async function handleAuthRoute(ctx) {
         if (existing.googleSub && existing.googleSub !== identity.sub) throw new HttpError(409, 'GOOGLE_IDENTITY_CONFLICT', 'Google sign-in could not be completed.');
         existing.email = identity.email;
         existing.googleSub ||= identity.sub;
+        addAuditEvent(data, { actorUserId: existing.id, action: 'auth.google_sign_in', entityType: 'session', outcome: 'success' }, now);
         return existing;
       }
       const created = {
@@ -137,6 +139,7 @@ export async function handleAuthRoute(ctx) {
       };
       data.users.push(created);
       data.profiles.push({ userId: created.id, ...profileValue(), updatedAt: new Date(now).toISOString() });
+      addAuditEvent(data, { actorUserId: created.id, action: 'auth.google_register', entityType: 'account', entityId: created.id, outcome: 'success' }, now);
       return created;
     });
     if (!user) return redirectGoogleError('google_role_mismatch');
@@ -174,7 +177,10 @@ export async function handleAuthRoute(ctx) {
       throw new HttpError(400, 'INVALID_FIELD', 'Doctor registration fields require role doctor.');
     }
     const existing = await dataStore.read((state) => state.users.some((user) => user.email === email));
-    if (existing) throw new HttpError(409, 'ACCOUNT_EXISTS', 'Account already exists.');
+    if (existing) {
+      await dataStore.transact((state) => addAuditEvent(state, { action: 'auth.register', entityType: 'account', outcome: 'failure' }, now));
+      throw new HttpError(409, 'ACCOUNT_EXISTS', 'Account already exists.');
+    }
     const user = {
       id: newId(),
       email,
@@ -186,6 +192,7 @@ export async function handleAuthRoute(ctx) {
     await dataStore.transact((state) => {
       state.users.push(user);
       state.profiles.push({ userId: user.id, ...profile, updatedAt: new Date(now).toISOString() });
+      addAuditEvent(state, { actorUserId: user.id, action: 'auth.register', entityType: 'account', entityId: user.id, outcome: 'success' }, now);
     });
     const session = await createSession(dataStore, user.id, now);
     setAuthCookies(response, session.sessionToken, session.csrfToken, secureCookies);
@@ -199,14 +206,21 @@ export async function handleAuthRoute(ctx) {
     const password = passwordValue(body.password);
     const user = await dataStore.read((state) => state.users.find((item) => item.email === email));
     const valid = await verifyPassword(password, user?.passwordHash);
-    if (!user || !valid) throw new HttpError(401, 'INVALID_CREDENTIALS', 'Invalid email or password.');
+    if (!user || !valid) {
+      await dataStore.transact((state) => addAuditEvent(state, { action: 'auth.login', entityType: 'session', outcome: 'failure' }, now));
+      throw new HttpError(401, 'INVALID_CREDENTIALS', 'Invalid email or password.');
+    }
     const session = await createSession(dataStore, user.id, now);
+    await dataStore.transact((state) => addAuditEvent(state, { actorUserId: user.id, action: 'auth.login', entityType: 'session', outcome: 'success' }, now));
     setAuthCookies(response, session.sessionToken, session.csrfToken, secureCookies);
     sendJson(response, 200, { user: publicUser(user) });
     return true;
   }
   if (isLogout && method === 'POST') {
-    if (auth) await dataStore.transact((state) => { state.sessions = state.sessions.filter((item) => item.id !== auth.session.id); });
+    if (auth) await dataStore.transact((state) => {
+      state.sessions = state.sessions.filter((item) => item.id !== auth.session.id);
+      addAuditEvent(state, { actorUserId: auth.user.id, action: 'auth.logout', entityType: 'session', entityId: auth.session.id, outcome: 'success' }, now);
+    });
     clearAuthCookies(response, secureCookies);
     sendJson(response, 200, { ok: true });
     return true;

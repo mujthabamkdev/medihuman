@@ -11,6 +11,7 @@ import {
   allowedKeys, listValue, medicineListValue, prescriptionValue, profileValue, stringValue,
 } from '../validation.js';
 import { compareMedicines } from '../../medication-logic.js';
+import { addAuditEvent } from '../audit.js';
 
 export async function handlePatientRoute(ctx) {
   const { pathname, method, request, response, dataStore, now, current } = ctx;
@@ -28,6 +29,7 @@ export async function handlePatientRoute(ctx) {
       const item = state.notifications.find((entry) => entry.id === id && entry.recipientUserId === current.user.id);
       if (!item) throw new HttpError(404, 'NOT_FOUND', 'Notification not found.');
       item.readAt = new Date(now).toISOString();
+      addAuditEvent(state, { actorUserId: current.user.id, action: 'notification.read', entityType: 'notification', entityId: id }, now);
       return publicNotification(item);
     });
     sendJson(response, 200, { notification: updated });
@@ -69,7 +71,8 @@ export async function handlePatientRoute(ctx) {
       const existing = state.profiles.find((item) => item.userId === current.user.id);
        if (existing) Object.assign(existing, profile, { updatedAt: new Date(now).toISOString() });
        else state.profiles.push({ userId: current.user.id, ...profile, updatedAt: new Date(now).toISOString() });
-       notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Patient profile updated', message: 'A patient profile record was added or updated.', entityType: 'profile', entityId: current.user.id }, now);
+        notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Patient profile updated', message: 'A patient profile record was added or updated.', entityType: 'profile', entityId: current.user.id }, now);
+        addAuditEvent(state, { actorUserId: current.user.id, action: 'record.profile_update', entityType: 'profile', entityId: current.user.id }, now);
     });
     sendJson(response, 200, { profile: publicProfile(profile, current.user) });
     return true;
@@ -89,7 +92,8 @@ export async function handlePatientRoute(ctx) {
       const existing = state.medicines.find((item) => item.userId === current.user.id);
        if (existing) Object.assign(existing, { items: medicines, updatedAt: new Date(now).toISOString() });
        else state.medicines.push({ userId: current.user.id, items: medicines, updatedAt: new Date(now).toISOString() });
-       notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Medicine list updated', message: 'A patient medicine record was added or updated.', entityType: 'medicines', entityId: current.user.id }, now);
+        notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Medicine list updated', message: 'A patient medicine record was added or updated.', entityType: 'medicines', entityId: current.user.id }, now);
+        addAuditEvent(state, { actorUserId: current.user.id, action: 'record.medicines_update', entityType: 'medicines', entityId: current.user.id }, now);
     });
     sendJson(response, 200, { medicines });
     return true;
@@ -105,10 +109,11 @@ export async function handlePatientRoute(ctx) {
     requireRole(current, 'patient');
     const prescription = prescriptionValue(await readJson(request));
     const record = { id: newId(), userId: current.user.id, ...prescription, createdAt: new Date(now).toISOString(), updatedAt: new Date(now).toISOString() };
-     await dataStore.transact((state) => {
-       state.prescriptions.push(record);
-       notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Prescription record added', message: 'A patient prescription record was added.', entityType: 'prescription', entityId: record.id }, now);
-     });
+      await dataStore.transact((state) => {
+        state.prescriptions.push(record);
+        notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Prescription record added', message: 'A patient prescription record was added.', entityType: 'prescription', entityId: record.id }, now);
+        addAuditEvent(state, { actorUserId: current.user.id, action: 'record.prescription_create', entityType: 'prescription', entityId: record.id }, now);
+      });
     sendJson(response, 201, { prescription: publicPrescription(record) });
     return true;
   }
@@ -137,12 +142,19 @@ export async function handlePatientRoute(ctx) {
         prescriber: input.prescriber ?? existing.prescriber,
       });
       const updated = { ...existing, ...prescription, updatedAt: new Date(now).toISOString() };
-      await dataStore.transact((state) => { const item = state.prescriptions.find((entry) => entry.id === id && entry.userId === current.user.id); Object.assign(item, updated); });
+      await dataStore.transact((state) => {
+        const item = state.prescriptions.find((entry) => entry.id === id && entry.userId === current.user.id);
+        Object.assign(item, updated);
+        addAuditEvent(state, { actorUserId: current.user.id, action: 'record.prescription_update', entityType: 'prescription', entityId: id }, now);
+      });
       sendJson(response, 200, { prescription: publicPrescription(updated) });
       return true;
     }
     if (method === 'DELETE') {
-      await dataStore.transact((state) => { state.prescriptions = state.prescriptions.filter((item) => item.id !== id || item.userId !== current.user.id); });
+      await dataStore.transact((state) => {
+        state.prescriptions = state.prescriptions.filter((item) => item.id !== id || item.userId !== current.user.id);
+        addAuditEvent(state, { actorUserId: current.user.id, action: 'record.prescription_delete', entityType: 'prescription', entityId: id }, now);
+      });
       sendJson(response, 200, { ok: true });
       return true;
     }
@@ -175,10 +187,11 @@ export async function handlePatientRoute(ctx) {
       isExactMatch: comparison.isExactMatch, notes: stringValue(body.notes, 'notes', { max: 1_000 }),
       createdAt: new Date(now).toISOString(),
     };
-     await dataStore.transact((state) => {
-       state.reconciliations.push(record);
-       notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Medicine comparison added', message: 'A patient medicine comparison was added.', entityType: 'reconciliation', entityId: record.id }, now);
-     });
+      await dataStore.transact((state) => {
+        state.reconciliations.push(record);
+        notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Medicine comparison added', message: 'A patient medicine comparison was added.', entityType: 'reconciliation', entityId: record.id }, now);
+        addAuditEvent(state, { actorUserId: current.user.id, action: 'record.reconciliation_create', entityType: 'reconciliation', entityId: record.id }, now);
+      });
     sendJson(response, 201, { reconciliation: publicReconciliation(record) });
     return true;
   }

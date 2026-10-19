@@ -1,4 +1,5 @@
 import { publicUser } from '../auth.js';
+import { addAuditEvent } from '../audit.js';
 import { HttpError } from '../errors.js';
 import { readJson, sendJson } from '../http.js';
 import { decodePathValue } from '../records.js';
@@ -33,6 +34,7 @@ export async function handleAdminRoute(ctx) {
     user.doctorProfile.verified = status === 'verified';
     user.doctorProfile.verifiedAt = status === 'verified' ? new Date(now).toISOString() : undefined;
     user.doctorProfile.updatedAt = new Date(now).toISOString();
+    addAuditEvent(state, { action: `clinician.${status}`, entityType: 'clinician', entityId: user.id }, now);
     return publicUser(user);
   });
 

@@ -1,4 +1,5 @@
 import { requireRole, requireVerifiedDoctor } from '../auth.js';
+import { addAuditEvent } from '../audit.js';
 import { HttpError } from '../errors.js';
 import { readJson, sendJson } from '../http.js';
 import {
@@ -23,7 +24,10 @@ export async function handleAccessRoute(ctx) {
     const requestRecord = {
       id: newId(), doctorUserId: current.user.id, patientUserId: patient.id, status: 'pending', requestedAt: new Date(now).toISOString(),
     };
-    await dataStore.transact((state) => state.accessRequests.push(requestRecord));
+    await dataStore.transact((state) => {
+      state.accessRequests.push(requestRecord);
+      addAuditEvent(state, { actorUserId: current.user.id, action: 'access.request', entityType: 'access_request', entityId: requestRecord.id }, now);
+    });
     sendJson(response, 201, { request: publicAccessRequest(requestRecord, patient, current.user) });
     return true;
   }
@@ -59,6 +63,7 @@ export async function handleAccessRoute(ctx) {
       const item = state.accessRequests.find((entry) => entry.id === requestId && entry.patientUserId === current.user.id);
       if (!item || item.status !== requiredStatus) throw new HttpError(409, 'INVALID_REQUEST_STATUS', `Only ${requiredStatus} access requests can be ${actionLabel}.`);
       Object.assign(item, updated);
+      addAuditEvent(state, { actorUserId: current.user.id, action: `access.${action}`, entityType: 'access_request', entityId: requestId }, now);
     });
     const doctor = await dataStore.read((state) => state.users.find((user) => user.id === existing.doctorUserId));
     sendJson(response, 200, { request: publicAccessRequest(updated, current.user, doctor) });
