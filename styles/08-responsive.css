@@ -1,18 +1,42 @@
 /* Responsive corrections are last so breakpoint behavior always wins. */
-@media (max-width: 850px) {
+@media (max-width: 991px) {
+  .app-shell { flex-direction: row; }
   .auth-layout { grid-template-columns: 1fr; }
   .auth-brand-panel { min-height: 330px; padding: 28px; }
   .auth-intro { margin: 55px 0 28px; }
   .auth-intro h1 { font-size: 3rem; }
   .auth-quote { display: none; }
-  .sidebar { position: fixed; inset: 0 auto 0 0; overflow-y: auto; transform: translateX(-105%); transition: transform .25s; box-shadow: 10px 0 30px rgba(18, 60, 58, .12); }
+  .sidebar { width: 252px; min-height: 100vh; min-height: 100dvh; height: 100vh; height: 100dvh; position: fixed; inset: 0 auto 0 0; z-index: 20; display: flex; flex-direction: column; gap: 0; overflow-y: auto; padding: calc(25px + env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom)); transform: translateX(-105%); transition: transform .25s; box-shadow: 18px 0 40px rgba(18, 60, 58, .16); }
+  .sidebar.workspace-nav { align-items: stretch; flex-wrap: nowrap; }
+  .mobile-nav-trigger { display: block; position: fixed; top: calc(12px + env(safe-area-inset-top)); left: calc(14px + env(safe-area-inset-left)); z-index: 40; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); color: var(--ink); padding: 7px 10px; box-shadow: 0 8px 20px rgba(18, 60, 58, .12); font-size: 1.1rem; line-height: 1; }
+  .mobile-nav-scrim { display: block; position: fixed; inset: 0; z-index: 15; background: rgba(18, 48, 42, .2); }
+  .sidebar-head { padding: 0 11px 30px; }
+  .main-nav { display: grid; align-items: stretch; gap: 5px; }
+  .sidebar-bottom { display: flex; flex-direction: column; align-items: stretch; gap: 5px; width: 100%; margin-top: auto; padding-top: 18px; border-top: 1px solid var(--line); }
+  .workspace-controls .profile-menu-wrap { justify-self: end; }
+  .workspace-controls .notification-menu-wrap { justify-self: end; }
+  .profile-menu,
+  .notification-panel { right: 0; }
+  .profile-menu,
+  .notification-panel { width: 220px; max-width: calc(100vw - 32px); }
+  .nav-item { width: 100%; padding: 12px; }
+  .workspace-nav .sidebar-head,
+  .workspace-nav .primary-nav,
+  .workspace-nav .workspace-controls { width: 100%; flex: none; }
+  .workspace-nav .primary-nav { overflow: visible; }
+  .workspace-nav .nav-item { width: 100%; }
+  .nav-submenu { top: calc(100% + 4px); left: 27px; min-width: 170px; }
+  .workspace-controls .notification-menu-wrap,
+  .workspace-controls .profile-menu-wrap { align-self: flex-end; }
+  .mobile-sidebar-logout { display: flex; }
+  .shell-content { min-height: 100vh; }
   .sidebar > * { flex-shrink: 0; }
   .sidebar.open { transform: translateX(0); }
   .close-menu { display: block; border: 0; background: none; color: var(--muted); font-size: 1.5rem; }
-  .mobile-menu { display: block; }
+  .sidebar .mobile-menu { display: none; }
   .topbar { gap: 12px; }
   .secure-label { display: none; }
-  .content-page { padding-top: 32px; }
+  .content-page { padding-top: 72px; }
   .topbar h1 { white-space: normal; }
   .section-intro { max-width: 100%; }
   .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -31,11 +55,18 @@
   .access-request { align-items: flex-start; flex-direction: column; }
   .access-request-actions { justify-content: flex-start; }
   .patient-selector { align-items: stretch; flex-direction: column; }
+  .workspace-hero { grid-template-columns: 1fr; gap: 36px; min-height: 0; }
+  .workspace-hero-panel { min-height: 300px; }
+  .workspace-feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workspace-feature-grid > :first-child { grid-column: span 2; }
+  .profile-overview-summary { grid-template-columns: 1fr; }
+  .overview-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .camera-stage { height: auto; aspect-ratio: 4 / 3; max-height: 290px; }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 767px) {
   .auth-card-wrap { padding: 26px 16px 35px; }
-  .auth-card { padding: 24px 19px; }
+  .auth-card { padding: 24px 19px; border-radius: 24px; }
   .auth-brand-panel { min-height: 255px; }
   .auth-intro { margin: 45px 0 0; }
   .auth-intro h1 { font-size: 2.45rem; margin-bottom: 14px; }
@@ -48,8 +79,16 @@
   .today-orb { width: 46px; height: 46px; font-size: 1.1rem; box-shadow: 0 0 0 7px rgba(255, 242, 200, .4); }
   .dashboard-grid { display: block; }
   .dashboard-grid > * { margin-bottom: 14px; }
-  .feature-card { min-height: 240px; }
-  .card { padding: 19px; }
+  .profile-overview-heading { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .overview-total { text-align: left; }
+  .profile-overview-summary,
+  .overview-category-grid { grid-template-columns: 1fr; }
+  .overview-completion,
+  .overview-graph-card,
+  .overview-indications,
+  .overview-category-card { min-height: 0; }
+  .feature-card { min-height: 240px; padding: 23px; }
+  .card { padding: 20px; border-radius: 23px; }
   .inline-intro { display: block; }
   .inline-intro > .button,
   .inline-intro > .status-pill { margin-top: 14px; }
@@ -77,9 +116,11 @@
   .add-question .button { margin-top: 9px; width: 100%; }
   .add-question input { flex: none; width: 100%; }
   .shell-content > .app-footer { padding: 17px 14px 22px; }
-  .camera-stage { height: 235px; }
+  .camera-stage { height: 235px; border-radius: 17px; }
+  .camera-actions { display: grid; gap: 9px; }
   .camera-actions .button,
-  .camera-actions .file-button { flex: 1; min-width: 0; }
+  .camera-actions .file-button { width: 100%; min-width: 0; min-height: 46px; }
+  .camera-actions .file-button { display: inline-flex; white-space: normal; text-align: center; }
   .camera-error { padding: 22px 16px; }
   .camera-error h4 { font-size: 1.05rem; }
   .composition-row { align-items: flex-start; flex-direction: column; }
@@ -92,10 +133,39 @@
   .modal-actions .button { width: 100%; }
   .privacy-actions { align-items: stretch; flex-direction: column; }
   .privacy-actions .button { width: 100%; }
+  .workspace-nav { align-items: flex-start; flex-wrap: wrap; }
+  .workspace-nav-inner { align-items: flex-start; flex-wrap: wrap; }
+  .workspace-nav-links { order: 3; width: 100%; overflow-x: auto; padding-bottom: 2px; }
+  .workspace-nav-actions { margin-left: auto; }
+  .workspace-hero { padding: 28px 23px; border-radius: 23px; margin-bottom: var(--section-space-compact); }
+  .workspace-hero h1,
+  .workspace-hero h2 { font-size: clamp(2.35rem, 10vw, 4rem); }
+  .workspace-float-card { position: relative; right: auto; bottom: auto; width: 100%; margin-top: 70px; }
+  .workspace-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workspace-metric:nth-child(3) { border-left: 0; padding-left: 0; }
+  .workspace-metric:nth-child(n + 3) { border-top: 1px solid var(--line); }
+  .workspace-section-heading { align-items: flex-start; flex-direction: column; margin-bottom: 24px; }
+  .workspace-feature-grid { display: block; margin-bottom: var(--section-space-compact); }
+  .workspace-feature-grid > * + * { margin-top: 14px; }
 }
 
-@media (min-width: 851px) {
-  .content-page > .section-intro { width: 100%; max-width: 1200px; }
+@media (max-width: 479px) {
+  .workspace-nav { padding: 12px 14px; }
+  .workspace-nav-links { gap: 0; margin-right: -14px; padding-right: 14px; }
+  .workspace-nav .nav-item { padding: 9px 10px; font-size: .72rem; }
+  .workspace-nav .nav-icon { display: none; }
+  .workspace-hero { padding: 24px 19px; border-radius: 20px; }
+  .workspace-hero h1,
+  .workspace-hero h2 { font-size: 2.25rem; }
+  .workspace-hero-panel { padding: 18px; }
+  .workspace-float-card { padding: 16px; margin-top: 50px; }
+  .workspace-metric { padding-top: 19px; padding-bottom: 21px; }
+  .workspace-metric strong { font-size: 1.35rem; }
+  .workspace-metric span { font-size: .58rem; }
+}
+
+@media (min-width: 992px) {
+  .content-page > .section-intro { width: 100%; max-width: var(--content-max); }
   .content-page > .section-intro .page-title { max-width: 900px; font-size: clamp(2.8rem, 4.6vw, 5.2rem); }
   .content-page > .card,
   .content-page > .two-column,
@@ -103,7 +173,7 @@
   .content-page > .risk-grid,
   .content-page > .lifestyle-grid,
   .content-page > .result-board,
-  .content-page > .privacy-grid { width: 100%; max-width: 1200px; }
+  .content-page > .privacy-grid { width: 100%; max-width: var(--content-max); }
   .content-page > .two-column,
   .content-page > .scan-grid,
   .content-page > .risk-grid,

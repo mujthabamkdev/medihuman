@@ -1,5 +1,26 @@
 const API_ROOT = '/api';
+export const GOOGLE_AUTH_PATH = `${API_ROOT}/auth/google`;
 let csrfToken = '';
+
+export function googleAuthUrl(role = 'patient') {
+  const selectedRole = role === 'doctor' ? 'doctor' : 'patient';
+  return `${GOOGLE_AUTH_PATH}?role=${encodeURIComponent(selectedRole)}`;
+}
+
+const GOOGLE_AUTH_ERROR_MESSAGES = {
+  access_denied: 'Google sign-in was cancelled. You can try again or use email and password.',
+  google_auth_cancelled: 'Google sign-in was cancelled. You can try again or use email and password.',
+  google_auth_failed: 'Google sign-in could not be completed. Try again or use email and password.',
+  google_identity_invalid: 'Google sign-in could not be completed. Try again or use email and password.',
+  google_role_mismatch: 'This Google account is already registered with a different role. Choose that role to continue.',
+};
+
+/** Convert OAuth callback errors to safe, user-facing copy without echoing query values. */
+export function googleAuthErrorMessage(search = '') {
+  let error = '';
+  try { error = new URLSearchParams(search).get('error')?.trim().toLowerCase() || ''; } catch { /* malformed search is not user-facing */ }
+  return error ? (GOOGLE_AUTH_ERROR_MESSAGES[error] || 'Google sign-in could not be completed. Try again or use email and password.') : '';
+}
 
 export class ApiError extends Error {
   constructor(message, status = 0, code = 'NETWORK_ERROR') {
@@ -60,5 +81,9 @@ export const api = {
   requestPatient: (patientId) => json('POST', '/doctor/access-requests', { patientId }),
   patientAccessRequests: () => request('/patient/access-requests'),
   updateAccessRequest: (requestId, status) => json('PUT', `/patient/access-requests/${encodeURIComponent(requestId)}`, { status }),
+  notifications: () => request('/notifications'),
+  markNotificationRead: (notificationId) => json('POST', `/notifications/${encodeURIComponent(notificationId)}/read`, {}),
+  indications: () => request('/indications'),
+  addIndication: (patientId, body) => json('POST', `/doctor/patients/${encodeURIComponent(patientId)}/indications`, body),
   doctorPatient: (patientId, resource = '') => request(`/doctor/patients/${encodeURIComponent(patientId)}${resource ? `/${resource}` : ''}`),
 };

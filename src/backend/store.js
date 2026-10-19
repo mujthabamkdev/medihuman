@@ -7,10 +7,13 @@ const EMPTY_STATE = {
   version: CURRENT_VERSION,
   users: [],
   sessions: [],
+  oauthStates: [],
   profiles: [],
   medicines: [],
   prescriptions: [],
   reconciliations: [],
+  indications: [],
+  notifications: [],
   accessRequests: [],
 };
 

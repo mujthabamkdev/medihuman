@@ -1,6 +1,7 @@
 import { profileValue } from './validation.js';
 import { publicDoctor } from './auth.js';
 import { HttpError } from './errors.js';
+import { publicIndication } from './notifications.js';
 
 export function publicProfile(profile, user = null) {
   const result = {
@@ -58,6 +59,7 @@ export function patientRecords(state, patient, { includeSensitive = true } = {})
   const medicines = state.medicines.find((item) => item.userId === patient.id)?.items || [];
   const prescriptions = state.prescriptions.filter((item) => item.userId === patient.id).map(publicPrescription);
   const reconciliations = state.reconciliations.filter((item) => item.userId === patient.id).map(publicReconciliation);
+  const indications = state.indications.filter((item) => item.patientUserId === patient.id).map((item) => publicIndication(item, state.users.find((user) => user.id === item.doctorUserId)));
   if (!includeSensitive) return { profile: publicProfile(profile, patient) };
-  return { profile: publicProfile(profile, patient), medicines, prescriptions, reconciliations };
+  return { profile: publicProfile(profile, patient), medicines, prescriptions, reconciliations, indications };
 }

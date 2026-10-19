@@ -1,7 +1,84 @@
-import { COOKIE_CSRF, COOKIE_SESSION } from './constants.js';
+import { COOKIE_CSRF, COOKIE_SESSION, GOOGLE_STATE_TTL_MS } from './constants.js';
 import { HttpError } from './errors.js';
 import { parseCookies } from './http.js';
-import { SESSION_TTL_MS, createToken, newId, safeEqualText, tokenHash } from './security.js';
+import {
+  SESSION_TTL_MS, createToken, newId, safeEqualText, tokenHash,
+} from './security.js';
+
+export function googleAuthConfig(overrides = {}) {
+  return {
+    clientId: overrides.clientId ?? process.env.GOOGLE_CLIENT_ID,
+    clientSecret: overrides.clientSecret ?? process.env.GOOGLE_CLIENT_SECRET,
+    redirectUri: overrides.redirectUri ?? process.env.GOOGLE_REDIRECT_URI,
+  };
+}
+
+export function googleAuthConfigured(config) {
+  return typeof config?.clientId === 'string'
+    && Boolean(config.clientId.trim())
+    && typeof config?.clientSecret === 'string'
+    && Boolean(config.clientSecret.trim())
+    && typeof config?.redirectUri === 'string'
+    && Boolean(config.redirectUri.trim());
+}
+
+export async function createGoogleState(store, now, role = 'patient') {
+  const state = createToken(32);
+  await store.transact((data) => {
+    data.oauthStates = data.oauthStates.filter((item) => new Date(item.expiresAt).getTime() > now);
+    data.oauthStates.push({
+      stateHash: tokenHash(state),
+      role,
+      createdAt: new Date(now).toISOString(),
+      expiresAt: new Date(now + GOOGLE_STATE_TTL_MS).toISOString(),
+    });
+    if (data.oauthStates.length > 100) data.oauthStates = data.oauthStates.slice(-100);
+  });
+  return state;
+}
+
+export async function consumeGoogleState(store, state, now) {
+  const stateHash = tokenHash(state);
+  return store.transact((data) => {
+    let consumed = null;
+    data.oauthStates = data.oauthStates.filter((item) => {
+      const expired = new Date(item.expiresAt).getTime() <= now;
+      if (!consumed && !expired && safeEqualText(item.stateHash, stateHash)) {
+        consumed = item;
+        return false;
+      }
+      return !expired;
+    });
+    return consumed;
+  });
+}
+
+export function googleIdentity(value, clientId) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new HttpError(502, 'GOOGLE_IDENTITY_INVALID', 'Google sign-in could not be completed.');
+  }
+  const sub = typeof value.sub === 'string' ? value.sub.trim() : '';
+  const email = typeof value.email === 'string' ? value.email.trim().toLowerCase() : '';
+  const verified = value.email_verified === true || value.email_verified === 'true';
+  const audience = value.aud === undefined ? clientId : value.aud;
+  if (!sub || sub.length > 255 || !verified || audience !== clientId || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+    throw new HttpError(502, 'GOOGLE_IDENTITY_INVALID', 'Google sign-in could not be completed.');
+  }
+  return { sub, email };
+}
+
+export function googleDisplayName(value, email) {
+  const providerName = typeof value?.name === 'string' ? value.name.trim() : '';
+  const displayName = providerName && providerName.length <= 160 && !/[\u0000-\u001f\u007f]/.test(providerName)
+    ? providerName
+    : email.slice(0, email.indexOf('@'))
+      .replace(/[._-]+/g, ' ')
+      .replace(/[^\p{L}\p{N}\s']/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 160) || 'Google user';
+  return displayName;
+}
 
 export async function createSession(store, userId, now) {
   const sessionToken = createToken();

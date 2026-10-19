@@ -1,7 +1,7 @@
 import { createServer as createHttpServer } from 'node:http';
 import { resolve } from 'node:path';
 import { DEFAULT_DATA_FILE, ROOT } from './constants.js';
-import { getAuth, requireAuth, requireCsrf } from './auth.js';
+import { getAuth, googleAuthConfig, requireAuth, requireCsrf } from './auth.js';
 import { HttpError } from './errors.js';
 import { clientIp, sendError, staticResponse } from './http.js';
 import { RateLimiter } from './rate-limit.js';
@@ -12,7 +12,10 @@ import { handleDoctorRoute } from './routes/doctor.js';
 import { handlePatientRoute } from './routes/patient.js';
 import { handleSystemRoute } from './routes/system.js';
 
-const AUTH_PATHS = new Set(['/api/auth/login', '/api/auth/register', '/api/login', '/api/register']);
+const AUTH_PATHS = new Set([
+  '/api/auth/login', '/api/auth/register', '/api/auth/google', '/api/auth/google/callback',
+  '/api/login', '/api/register',
+]);
 
 export async function createApp({
   dataFile = DEFAULT_DATA_FILE,
@@ -21,6 +24,11 @@ export async function createApp({
   clock = () => Date.now(),
   rateLimiter = new RateLimiter(),
   store = null,
+  google = {},
+  googleClientId,
+  googleClientSecret,
+  googleRedirectUri,
+  fetchImpl = globalThis.fetch,
 } = {}) {
   const dataStore = store || await new JsonDataStore(dataFile).init();
   const protectedDataFile = resolve(dataFile);
@@ -49,7 +57,13 @@ export async function createApp({
         return;
       }
       const context = {
-        request, response, pathname, method, now, dataStore, auth, secureCookies,
+        request, response, pathname, method, now, dataStore, auth, secureCookies, url,
+        googleConfig: googleAuthConfig({
+          clientId: google.clientId ?? googleClientId,
+          clientSecret: google.clientSecret ?? googleClientSecret,
+          redirectUri: google.redirectUri ?? googleRedirectUri,
+        }),
+        fetchImpl,
       };
       if (await handleSystemRoute(context)) return;
       if (await handleAuthRoute(context)) return;

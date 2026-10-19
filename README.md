@@ -106,6 +106,7 @@ Keep these boundaries strict: views render; controllers coordinate effects; stat
 - Profile and medicine data save automatically in this browser's local storage. Use **Clear local data** to remove it.
 - Backend API stores account, patient, medicine, prescription, and reconciliation records in `DATA_FILE` (default `.data/medihuman.json`, outside the static asset URL space). State-changing API requests require the CSRF token from `GET /api/csrf`.
 - Auth uses scrypt password hashes and short-lived HttpOnly SameSite session cookies. Production mode (`NODE_ENV=production`) adds the Secure cookie attribute.
+- Google sign-in uses a short-lived, one-time server-side OAuth state bound to an HttpOnly SameSite=Lax cookie, then creates or links patient accounts from verified Google identity claims. Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI`; provider tokens are used in memory only.
 - Camera images stay in the browser capture flow; OCR is best-effort and every result opens an editable review step.
 - The composition screen uses a small, transparent reference/rule set for common medicines and profile context. Unknown medicines, supplements, interactions, dose decisions, and handwriting remain clinician/pharmacist review items.
 - Patient and doctor accounts use separate roles. Doctors request access by opaque patient ID; patients approve, reject, or revoke access before profile, medicine, prescription, or reconciliation records are visible.
@@ -115,6 +116,7 @@ Keep these boundaries strict: views render; controllers coordinate effects; stat
 ## API surface
 
 - `GET /api/csrf`, `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/me`
+- `GET /api/auth/google`, `GET /api/auth/google/callback` (enabled only when `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` are configured)
 - `GET /api/patient/access-requests`, `POST /api/patient/access-requests/:id/approve`, `POST /api/patient/access-requests/:id/revoke`, `PUT /api/patient/access-requests/:id`
 - `GET|POST /api/doctor/access-requests`, `POST /api/doctor/access-requests/:patientId`
 - `GET /api/doctor/patients/:patientId[/profile|/medicines|/prescriptions|/reconciliations|/summary]`

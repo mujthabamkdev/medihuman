@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createState } from '../src/client/state.js';
-import { brandIcon, svgIcon } from '../src/client/ui.js';
+import { brandIcon, googleIcon, svgIcon } from '../src/client/ui.js';
 import { createViewRenderer } from '../src/client/views.js';
+import { api, ApiError, googleAuthErrorMessage } from '../src/api-client.js';
+import { createController } from '../src/client/controller.js';
 
 // Templates use explicit closing tags. Reject malformed output before a browser
 // can silently repair it and move the footer outside its flex-column shell.
@@ -61,6 +63,10 @@ test('client UI primitives render accessible SVG markup', () => {
   assert.match(svgIcon('home'), /aria-hidden="true"/);
   assert.doesNotMatch(svgIcon('home'), /ui-[a-z-]+/);
   assert.match(brandIcon(), /class="brand-svg"/);
+  assert.match(brandIcon(), /stroke="#9fdcd0"/);
+  assert.doesNotMatch(brandIcon(), /M16 8v16M8 16h16/);
+  assert.match(googleIcon(), /class="auth-google-icon"/);
+  assert.match(googleIcon(), /fill="#4285F4"/);
 });
 
 test('patient shell renders stable navigation and event hooks', () => {
@@ -71,10 +77,37 @@ test('patient shell renders stable navigation and event hooks', () => {
   const markup = views.renderShell();
 
   assert.match(markup, /class="app-shell"/);
+  assert.match(markup, /<header class="sidebar workspace-header workspace-nav" id="sidebar">/);
+  assert.match(markup, /<nav class="main-nav primary-nav section-nav" aria-label="Main navigation">/);
+  assert.doesNotMatch(markup, /workspace-context|workspace-card/);
+  assert.match(markup, /data-action="privacy"/);
+  assert.match(markup, /data-action="toggle-profile-menu"/);
+  assert.match(markup, /class="mobile-sidebar-logout nav-item" data-action="logout"/);
+  assert.doesNotMatch(markup, /data-view="care-team"/);
   assert.match(markup, /data-action="nav" data-view="medicines"/);
   assert.match(markup, /data-action="go-scan"/);
   assert.match(markup, /class="app-footer"/);
   assert.doesNotMatch(markup, /<span class="nav-icon">home<\/span>/);
+  assert.doesNotMatch(markup, /<aside class="sidebar"/);
+});
+
+test('dashboard surfaces expose patient and doctor workspace hooks', () => {
+  const patientState = { ...createState(), screen: 'shell', localOnly: true, view: 'dashboard' };
+  const patientMarkup = createViewRenderer({ state: patientState }).renderShell();
+  assert.match(patientMarkup, /class="dashboard-hero-layout workspace-hero" data-dashboard-layout="patient"/);
+  assert.match(patientMarkup, /id="patient-dashboard-hero-heading"/);
+  assert.match(patientMarkup, /id="patient-dashboard-hero-cta"/);
+  assert.match(patientMarkup, /class="[^"]*dashboard-appointment-summary[^"]*floating-summary[^"]*"/);
+  assert.match(patientMarkup, /class="metric-chips"/);
+  assert.match(patientMarkup, /<div class="today-orb" aria-hidden="true"><\/div>/);
+  assert.doesNotMatch(patientMarkup, /class="today-orb"[^>]*>\s*<svg/);
+
+  const doctorState = { ...createState(), screen: 'shell', role: 'doctor', localOnly: true, view: 'dashboard' };
+  const doctorMarkup = createViewRenderer({ state: doctorState }).renderShell();
+  assert.match(doctorMarkup, /class="dashboard-hero-layout workspace-hero" data-dashboard-layout="doctor"/);
+  assert.match(doctorMarkup, /data-surface="dashboard-hero"/);
+  assert.match(doctorMarkup, /class="[^"]*dashboard-appointment-summary[^"]*floating-summary[^"]*"/);
+  assert.match(doctorMarkup, /class="metric-chips"/);
 });
 
 test('doctor shell keeps doctor-only navigation and access controls', () => {
@@ -85,10 +118,165 @@ test('doctor shell keeps doctor-only navigation and access controls', () => {
   const views = createViewRenderer({ state });
   const markup = views.renderShell();
 
-  assert.match(markup, /Clinician dashboard/);
+  assert.match(markup, /Doctor dashboard/);
   assert.match(markup, /data-view="doctor-patients"/);
   assert.match(markup, /Request access to a patient record/);
   assert.doesNotMatch(markup, /data-view="medicines"/);
+});
+
+test('dashboards expose Oriel workspace hero and floating summary surfaces', () => {
+  for (const role of ['patient', 'doctor']) {
+    const state = { ...createState(), role, screen: 'shell', view: 'dashboard', localOnly: true };
+    const markup = createViewRenderer({ state }).renderShell();
+    assert.match(markup, /class="sidebar workspace-header workspace-nav"/);
+    assert.match(markup, /class="dashboard-hero-layout workspace-hero"/);
+    assert.match(markup, /data-surface="dashboard-hero"/);
+    assert.match(markup, /class="card dashboard-appointment-summary workspace-float-card floating-summary"/);
+    assert.match(markup, /data-surface="metric-chips"/);
+    assert.match(markup, new RegExp(`${role === 'patient' ? 'patient' : 'doctor'}-dashboard-hero-heading`));
+    inspectMarkup(markup);
+  }
+});
+
+test('card heading surfaces keep copy and icon alignment hooks', () => {
+  const state = { ...createState(), screen: 'shell', localOnly: true, view: 'patient' };
+  const markup = createViewRenderer({ state }).renderShell();
+  const supportMarkup = createViewRenderer({ state: { ...state, view: 'care-team' } }).renderShell();
+
+  assert.match(markup, /class="card-heading"[\s\S]*class="soft-icon"/);
+  assert.match(supportMarkup, /class="[^"]*inline-intro[^"]*"/);
+  assert.match(supportMarkup, /class="soft-icon large-soft"/);
+});
+
+test('patient dashboard overview exposes complete record categories and indicators', () => {
+  const state = { ...populatedState(), screen: 'shell', view: 'dashboard', localOnly: true };
+  state.prescriptions = [{ medicationName: 'Ibuprofen', instructions: 'Take with food', createdAt: '2026-01-02T12:00:00Z' }];
+  state.reconciliations = [{ isExactMatch: false, missing: [{ name: 'Paracetamol' }], unexpected: [{ name: 'Aspirin' }], createdAt: '2026-01-03T12:00:00Z' }];
+  const markup = createViewRenderer({ state }).renderShell();
+
+  assert.match(markup, /data-surface="profile-overview"/);
+  assert.match(markup, /PROFILE COMPLETENESS/);
+  assert.match(markup, /RECORDS BY CATEGORY/);
+  assert.match(markup, /RECORDED INDICATORS/);
+  assert.match(markup, /Ibuprofen/);
+  assert.match(markup, /Questions/);
+  assert.match(markup, /Care access/);
+  assert.match(markup, /not a diagnosis/);
+});
+
+test('privacy section contains care team access after navbar removal', () => {
+  const state = { ...createState(), screen: 'shell', view: 'privacy', localOnly: true };
+  const markup = createViewRenderer({ state }).renderShell();
+
+  assert.match(markup, /Manage care team access/);
+  assert.match(markup, /data-action="nav"[^>]*data-view="care-team"/);
+});
+
+test('notification panel and doctor indication form expose stable hooks', () => {
+  const patientState = { ...createState(), screen: 'shell', localOnly: false, notificationsOpen: true, notifications: [{ id: 'notification-1', title: 'Patient profile updated', message: 'A patient profile record was added or updated.', createdAt: '2026-01-01T12:00:00Z', readAt: null }] };
+  const patientMarkup = createViewRenderer({ state: patientState }).renderShell();
+  assert.match(patientMarkup, /data-action="toggle-notifications"/);
+  assert.match(patientMarkup, /data-action="mark-notification-read"/);
+  assert.match(patientMarkup, /Patient profile updated/);
+
+  const doctorState = { ...populatedState(), role: 'doctor', screen: 'shell', view: 'doctor-patients', localOnly: true };
+  const doctorMarkup = createViewRenderer({ state: doctorState }).renderShell();
+  assert.match(doctorMarkup, /data-form="doctor-indication"/);
+  assert.match(doctorMarkup, /Add an indication/);
+});
+
+test('patient navigation nests Profile and Support under Patient', () => {
+  const state = { ...createState(), screen: 'shell', localOnly: true, patientMenuOpen: true };
+  const markup = createViewRenderer({ state }).renderShell();
+
+  assert.match(markup, /data-action="toggle-patient-menu"/);
+  assert.match(markup, /data-view="patient" data-submenu="patient"/);
+  assert.match(markup, /data-view="lifestyle" data-submenu="patient"/);
+  assert.match(markup, />Profile<\/button>/);
+  assert.match(markup, />Support<\/button>/);
+  assert.match(markup, /class="nav-chevron"><svg/);
+  assert.doesNotMatch(markup, /class="nav-chevron">⌄/);
+  assert.doesNotMatch(markup, />Daily support<\/span>/);
+});
+
+test('patient submenu exposes overlay dropdown hook', () => {
+  const state = { ...createState(), screen: 'shell', localOnly: true, patientMenuOpen: true };
+  const markup = createViewRenderer({ state }).renderShell();
+
+  assert.match(markup, /class="nav-group open"[\s\S]*class="nav-submenu"/);
+  assert.match(markup, /class="nav-subitem/);
+});
+
+test('patient submenu toggle preserves mobile drawer-open intent', () => {
+  const state = { ...createState(), screen: 'shell', localOnly: true };
+  const views = createViewRenderer({ state });
+  const listeners = {};
+  const root = { innerHTML: '', addEventListener(type, handler) { listeners[type] = handler; } };
+  const previousDocument = globalThis.document;
+  const sidebar = { classList: { add(className) { this.lastAdded = className; } } };
+  globalThis.document = { querySelector() { return sidebar; } };
+  try {
+    const controller = createController({ root, state, views, ocr: {} });
+    void controller;
+    listeners.click({ target: { closest() { return { dataset: { action: 'toggle-patient-menu' } }; } } });
+    assert.equal(state.patientMenuOpen, true);
+    assert.equal(sidebar.classList.lastAdded, 'open');
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document; else globalThis.document = previousDocument;
+  }
+});
+
+test('shell exposes mobile navigation trigger and complete drawer hooks', () => {
+  const state = { ...createState(), screen: 'shell', localOnly: true, patientMenuOpen: true };
+  const markup = createViewRenderer({ state }).renderShell();
+
+  assert.match(markup, /class="mobile-nav-trigger" data-action="toggle-menu"/);
+  assert.equal((markup.match(/class="mobile-menu"/g) || []).length, 0);
+  assert.match(markup, /data-view="dashboard"/);
+  assert.match(markup, /data-view="medicines"/);
+  assert.match(markup, /data-view="scan"/);
+  assert.match(markup, /data-view="doctors"/);
+  assert.match(markup, /class="mobile-sidebar-logout nav-item" data-action="logout"/);
+});
+
+test('camera card exposes mobile-safe action controls', () => {
+  const state = { ...createState(), screen: 'shell', localOnly: true, view: 'scan' };
+  const markup = createViewRenderer({ state }).renderShell();
+
+  assert.match(markup, /class="card camera-card"/);
+  assert.match(markup, /class="camera-actions"/);
+  assert.match(markup, /class="button button-primary"[^>]*data-action="camera-start"/);
+  assert.match(markup, /class="button button-secondary file-button"/);
+});
+
+test('safety card keeps icon and copy in aligned heading wrapper', () => {
+  const state = { ...createState(), screen: 'shell', localOnly: true, view: 'dashboard' };
+  const markup = createViewRenderer({ state }).renderShell();
+
+  assert.match(markup, /class="safety-heading"><span class="safety-symbol">[\s\S]*<div><p class="card-kicker">SAFETY FIRST<\/p><h3>/);
+});
+
+test('local mode renders Exit local mode in mobile sidebar and profile menu', () => {
+  const state = { ...createState(), screen: 'shell', localOnly: true, view: 'privacy' };
+  const closedMarkup = createViewRenderer({ state }).renderShell();
+  assert.equal((closedMarkup.match(/Exit local mode/g) || []).length, 1);
+  state.profileMenuOpen = true;
+  const openMarkup = createViewRenderer({ state }).renderShell();
+  assert.equal((openMarkup.match(/Exit local mode/g) || []).length, 2);
+  assert.match(openMarkup, /class="profile-menu"[\s\S]*data-action="logout"/);
+  assert.match(openMarkup, /Local workspace/);
+});
+
+test('stored-browser exit dialog keeps aligned action hooks', () => {
+  const state = { ...createState(), screen: 'shell', localOnly: true, localExitPrompt: true };
+  const markup = createViewRenderer({ state }).renderShell();
+
+  assert.match(markup, /class="card local-exit-dialog"/);
+  assert.match(markup, /class="modal-actions"/);
+  assert.equal((markup.match(/data-action="local-exit-(?:preserve|clear|cancel)"/g) || []).length, 3);
+  assert.match(markup, /data-action="local-exit-preserve"/);
+  assert.match(markup, /data-action="local-exit-clear"/);
+  assert.match(markup, /data-action="local-exit-cancel"/);
 });
 
 const patientViews = ['dashboard', 'patient', 'medicines', 'scan', 'review', 'reconcile', 'composition', 'doctors', 'care-team', 'lifestyle', 'privacy'];
@@ -108,7 +296,7 @@ for (const role of ['patient', 'doctor']) {
           assert.equal(footer.tag, 'footer');
           assert.equal(main.parent, shell);
           assert.equal(footer.parent, shell);
-          assert.deepEqual(shell.children.map((node) => node.tag), ['header', 'main', 'footer']);
+          assert.deepEqual(shell.children.map((node) => node.tag), ['main', 'footer']);
           const modal = findClass(tree, 'modal-backdrop');
           assert.equal(Boolean(modal), localOnly);
           if (modal) assert.equal(modal.parent, tree);
@@ -126,6 +314,58 @@ test('auth templates have balanced markup for both roles and account modes', () 
       assert.equal(tree.children.length, 1);
       assert.equal(tree.children[0].tag, 'main');
     }
+  }
+});
+
+test('auth templates offer Google sign-in for selected role', () => {
+  for (const authRole of ['patient', 'doctor']) {
+    for (const authMode of ['login', 'register']) {
+      const state = { ...createState(), authRole, authMode };
+      const markup = createViewRenderer({ state }).renderAuth();
+      assert.match(markup, new RegExp(`href="/api/auth/google\\?role=${authRole}"`));
+      assert.match(markup, /class="auth-google-icon"/);
+      assert.match(markup, new RegExp(`<span>${authMode === 'register' ? 'Create' : 'Sign in'} with Google<\\/span><\\/a>`));
+      assert.match(markup, new RegExp(`${authMode === 'register' ? 'Create' : 'Sign in'} with Google for ${authRole} account`));
+      if (authRole === 'doctor') {
+        assert.match(markup, /doctor role/);
+        assert.match(markup, /pending clinician workspace/);
+        assert.match(markup, /Verification remains pending until your organisation reviews registration details/);
+        assert.doesNotMatch(markup, /patient account/);
+      } else {
+        assert.match(markup, /patient account/);
+        assert.doesNotMatch(markup, /clinician workspace/);
+      }
+    }
+  }
+});
+
+test('Google callback errors become safe auth UI copy and OAuth query is cleared', async () => {
+  assert.equal(googleAuthErrorMessage('?error=access_denied&error_description=raw-token-value'), 'Google sign-in was cancelled. You can try again or use email and password.');
+  assert.equal(googleAuthErrorMessage('?error=google_role_mismatch'), 'This Google account is already registered with a different role. Choose that role to continue.');
+  assert.doesNotMatch(googleAuthErrorMessage('?error=provider-secret'), /provider-secret/);
+
+  const state = createState();
+  const views = createViewRenderer({ state });
+  const root = { innerHTML: '', addEventListener() {} };
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  const previousMe = api.me;
+  let replacedUrl = '';
+  globalThis.window = {
+    location: { search: '?error=GOOGLE_AUTH_FAILED&error_description=raw-token-value', pathname: '/', hash: '' },
+    history: { replaceState(_state, _title, url) { replacedUrl = url; } },
+  };
+  globalThis.document = { querySelector() { return null; } };
+  api.me = async () => { throw new ApiError('Authentication required.', 401); };
+  try {
+    await createController({ root, state, views, ocr: {} }).hydrateRemote();
+    assert.equal(state.authError, 'Google sign-in could not be completed. Try again or use email and password.');
+    assert.equal(replacedUrl, '/');
+    assert.doesNotMatch(root.innerHTML, /raw-token-value|GOOGLE_AUTH_FAILED/);
+  } finally {
+    api.me = previousMe;
+    if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow;
+    if (previousDocument === undefined) delete globalThis.document; else globalThis.document = previousDocument;
   }
 });
 

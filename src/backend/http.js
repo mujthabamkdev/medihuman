@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
-import { COOKIE_CSRF, COOKIE_SESSION, MAX_BODY_BYTES, MIME_TYPES } from './constants.js';
+import {
+  COOKIE_CSRF, COOKIE_GOOGLE_STATE, COOKIE_SESSION, GOOGLE_STATE_TTL_SECONDS, MAX_BODY_BYTES, MIME_TYPES,
+} from './constants.js';
 import { HttpError } from './errors.js';
 
 export function parseCookies(header = '') {
@@ -27,6 +29,35 @@ export function setAuthCookies(response, sessionToken, csrfToken, secure) {
     `${COOKIE_SESSION}=${sessionToken}; ${cookieOptions({ httpOnly: true, secure })}`,
     `${COOKIE_CSRF}=${csrfToken}; ${cookieOptions({ secure })}`,
   ]);
+}
+
+export function setGoogleStateCookie(response, state, secure) {
+  response.setHeader('Set-Cookie', `${COOKIE_GOOGLE_STATE}=${state}; ${cookieOptions({
+    httpOnly: true,
+    maxAge: GOOGLE_STATE_TTL_SECONDS,
+    secure,
+  })}`);
+}
+
+export function clearGoogleStateCookie(response, secure) {
+  const cookie = `${COOKIE_GOOGLE_STATE}=; ${cookieOptions({
+    httpOnly: true,
+    maxAge: 0,
+    secure,
+  })}`;
+  const previous = response.getHeader?.('Set-Cookie');
+  const existing = Array.isArray(previous) ? previous : previous ? [previous] : [];
+  response.setHeader('Set-Cookie', [...existing, cookie]);
+}
+
+export function redirect(response, location) {
+  response.writeHead(302, {
+    Location: location,
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
+  });
+  response.end();
 }
 
 export function clearAuthCookies(response, secure) {

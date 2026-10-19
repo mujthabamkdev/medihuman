@@ -1,4 +1,4 @@
-const CACHE = 'medihuman-shell-v4';
+const CACHE = 'medihuman-shell-v5';
 const SHELL = [
   '/',
   '/index.html',

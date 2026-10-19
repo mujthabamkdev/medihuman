@@ -4,6 +4,7 @@ import { readJson, sendJson } from '../http.js';
 import {
   patientRecords, publicProfile, publicPrescription, publicReconciliation,
 } from '../records.js';
+import { addNotification, notifyApprovedDoctors, publicIndication, publicNotification } from '../notifications.js';
 import { newId } from '../security.js';
 import { buildSummary } from '../summary.js';
 import {
@@ -13,6 +14,25 @@ import { compareMedicines } from '../../medication-logic.js';
 
 export async function handlePatientRoute(ctx) {
   const { pathname, method, request, response, dataStore, now, current } = ctx;
+  if (pathname === '/api/notifications' && method === 'GET') {
+    const notifications = await dataStore.read((state) => state.notifications
+      .filter((item) => item.recipientUserId === current.user.id)
+      .map(publicNotification));
+    sendJson(response, 200, { notifications });
+    return true;
+  }
+  const notificationReadMatch = pathname.match(/^\/api\/notifications\/([^/]+)\/read$/);
+  if (notificationReadMatch && method === 'POST') {
+    const id = notificationReadMatch[1];
+    const updated = await dataStore.transact((state) => {
+      const item = state.notifications.find((entry) => entry.id === id && entry.recipientUserId === current.user.id);
+      if (!item) throw new HttpError(404, 'NOT_FOUND', 'Notification not found.');
+      item.readAt = new Date(now).toISOString();
+      return publicNotification(item);
+    });
+    sendJson(response, 200, { notification: updated });
+    return true;
+  }
   if (pathname === '/api/me' && method === 'GET') {
     const data = await dataStore.read((state) => ({
       profile: publicProfile(state.profiles.find((item) => item.userId === current.user.id) || profileValue(), current.user),
@@ -47,8 +67,9 @@ export async function handlePatientRoute(ctx) {
     });
     await dataStore.transact((state) => {
       const existing = state.profiles.find((item) => item.userId === current.user.id);
-      if (existing) Object.assign(existing, profile, { updatedAt: new Date(now).toISOString() });
-      else state.profiles.push({ userId: current.user.id, ...profile, updatedAt: new Date(now).toISOString() });
+       if (existing) Object.assign(existing, profile, { updatedAt: new Date(now).toISOString() });
+       else state.profiles.push({ userId: current.user.id, ...profile, updatedAt: new Date(now).toISOString() });
+       notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Patient profile updated', message: 'A patient profile record was added or updated.', entityType: 'profile', entityId: current.user.id }, now);
     });
     sendJson(response, 200, { profile: publicProfile(profile, current.user) });
     return true;
@@ -66,8 +87,9 @@ export async function handlePatientRoute(ctx) {
     const medicines = medicineListValue(body.medicines);
     await dataStore.transact((state) => {
       const existing = state.medicines.find((item) => item.userId === current.user.id);
-      if (existing) Object.assign(existing, { items: medicines, updatedAt: new Date(now).toISOString() });
-      else state.medicines.push({ userId: current.user.id, items: medicines, updatedAt: new Date(now).toISOString() });
+       if (existing) Object.assign(existing, { items: medicines, updatedAt: new Date(now).toISOString() });
+       else state.medicines.push({ userId: current.user.id, items: medicines, updatedAt: new Date(now).toISOString() });
+       notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Medicine list updated', message: 'A patient medicine record was added or updated.', entityType: 'medicines', entityId: current.user.id }, now);
     });
     sendJson(response, 200, { medicines });
     return true;
@@ -83,7 +105,10 @@ export async function handlePatientRoute(ctx) {
     requireRole(current, 'patient');
     const prescription = prescriptionValue(await readJson(request));
     const record = { id: newId(), userId: current.user.id, ...prescription, createdAt: new Date(now).toISOString(), updatedAt: new Date(now).toISOString() };
-    await dataStore.transact((state) => state.prescriptions.push(record));
+     await dataStore.transact((state) => {
+       state.prescriptions.push(record);
+       notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Prescription record added', message: 'A patient prescription record was added.', entityType: 'prescription', entityId: record.id }, now);
+     });
     sendJson(response, 201, { prescription: publicPrescription(record) });
     return true;
   }
@@ -113,8 +138,16 @@ export async function handlePatientRoute(ctx) {
 
   if (pathname === '/api/reconciliations' && method === 'GET') {
     requireRole(current, 'patient');
-    const reconciliations = await dataStore.read((state) => state.reconciliations.filter((item) => item.userId === current.user.id).map(publicReconciliation));
-    sendJson(response, 200, { reconciliations });
+     const reconciliations = await dataStore.read((state) => state.reconciliations.filter((item) => item.userId === current.user.id).map(publicReconciliation));
+     sendJson(response, 200, { reconciliations });
+     return true;
+   }
+  if (pathname === '/api/indications' && method === 'GET') {
+    requireRole(current, 'patient');
+    const indications = await dataStore.read((state) => state.indications
+      .filter((item) => item.patientUserId === current.user.id)
+      .map((item) => publicIndication(item, state.users.find((user) => user.id === item.doctorUserId))));
+    sendJson(response, 200, { indications });
     return true;
   }
   if (pathname === '/api/reconciliations' && method === 'POST') {
@@ -130,7 +163,10 @@ export async function handlePatientRoute(ctx) {
       isExactMatch: comparison.isExactMatch, notes: stringValue(body.notes, 'notes', { max: 1_000 }),
       createdAt: new Date(now).toISOString(),
     };
-    await dataStore.transact((state) => state.reconciliations.push(record));
+     await dataStore.transact((state) => {
+       state.reconciliations.push(record);
+       notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Medicine comparison added', message: 'A patient medicine comparison was added.', entityType: 'reconciliation', entityId: record.id }, now);
+     });
     sendJson(response, 201, { reconciliation: publicReconciliation(record) });
     return true;
   }

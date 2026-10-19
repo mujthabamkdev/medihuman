@@ -4,15 +4,26 @@
 *::after { box-sizing: border-box; }
 
 html { background: var(--canvas); scroll-behavior: smooth; }
-body { margin: 0; min-width: 320px; background: var(--canvas); }
+body { margin: 0; min-width: 320px; background: var(--canvas); color: var(--ink); font-family: var(--font-body); font-size: 1rem; font-weight: 400; line-height: 1.5; font-feature-settings: 'dlig' on; font-optical-sizing: auto; -webkit-font-smoothing: antialiased; }
 button,
 input,
 textarea { font: inherit; }
-button { cursor: pointer; }
+button,
+select { cursor: pointer; }
 button:disabled { opacity: .6; cursor: wait; }
 h1,
 h2,
 h3,
 h4,
 a { color: inherit; }
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 { font-family: var(--font-heading); }
+p { margin-top: 0; }
+img,
+svg,
+video { max-width: 100%; }
 .app-root { min-height: 100vh; }
