@@ -162,6 +162,29 @@ test('auth uses scrypt, HttpOnly cookies, CSRF, and stores no raw password', asy
   const deletedReconciliationRead = await request(context.baseUrl, `/api/reconciliations/${reconciliation.body.reconciliation.id}`, { cookie: rotatedCookie });
   assert.equal(deletedReconciliationRead.response.status, 404);
 
+  const consent = await request(context.baseUrl, '/api/patient/consent', {
+    cookie: rotatedCookie,
+    csrf: authenticatedCsrf,
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ accepted: true, version: 'v1' }),
+  });
+  assert.equal(consent.response.status, 200);
+  const exported = await request(context.baseUrl, '/api/account/export', { cookie: rotatedCookie });
+  assert.equal(exported.response.status, 200);
+  assert.equal(exported.body.user.email, 'person@example.com');
+
+  const deletedAccount = await request(context.baseUrl, '/api/account', {
+    cookie: rotatedCookie,
+    csrf: authenticatedCsrf,
+    method: 'DELETE',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ confirmation: 'DELETE MY ACCOUNT' }),
+  });
+  assert.equal(deletedAccount.response.status, 200);
+  const afterAccountDelete = await request(context.baseUrl, '/api/me', { cookie: rotatedCookie });
+  assert.equal(afterAccountDelete.response.status, 401);
+
   const stored = JSON.parse(await readFile(context.dataFile, 'utf8'));
   assert.equal(stored.users[0].passwordHash.algorithm, 'scrypt');
   assert.equal(JSON.stringify(stored).includes('correct horse battery staple'), false);

@@ -10,6 +10,7 @@ import { SupabaseAuthProvider } from './supabase-auth.js';
 import { handleAccessRoute } from './routes/access.js';
 import { handleAuthRoute } from './routes/auth.js';
 import { handleAdminRoute } from './routes/admin.js';
+import { handleAccountRoute } from './routes/account.js';
 import { handleDoctorRoute } from './routes/doctor.js';
 import { handlePatientRoute } from './routes/patient.js';
 import { handleSystemRoute } from './routes/system.js';
@@ -85,6 +86,7 @@ export async function createApp({
 
       const current = requireFullAuth(auth);
       context.current = current;
+      if (await handleAccountRoute(context)) return;
       if (await handlePatientRoute(context)) return;
       if (await handleAccessRoute(context)) return;
       if (await handleDoctorRoute(context)) return;

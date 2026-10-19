@@ -177,6 +177,14 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     render();
   }
 
+  async function exportAccount() {
+    const payload = await api.exportAccount();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a'); link.href = url; link.download = 'medihuman-account-export.json'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
   function showAuthError(message) { const target = document.querySelector('#auth-error'); if (target) target.innerHTML = notice(escapeHtml(message), 'warning'); }
 
   function formValues(form) { return Object.fromEntries(new FormData(form).entries()); }
@@ -408,6 +416,8 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'auth-login' || action === 'auth-register') { state.authMode = action === 'auth-register' ? 'register' : 'login'; render(); return; }
     if (action === 'auth-recover') { state.authMode = 'recover'; state.authError = ''; render(); return; }
     if (action === 'mfa-enroll') { await startMfaEnrollment(); return; }
+    if (action === 'export-account') { await exportAccount(); return; }
+    if (action === 'delete-account') { if (!window.confirm('Permanently delete your MediHuman account and records?')) return; const confirmation = window.prompt('Type DELETE MY ACCOUNT to confirm.'); if (confirmation) { await api.deleteAccount(confirmation); await api.logout().catch(() => undefined); state.screen = 'auth'; state.user = null; state.localOnly = false; render(); } return; }
     if (action === 'mfa-remove') { await api.mfaRemove(target.dataset.id); await loadMfaFactors(); render(); return; }
     if (action === 'edit-prescription') { state.editingPrescriptionId = target.dataset.id; render(); return; }
     if (action === 'cancel-prescription-edit') { state.editingPrescriptionId = ''; render(); return; }
@@ -463,7 +473,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'care-request') { await updateCareRequest(target.dataset.id, target.dataset.status); return; }
     if (action === 'doctor-refresh-patient') { await loadDoctorPatient(); return; }
     if (action === 'remove-question') { state.questions.splice(Number(target.dataset.index), 1); saveLocal(state); render(); return; }
-    if (action === 'save-consent') { state.consent = Boolean(document.querySelector('#consent-toggle')?.checked); saveLocal(state); render(); return; }
+    if (action === 'save-consent') { state.consent = Boolean(document.querySelector('#consent-toggle')?.checked); saveLocal(state); if (!state.localOnly) await api.saveConsent(state.consent); render(); return; }
     if (action === 'clear-data') { if (window.confirm('Clear this browser’s MediHuman workspace?')) { clearLocalWorkspace(); saveLocal(state); render(); } }
   });
 
