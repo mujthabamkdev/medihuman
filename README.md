@@ -89,6 +89,8 @@ STORE_BACKEND=supabase SUPABASE_MIGRATE_OVERWRITE=1 npm run migrate:supabase
 
 The Supabase revision column plus `medihuman_commit_state` RPC provide optimistic multi-instance locking. Conflicting writes retry twice and never fall back to `/tmp` or local JSON. Vercel now defaults to `STORE_BACKEND=supabase`; set `STORE_BACKEND=json` only for intentional local/preview runs.
 
+Supabase deployments use `medihuman_rate_limit_hit` for distributed API and authentication throttling. Each request sends one compact counter RPC and receives a boolean; counters contain IP-derived bucket keys only, not patient data. Local JSON mode keeps the in-process limiter for offline tests.
+
 ## Vercel deployment
 
 Use Vercel's **Other** framework preset for a static frontend plus one shared `api/index.js` function. The checked-in `vercel.json` sets `framework: null`, `buildCommand: "npm run build"`, `outputDirectory: "public"`, and rewrites `/api/:path*` to that function; it also prevents stale service-worker caching. Do not select a Node/server framework or rewrite all non-API requests to a function: Vercel's automatic `server.js` backend detection can make `/api/health` work while `/`, `/index.html`, and `/styles.css` return JSON 404 responses.

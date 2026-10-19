@@ -4,7 +4,7 @@ import { DEFAULT_DATA_FILE, ROOT } from './constants.js';
 import { getAuth, googleAuthConfig, requireFullAuth, requireCsrf } from './auth.js';
 import { HttpError } from './errors.js';
 import { clientIp, sendError, staticResponse } from './http.js';
-import { RateLimiter } from './rate-limit.js';
+import { RateLimiter, SupabaseRateLimiter } from './rate-limit.js';
 import { JsonDataStore, SupabaseDataStore } from './store.js';
 import { SupabaseAuthProvider } from './supabase-auth.js';
 import { handleAccessRoute } from './routes/access.js';
@@ -24,7 +24,7 @@ export async function createApp({
   publicRoot = ROOT,
   secureCookies = process.env.NODE_ENV === 'production',
   clock = () => Date.now(),
-  rateLimiter = new RateLimiter(),
+  rateLimiter = null,
   store = null,
   google = {},
   googleClientId,
@@ -44,6 +44,7 @@ export async function createApp({
   const protectedDataDirectory = resolve(dataFile, '..');
   const selectedAuthProvider = authProvider || (selectedBackend === 'supabase' ? new SupabaseAuthProvider({ fetchImpl }) : null);
   if (selectedBackend === 'supabase' && !selectedAuthProvider?.enabled) throw new Error('Supabase backend requires Supabase Auth publishable key and public URL configuration.');
+  const selectedRateLimiter = rateLimiter || (selectedBackend === 'supabase' ? new SupabaseRateLimiter({ fetchImpl }) : new RateLimiter());
   if (store && !store.state) await store.init();
 
   return async function app(request, response) {
@@ -56,7 +57,7 @@ export async function createApp({
         return;
       }
 
-      rateLimiter.check(clientIp(request), AUTH_PATHS.has(pathname), now);
+      await selectedRateLimiter.check(clientIp(request), AUTH_PATHS.has(pathname), now);
       if (pathname !== '/api/health' && typeof dataStore.refresh === 'function') await dataStore.refresh();
       const auth = await getAuth(dataStore, request, now);
       const method = request.method || 'GET';
