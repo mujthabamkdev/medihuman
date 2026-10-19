@@ -291,6 +291,14 @@ test('authenticator setup is available from privacy settings', () => {
   assert.match(markup, /data-action="mfa-enroll"/);
 });
 
+test('prescription records expose edit and delete controls', () => {
+  const state = { ...createState(), screen: 'shell', view: 'scan', localOnly: true, prescriptions: [{ id: 'rx-1', medicationName: 'Warfarin', strength: '5 mg', frequency: 'daily', instructions: 'Take in evening' }] };
+  const markup = createViewRenderer({ state }).renderShell();
+
+  assert.match(markup, /data-action="edit-prescription" data-id="rx-1"/);
+  assert.match(markup, /data-action="delete-prescription" data-id="rx-1"/);
+});
+
 test('camera card exposes mobile-safe action controls', () => {
   const state = { ...createState(), screen: 'shell', localOnly: true, view: 'scan' };
   const markup = createViewRenderer({ state }).renderShell();

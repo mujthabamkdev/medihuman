@@ -22,7 +22,7 @@ export function createState() {
       { title: 'What should I ask before my dose is changed?', meta: 'Starter question · not medical advice' },
       { title: 'How can I make my medication routine easier?', meta: 'Starter question · not medical advice' },
     ],
-    mfaFactors: [], mfaEnrollment: null, saveStatus: { profile: '', medicines: '', reconciliation: '' },
+    mfaFactors: [], mfaEnrollment: null, editingPrescriptionId: '', saveStatus: { profile: '', medicines: '', reconciliation: '' },
   };
 }
 
