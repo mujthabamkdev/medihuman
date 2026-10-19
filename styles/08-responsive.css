@@ -109,7 +109,9 @@
   .medicine-fields { grid-template-columns: minmax(0, 1fr); }
   .medicine-actions,
   .reconcile-actions { align-items: stretch; flex-wrap: wrap; flex-direction: column; }
-  .form-actions { align-items: flex-start; flex-wrap: wrap; }
+  .form-actions { align-items: stretch; flex-direction: column; flex-wrap: wrap; gap: 10px; }
+  .form-actions .button { width: 100%; }
+  .form-actions .save-note { width: 100%; }
   .reconcile-actions .button,
   .medicine-actions .button { width: 100%; }
   .add-question { display: block; align-items: stretch; flex-direction: column; }
@@ -120,7 +122,7 @@
   .camera-actions { display: grid; gap: 9px; }
   .camera-actions .button,
   .camera-actions .file-button { width: 100%; min-width: 0; min-height: 46px; }
-  .camera-actions .file-button { display: inline-flex; white-space: normal; text-align: center; }
+  .camera-actions .file-button { display: inline-flex; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
   .camera-error { padding: 22px 16px; }
   .camera-error h4 { font-size: 1.05rem; }
   .composition-row { align-items: flex-start; flex-direction: column; }
@@ -130,7 +132,7 @@
   .doctor-record-header .status-pill { display: inline-flex; margin-top: 12px; }
   .record-list div { grid-template-columns: 1fr; gap: 4px; }
   .modal-actions { display: grid; }
-  .modal-actions .button { width: 100%; }
+  .modal-actions .button { width: 100%; flex: 1 1 auto; }
   .privacy-actions { align-items: stretch; flex-direction: column; }
   .privacy-actions .button { width: 100%; }
   .workspace-nav { align-items: flex-start; flex-wrap: wrap; }

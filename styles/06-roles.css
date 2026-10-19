@@ -41,5 +41,5 @@
 .modal-backdrop { position: fixed; inset: 0; background: rgba(18, 48, 42, .44); display: grid; place-items: center; padding: 16px; overflow-y: auto; z-index: 30; }
 .modal-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 22px; }
 .local-exit-dialog .modal-actions { align-items: stretch; }
-.local-exit-dialog .modal-actions .button { flex: 1 1 0; min-width: 0; }
+.local-exit-dialog .modal-actions .button { flex: 0 1 auto; min-width: 0; }
 .privacy-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
