@@ -153,6 +153,19 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     render();
   }
 
+  async function submitIndicationEdit(form) {
+    const values = formValues(form);
+    const patientId = form.dataset.patientId;
+    const id = form.dataset.id;
+    const records = state.doctorRecords[patientId];
+    const index = records?.indications?.findIndex((item) => item.id === id) ?? -1;
+    if (index < 0) return;
+    if (state.localOnly) records.indications[index] = { ...records.indications[index], ...values };
+    else records.indications[index] = (await api.updateIndication(patientId, id, values)).indication;
+    state.editingIndicationId = '';
+    render();
+  }
+
   async function loadMfaFactors() {
     if (state.localOnly) return;
     try { const result = await api.mfaFactors(); state.mfaFactors = result.all || result.totp || []; } catch { state.mfaFactors = []; }
@@ -399,6 +412,9 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'edit-prescription') { state.editingPrescriptionId = target.dataset.id; render(); return; }
     if (action === 'cancel-prescription-edit') { state.editingPrescriptionId = ''; render(); return; }
     if (action === 'delete-prescription') { await api.deletePrescription(target.dataset.id); state.prescriptions = state.prescriptions.filter((item) => item.id !== target.dataset.id); render(); return; }
+    if (action === 'edit-indication') { state.editingIndicationId = target.dataset.id; render(); return; }
+    if (action === 'cancel-indication-edit') { state.editingIndicationId = ''; render(); return; }
+    if (action === 'delete-indication') { const patientId = target.dataset.patientId; await api.deleteIndication(patientId, target.dataset.id); state.doctorRecords[patientId].indications = state.doctorRecords[patientId].indications.filter((item) => item.id !== target.dataset.id); render(); return; }
     if (action === 'auth-role') { state.authRole = target.dataset.role === 'doctor' ? 'doctor' : 'patient'; state.authRoleExplicit = true; render(); return; }
     if (action === 'local-mode') { enterLocal(); return; }
     if (action === 'toggle-menu') { state.mobileMenuOpen = !state.mobileMenuOpen; render(); return; }
@@ -451,7 +467,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'clear-data') { if (window.confirm('Clear this browser’s MediHuman workspace?')) { clearLocalWorkspace(); saveLocal(state); render(); } }
   });
 
-   root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; try { if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'password-reset') await submitPasswordReset(form); if (form.dataset.form === 'mfa') await submitMfa(form); if (form.dataset.form === 'mfa-enrollment') await submitMfaEnrollment(form); if (form.dataset.form === 'prescription-edit') await submitPrescriptionEdit(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); if (form.dataset.form === 'doctor-indication') await submitIndication(form); } catch (error) { state.authError = error.message; render(); } });
+   root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; try { if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'password-reset') await submitPasswordReset(form); if (form.dataset.form === 'mfa') await submitMfa(form); if (form.dataset.form === 'mfa-enrollment') await submitMfaEnrollment(form); if (form.dataset.form === 'prescription-edit') await submitPrescriptionEdit(form); if (form.dataset.form === 'indication-edit') await submitIndicationEdit(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); if (form.dataset.form === 'doctor-indication') await submitIndication(form); } catch (error) { state.authError = error.message; render(); } });
   root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); });
   root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); if (event.target.id === 'doctor-patient-select') loadDoctorPatient(event.target.value); });
   return { enterLocal, hydrateRemote, render };

@@ -12,20 +12,35 @@ import { allowedKeys, stringValue } from '../validation.js';
 
 export async function handleDoctorRoute(ctx) {
   const { pathname, method, response, dataStore, current } = ctx;
-  const indicationPath = pathname.match(/^\/api\/doctor\/patients\/([^/]+)\/indications$/);
-  if (indicationPath && method === 'POST') {
+  const indicationPath = pathname.match(/^\/api\/doctor\/patients\/([^/]+)\/indications(?:\/([^/]+))?$/);
+  if (indicationPath && ['POST', 'PUT', 'DELETE'].includes(method)) {
     requireVerifiedDoctor(current);
     const patientId = decodePathValue(indicationPath[1], 'patientId');
-    const body = await readJson(ctx.request);
-    allowedKeys(body, ['title', 'detail', 'severity']);
-    const title = stringValue(body.title, 'title', { required: true, max: 200 });
-    const detail = stringValue(body.detail, 'detail', { required: true, max: 1_200 });
-    const severity = stringValue(body.severity || 'info', 'severity', { max: 20 }).toLowerCase();
-    if (!['info', 'review', 'high'].includes(severity)) throw new HttpError(400, 'INVALID_FIELD', 'severity must be info, review, or high.');
+    const indicationId = indicationPath[2] ? decodePathValue(indicationPath[2], 'indicationId') : null;
     const patient = await dataStore.read((state) => findPatientByPublicId(state, patientId));
     if (!patient) throw new HttpError(404, 'PATIENT_NOT_FOUND', 'Patient not found.');
     const approved = await dataStore.read((state) => hasApprovedAccess(state, current.user.id, patient.id));
     if (!approved) throw new HttpError(403, 'PATIENT_ACCESS_REQUIRED', 'Patient approval is required.');
+    const body = method === 'DELETE' ? {} : await readJson(ctx.request);
+    allowedKeys(body, ['title', 'detail', 'severity']);
+    if (method !== 'POST') {
+      const existing = await dataStore.read((state) => state.indications.find((item) => item.id === indicationId && item.patientUserId === patient.id && item.doctorUserId === current.user.id));
+      if (!existing) throw new HttpError(404, 'INDICATION_NOT_FOUND', 'Clinician indication not found.');
+      if (method === 'DELETE') {
+        await dataStore.transact((state) => { state.indications = state.indications.filter((item) => item.id !== indicationId); });
+        sendJson(response, 200, { ok: true });
+        return true;
+      }
+      const updated = { ...existing, title: body.title === undefined ? existing.title : stringValue(body.title, 'title', { required: true, max: 200 }), detail: body.detail === undefined ? existing.detail : stringValue(body.detail, 'detail', { required: true, max: 1_200 }), severity: body.severity === undefined ? existing.severity : stringValue(body.severity, 'severity', { max: 20 }).toLowerCase(), updatedAt: new Date(ctx.now).toISOString() };
+      if (!['info', 'review', 'high'].includes(updated.severity)) throw new HttpError(400, 'INVALID_FIELD', 'severity must be info, review, or high.');
+      await dataStore.transact((state) => { const item = state.indications.find((entry) => entry.id === indicationId); Object.assign(item, updated); });
+      sendJson(response, 200, { indication: publicIndication(updated, current.user) });
+      return true;
+    }
+    const title = stringValue(body.title, 'title', { required: true, max: 200 });
+    const detail = stringValue(body.detail, 'detail', { required: true, max: 1_200 });
+    const severity = stringValue(body.severity || 'info', 'severity', { max: 20 }).toLowerCase();
+    if (!['info', 'review', 'high'].includes(severity)) throw new HttpError(400, 'INVALID_FIELD', 'severity must be info, review, or high.');
     const indication = { id: newId(), doctorUserId: current.user.id, patientUserId: patient.id, title, detail, severity, createdAt: new Date(ctx.now).toISOString() };
     await dataStore.transact((state) => {
       state.indications.push(indication);
@@ -43,7 +58,7 @@ export async function handleDoctorRoute(ctx) {
     if (!patient) throw new HttpError(404, 'PATIENT_NOT_FOUND', 'Patient not found.');
     const approved = await dataStore.read((state) => hasApprovedAccess(state, current.user.id, patient.id));
     if (!approved) throw new HttpError(403, 'PATIENT_ACCESS_REQUIRED', 'Patient approval is required.');
-    const records = await dataStore.read((state) => patientRecords(state, patient));
+    const records = await dataStore.read((state) => patientRecords(state, patient, { indicationDoctorId: current.user.id }));
     await dataStore.transact((state) => addAuditEvent(state, { actorUserId: current.user.id, action: 'record.patient_read', entityType: 'patient', entityId: patient.id }, ctx.now));
     const resource = doctorPatientMatch[2];
     if (resource === 'summary') {

@@ -54,12 +54,12 @@ export function hasApprovedAccess(state, doctorId, patientId) {
   return state.accessRequests.some((request) => request.doctorUserId === doctorId && request.patientUserId === patientId && request.status === 'approved');
 }
 
-export function patientRecords(state, patient, { includeSensitive = true } = {}) {
+export function patientRecords(state, patient, { includeSensitive = true, indicationDoctorId = null } = {}) {
   const profile = state.profiles.find((item) => item.userId === patient.id) || profileValue();
   const medicines = state.medicines.find((item) => item.userId === patient.id)?.items || [];
   const prescriptions = state.prescriptions.filter((item) => item.userId === patient.id).map(publicPrescription);
   const reconciliations = state.reconciliations.filter((item) => item.userId === patient.id).map(publicReconciliation);
-  const indications = state.indications.filter((item) => item.patientUserId === patient.id).map((item) => publicIndication(item, state.users.find((user) => user.id === item.doctorUserId)));
+  const indications = state.indications.filter((item) => item.patientUserId === patient.id && (!indicationDoctorId || item.doctorUserId === indicationDoctorId)).map((item) => publicIndication(item, state.users.find((user) => user.id === item.doctorUserId)));
   if (!includeSensitive) return { profile: publicProfile(profile, patient) };
   return { profile: publicProfile(profile, patient), medicines, prescriptions, reconciliations, indications };
 }

@@ -98,5 +98,7 @@ export const api = {
   markNotificationRead: (notificationId) => json('POST', `/notifications/${encodeURIComponent(notificationId)}/read`, {}),
   indications: () => request('/indications'),
   addIndication: (patientId, body) => json('POST', `/doctor/patients/${encodeURIComponent(patientId)}/indications`, body),
+  updateIndication: (patientId, id, body) => json('PUT', `/doctor/patients/${encodeURIComponent(patientId)}/indications/${encodeURIComponent(id)}`, body),
+  deleteIndication: (patientId, id) => request(`/doctor/patients/${encodeURIComponent(patientId)}/indications/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   doctorPatient: (patientId, resource = '') => request(`/doctor/patients/${encodeURIComponent(patientId)}${resource ? `/${resource}` : ''}`),
 };
