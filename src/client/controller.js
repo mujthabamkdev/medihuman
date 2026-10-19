@@ -320,9 +320,9 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'auth-login' || action === 'auth-register') { state.authMode = action === 'auth-register' ? 'register' : 'login'; render(); return; }
     if (action === 'auth-role') { state.authRole = target.dataset.role === 'doctor' ? 'doctor' : 'patient'; state.authRoleExplicit = true; render(); return; }
     if (action === 'local-mode') { enterLocal(); return; }
-    if (action === 'toggle-menu') { state.mobileMenuOpen = !state.mobileMenuOpen; render(); document.querySelector('#sidebar')?.classList.toggle('open', state.mobileMenuOpen); return; }
+    if (action === 'toggle-menu') { state.mobileMenuOpen = !state.mobileMenuOpen; render(); return; }
     if (action === 'toggle-profile-menu') { state.profileMenuOpen = !state.profileMenuOpen; state.notificationsOpen = false; render(); return; }
-    if (action === 'toggle-patient-menu') { state.patientMenuOpen = !state.patientMenuOpen; render(); document.querySelector('#sidebar')?.classList.add('open'); return; }
+    if (action === 'toggle-patient-menu') { state.patientMenuOpen = !state.patientMenuOpen; render(); return; }
     if (action === 'toggle-notifications') {
       state.notificationsOpen = !state.notificationsOpen;
       state.profileMenuOpen = false;
@@ -342,7 +342,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       render();
       return;
     }
-    if (action === 'nav') { state.view = target.dataset.view; state.patientMenuOpen = target.dataset.submenu === 'patient' || state.patientMenuOpen; state.profileMenuOpen = false; state.notificationsOpen = false; state.mobileMenuOpen = false; document.querySelector('#sidebar')?.classList.remove('open'); render(); return; }
+    if (action === 'nav') { state.view = target.dataset.view; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; state.mobileMenuOpen = false; render(); return; }
     if (action === 'privacy') { state.view = 'privacy'; state.profileMenuOpen = false; state.notificationsOpen = false; state.mobileMenuOpen = false; render(); return; }
     if (action === 'logout') { if (state.localOnly) { state.localExitPrompt = true; state.profileMenuOpen = false; state.notificationsOpen = false; state.mobileMenuOpen = false; render(); return; } stopCamera(); try { await api.logout(); } catch { /* clear UI regardless */ } setLocalMode(false); state.screen = 'auth'; state.user = null; state.localOnly = false; state.view = 'dashboard'; state.notificationsOpen = false; state.mobileMenuOpen = false; render(); return; }
     if (action === 'local-exit-preserve') { exitLocal(false); return; }

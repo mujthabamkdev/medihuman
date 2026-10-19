@@ -207,20 +207,45 @@ test('patient submenu exposes overlay dropdown hook', () => {
   assert.match(markup, /class="nav-subitem/);
 });
 
-test('patient submenu toggle preserves mobile drawer-open intent', () => {
-  const state = { ...createState(), screen: 'shell', localOnly: true };
+test('patient submenu toggle preserves mobile drawer-open intent', async () => {
+  const state = { ...createState(), screen: 'shell', localOnly: true, mobileMenuOpen: true };
   const views = createViewRenderer({ state });
   const listeners = {};
   const root = { innerHTML: '', addEventListener(type, handler) { listeners[type] = handler; } };
   const previousDocument = globalThis.document;
-  const sidebar = { classList: { add(className) { this.lastAdded = className; } } };
-  globalThis.document = { querySelector() { return sidebar; } };
+  globalThis.document = { querySelector() { return null; } };
   try {
     const controller = createController({ root, state, views, ocr: {} });
     void controller;
-    listeners.click({ target: { closest() { return { dataset: { action: 'toggle-patient-menu' } }; } } });
+    await listeners.click({ target: { closest() { return { dataset: { action: 'toggle-patient-menu' } }; } } });
     assert.equal(state.patientMenuOpen, true);
-    assert.equal(sidebar.classList.lastAdded, 'open');
+    assert.equal(state.mobileMenuOpen, true);
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document; else globalThis.document = previousDocument;
+  }
+});
+
+test('mobile drawer closes from hamburger and patient submenu collapses after selection', async () => {
+  const state = { ...createState(), screen: 'shell', localOnly: true, mobileMenuOpen: true, patientMenuOpen: true };
+  const views = createViewRenderer({ state });
+  const listeners = {};
+  const root = { innerHTML: '', addEventListener(type, handler) { listeners[type] = handler; } };
+  const previousDocument = globalThis.document;
+  globalThis.document = { querySelector() { return null; } };
+  try {
+    const controller = createController({ root, state, views, ocr: {} });
+    void controller;
+
+    await listeners.click({ target: { closest() { return { dataset: { action: 'toggle-menu' } }; } } });
+    assert.equal(state.mobileMenuOpen, false);
+    assert.doesNotMatch(root.innerHTML, /class="mobile-nav-scrim"/);
+    assert.doesNotMatch(root.innerHTML, /class="sidebar[^" ]* open/);
+
+    state.mobileMenuOpen = true;
+    state.patientMenuOpen = true;
+    await listeners.click({ target: { closest() { return { dataset: { action: 'nav', view: 'patient', submenu: 'patient' } }; } } });
+    assert.equal(state.patientMenuOpen, false);
+    assert.equal(state.mobileMenuOpen, false);
   } finally {
     if (previousDocument === undefined) delete globalThis.document; else globalThis.document = previousDocument;
   }
