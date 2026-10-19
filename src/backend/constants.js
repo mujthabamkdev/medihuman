@@ -8,6 +8,7 @@ export const MAX_LIST_ITEMS = 100;
 export const COOKIE_SESSION = 'mh_session';
 export const COOKIE_CSRF = 'mh_csrf';
 export const COOKIE_GOOGLE_STATE = 'mh_google_state';
+export const COOKIE_RECOVERY = 'mh_recovery';
 export const GOOGLE_STATE_TTL_MS = 10 * 60 * 1000;
 export const GOOGLE_STATE_TTL_SECONDS = GOOGLE_STATE_TTL_MS / 1000;
 export const PATIENT_ROLES = new Set(['patient', 'doctor']);

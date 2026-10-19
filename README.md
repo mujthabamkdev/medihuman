@@ -57,9 +57,14 @@ Set server-only environment variables before starting the app or deploying:
 STORE_BACKEND=supabase
 SUPABASE_URL=https://hagplohwjudzbenftljk.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=replace-me
+SUPABASE_PUBLISHABLE_KEY=replace-me
+MEDIHUMAN_PUBLIC_URL=https://your-deployment.example.com
+MEDIHUMAN_AUTH_ENCRYPTION_KEY=base64-encoded-32-byte-key
 ```
 
 Never put `SUPABASE_SERVICE_ROLE_KEY` in browser, `index.html`, `public/`, or `NEXT_PUBLIC_*` variables. Local JSON remains default until `STORE_BACKEND=supabase` is set.
+
+When `STORE_BACKEND=supabase`, Supabase Auth handles email confirmation and recovery emails. The app keeps its existing HttpOnly application session, proxies confirmation links through `/api/auth/confirm`, blocks unconfirmed password login, and provides password recovery at the sign-in screen. Configure production SMTP and exact `/api/auth/confirm` redirect allowlisting in Supabase before release. TOTP MFA is enabled in the checked-in local Supabase config; production MFA enrollment/verification UI remains a separate release gate.
 
 To import existing local `.data/medihuman.json`, first back it up, then run:
 
@@ -117,6 +122,8 @@ Set production environment variables in Vercel Project Settings or with `vercel 
 - `STORE_BACKEND=supabase`
 - `SUPABASE_URL=https://hagplohwjudzbenftljk.supabase.co`
 - `SUPABASE_SERVICE_ROLE_KEY` (server-only Supabase service-role key)
+- `SUPABASE_PUBLISHABLE_KEY` (server-side Auth proxy key; legacy `SUPABASE_ANON_KEY` also accepted)
+- `MEDIHUMAN_PUBLIC_URL` (exact public app origin used in Auth redirects)
 - `MEDIHUMAN_CLINICIAN_ADMIN_KEY` (server-only clinician verification key)
 - `MEDIHUMAN_SUMMARY_URL` (optional)
 - `MEDIHUMAN_SUMMARY_API_KEY` (optional, server-side only)

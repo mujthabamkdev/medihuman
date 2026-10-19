@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID, scrypt as nodeScrypt, timingSafeEqual } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID, scrypt as nodeScrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
 const scrypt = promisify(nodeScrypt);
@@ -8,6 +8,29 @@ const DUMMY_SALT = Buffer.alloc(16, 7);
 const DUMMY_HASH = Buffer.alloc(PASSWORD_KEY_LENGTH, 3);
 
 export const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+export const RECOVERY_SESSION_TTL_MS = 15 * 60 * 1000;
+
+function authEncryptionKey() {
+  const value = process.env.MEDIHUMAN_AUTH_ENCRYPTION_KEY;
+  if (!value) throw new Error('MEDIHUMAN_AUTH_ENCRYPTION_KEY is required for upstream auth sessions.');
+  const key = Buffer.from(value, 'base64');
+  if (key.length !== 32) throw new Error('MEDIHUMAN_AUTH_ENCRYPTION_KEY must be base64-encoded 32 bytes.');
+  return key;
+}
+
+export function encryptSecret(value) {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', authEncryptionKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+  return `${iv.toString('base64url')}.${cipher.getAuthTag().toString('base64url')}.${encrypted.toString('base64url')}`;
+}
+
+export function decryptSecret(value) {
+  const [ivValue, tagValue, dataValue] = String(value || '').split('.');
+  const decipher = createDecipheriv('aes-256-gcm', authEncryptionKey(), Buffer.from(ivValue, 'base64url'));
+  decipher.setAuthTag(Buffer.from(tagValue, 'base64url'));
+  return Buffer.concat([decipher.update(Buffer.from(dataValue, 'base64url')), decipher.final()]).toString('utf8');
+}
 
 export function createToken(bytes = 32) {
   return randomBytes(bytes).toString('base64url');

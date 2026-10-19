@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import {
-  COOKIE_CSRF, COOKIE_GOOGLE_STATE, COOKIE_SESSION, GOOGLE_STATE_TTL_SECONDS, MAX_BODY_BYTES, MIME_TYPES,
+  COOKIE_CSRF, COOKIE_GOOGLE_STATE, COOKIE_RECOVERY, COOKIE_SESSION, GOOGLE_STATE_TTL_SECONDS, MAX_BODY_BYTES, MIME_TYPES,
 } from './constants.js';
 import { HttpError } from './errors.js';
 
@@ -65,6 +65,18 @@ export function clearAuthCookies(response, secure) {
     `${COOKIE_SESSION}=; ${cookieOptions({ httpOnly: true, maxAge: 0, secure })}`,
     `${COOKIE_CSRF}=; ${cookieOptions({ maxAge: 0, secure })}`,
   ]);
+}
+
+export function setRecoveryCookie(response, token, secure) {
+  const previous = response.getHeader?.('Set-Cookie');
+  const existing = Array.isArray(previous) ? previous : previous ? [previous] : [];
+  response.setHeader('Set-Cookie', [...existing, `${COOKIE_RECOVERY}=${token}; ${cookieOptions({ httpOnly: true, maxAge: 15 * 60, secure })}`]);
+}
+
+export function clearRecoveryCookie(response, secure) {
+  const previous = response.getHeader?.('Set-Cookie');
+  const existing = Array.isArray(previous) ? previous : previous ? [previous] : [];
+  response.setHeader('Set-Cookie', [...existing, `${COOKIE_RECOVERY}=; ${cookieOptions({ httpOnly: true, maxAge: 0, secure })}`]);
 }
 
 export function sendJson(response, status, body, headers = {}) {

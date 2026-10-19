@@ -2,7 +2,7 @@ import { COOKIE_CSRF, COOKIE_SESSION, GOOGLE_STATE_TTL_MS } from './constants.js
 import { HttpError } from './errors.js';
 import { parseCookies } from './http.js';
 import {
-  SESSION_TTL_MS, createToken, newId, safeEqualText, tokenHash,
+  RECOVERY_SESSION_TTL_MS, SESSION_TTL_MS, createToken, decryptSecret, encryptSecret, newId, safeEqualText, tokenHash,
 } from './security.js';
 
 export function googleAuthConfig(overrides = {}) {
@@ -80,7 +80,7 @@ export function googleDisplayName(value, email) {
   return displayName;
 }
 
-export async function createSession(store, userId, now) {
+export async function createSession(store, userId, now, { recoveryOnly = false, mfaPending = false, upstreamTokens = null } = {}) {
   const sessionToken = createToken();
   const csrfToken = createToken(24);
   const session = {
@@ -89,13 +89,16 @@ export async function createSession(store, userId, now) {
     tokenHash: tokenHash(sessionToken),
     csrfTokenHash: tokenHash(csrfToken),
     createdAt: new Date(now).toISOString(),
-    expiresAt: new Date(now + SESSION_TTL_MS).toISOString(),
+    expiresAt: new Date(now + (recoveryOnly ? RECOVERY_SESSION_TTL_MS : SESSION_TTL_MS)).toISOString(),
+    recoveryOnly,
+    mfaPending,
+    ...(upstreamTokens ? { upstreamTokens: encryptSecret(JSON.stringify(upstreamTokens)) } : {}),
   };
   await store.transact((state) => {
     state.sessions = state.sessions.filter((item) => item.userId !== userId && new Date(item.expiresAt).getTime() > now);
     state.sessions.push(session);
   });
-  return { sessionToken, csrfToken };
+  return { sessionId: session.id, sessionToken, csrfToken };
 }
 
 export async function getAuth(store, request, now) {
@@ -105,12 +108,23 @@ export async function getAuth(store, request, now) {
   const session = await store.read((state) => state.sessions.find((item) => item.tokenHash === tokenHash(rawToken)));
   if (!session || new Date(session.expiresAt).getTime() <= now) return null;
   const user = await store.read((state) => state.users.find((item) => item.id === session.userId));
-  return user ? { session, user, cookies } : null;
+  let upstreamTokens = null;
+  if (session?.upstreamTokens) {
+    try { upstreamTokens = JSON.parse(decryptSecret(session.upstreamTokens)); } catch { return null; }
+  }
+  return user ? { session, user, cookies, upstreamTokens } : null;
 }
 
 export function requireAuth(auth) {
   if (!auth) throw new HttpError(401, 'UNAUTHENTICATED', 'Authentication required.');
   return auth;
+}
+
+export function requireFullAuth(auth) {
+  const current = requireAuth(auth);
+  if (current.session.recoveryOnly) throw new HttpError(403, 'RECOVERY_SESSION_ONLY', 'Complete password recovery before accessing this workspace.');
+  if (current.session.mfaPending) throw new HttpError(403, 'MFA_REQUIRED', 'Multi-factor verification is required.');
+  return current;
 }
 
 export function requireRole(auth, role) {

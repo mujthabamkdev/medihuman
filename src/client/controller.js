@@ -57,6 +57,8 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     const search = browserWindow?.location?.search || '';
     const callbackError = googleAuthErrorMessage(search);
     if (callbackError) state.authError = callbackError;
+    let recoveryCallback = false;
+    try { recoveryCallback = new URLSearchParams(search).get('recovery') === '1'; } catch { /* malformed query cannot block normal hydration */ }
     if (browserWindow?.history?.replaceState && search) {
       try {
         const params = new URLSearchParams(search);
@@ -64,6 +66,12 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
           browserWindow.history.replaceState(null, '', `${browserWindow.location.pathname || '/'}${browserWindow.location.hash || ''}`);
         }
       } catch { /* malformed callback query cannot block normal session hydration */ }
+    }
+    if (recoveryCallback) {
+      state.authMode = 'reset';
+      state.screen = 'auth';
+      render();
+      return;
     }
     try {
       const data = await api.me();
@@ -80,12 +88,20 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
 
   async function submitAuth(form) {
     const data = Object.fromEntries(new FormData(form).entries());
+    if (state.authMode === 'recover') {
+      const result = await api.recover(data.email);
+      state.authError = result.message;
+      render();
+      return;
+    }
     const isRegister = state.authMode === 'register';
     if (isRegister && data.consent !== 'on') return showAuthError('Please acknowledge the safety and privacy statement.');
     const submit = form.querySelector('button[type="submit"]'); submit.disabled = true;
     try {
       const role = state.authRole;
       const result = isRegister ? await api.register({ email: data.email, password: data.password, role, profile: role === 'patient' ? { fullName: data.fullName || '' } : {}, ...(role === 'doctor' ? { doctor: { displayName: data.name, specialty: data.specialty, registrationId: data.registrationId, organization: data.organization } } : {}) }) : await api.login({ email: data.email, password: data.password });
+      if (result.pendingEmailConfirmation) { state.authError = result.message; render(); return; }
+      if (result.mfaRequired) { state.authMode = 'mfa'; state.authError = ''; render(); return; }
       if (!isRegister && result.user.role !== role) {
         try { await api.logout(); } catch { /* credentials remain untouched */ }
         throw new Error(`This account is registered as ${result.user.role}. Choose that role to sign in.`);
@@ -97,6 +113,23 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       await loadRoleData();
       render();
     } catch (error) { showAuthError(error.message); submit.disabled = false; }
+  }
+
+  async function submitPasswordReset(form) {
+    const data = Object.fromEntries(new FormData(form).entries());
+    if (data.password !== data.confirmPassword) throw new Error('Passwords do not match.');
+    const result = await api.updatePassword(data.password);
+    state.authMode = 'login';
+    state.authError = result.message;
+    render();
+  }
+
+  async function submitMfa(form) {
+    const data = Object.fromEntries(new FormData(form).entries());
+    await api.verifyMfa(data.code);
+    state.authMode = 'login';
+    state.authError = '';
+    await hydrateRemote();
   }
 
   function showAuthError(message) { const target = document.querySelector('#auth-error'); if (target) target.innerHTML = notice(escapeHtml(message), 'warning'); }
@@ -318,6 +351,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
   root.addEventListener('click', async (event) => {
     const target = event.target.closest('[data-action]'); if (!target) return; const action = target.dataset.action;
     if (action === 'auth-login' || action === 'auth-register') { state.authMode = action === 'auth-register' ? 'register' : 'login'; render(); return; }
+    if (action === 'auth-recover') { state.authMode = 'recover'; state.authError = ''; render(); return; }
     if (action === 'auth-role') { state.authRole = target.dataset.role === 'doctor' ? 'doctor' : 'patient'; state.authRoleExplicit = true; render(); return; }
     if (action === 'local-mode') { enterLocal(); return; }
     if (action === 'toggle-menu') { state.mobileMenuOpen = !state.mobileMenuOpen; render(); return; }
@@ -368,7 +402,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'clear-data') { if (window.confirm('Clear this browser’s MediHuman workspace?')) { clearLocalWorkspace(); saveLocal(state); render(); } }
   });
 
-   root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); if (form.dataset.form === 'doctor-indication') await submitIndication(form); });
+   root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; try { if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'password-reset') await submitPasswordReset(form); if (form.dataset.form === 'mfa') await submitMfa(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); if (form.dataset.form === 'doctor-indication') await submitIndication(form); } catch (error) { state.authError = error.message; render(); } });
   root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); });
   root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); if (event.target.id === 'doctor-patient-select') loadDoctorPatient(event.target.value); });
   return { enterLocal, hydrateRemote, render };

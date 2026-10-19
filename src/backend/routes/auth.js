@@ -4,12 +4,12 @@ import {
 import { COOKIE_GOOGLE_STATE } from '../constants.js';
 import { HttpError } from '../errors.js';
 import {
-  clearAuthCookies, clearGoogleStateCookie, parseCookies, readJson, redirect, sendJson,
-  setAuthCookies, setGoogleStateCookie,
+  clearAuthCookies, clearGoogleStateCookie, clearRecoveryCookie, parseCookies, readJson, redirect, sendJson,
+  setAuthCookies, setGoogleStateCookie, setRecoveryCookie,
 } from '../http.js';
 import { publicProfile } from '../records.js';
 import { addAuditEvent } from '../audit.js';
-import { hashPassword, newId, safeEqualText, verifyPassword } from '../security.js';
+import { encryptSecret, hashPassword, newId, safeEqualText, verifyPassword } from '../security.js';
 import {
   allowedKeys, doctorRegistrationValue, emailValue, passwordValue, profileValue, roleValue,
 } from '../validation.js';
@@ -17,13 +17,19 @@ import {
 export async function handleAuthRoute(ctx) {
   const {
     pathname, method, request, response, dataStore, now, secureCookies, auth, url,
-    googleConfig, fetchImpl,
+    googleConfig, fetchImpl, authProvider,
   } = ctx;
   const isRegister = pathname === '/api/auth/register' || pathname === '/api/register';
   const isLogin = pathname === '/api/auth/login' || pathname === '/api/login';
   const isLogout = pathname === '/api/auth/logout' || pathname === '/api/logout';
   const isGoogleStart = pathname === '/api/auth/google';
   const isGoogleCallback = pathname === '/api/auth/google/callback';
+  const isRecover = pathname === '/api/auth/recover';
+  const isResendConfirmation = pathname === '/api/auth/resend-confirmation';
+  const isConfirm = pathname === '/api/auth/confirm';
+  const isPasswordUpdate = pathname === '/api/auth/password';
+  const isMfa = pathname.startsWith('/api/auth/mfa');
+  const isRevokeSessions = pathname === '/api/auth/sessions/revoke';
   const redirectGoogleError = (code) => {
     clearGoogleStateCookie(response, secureCookies);
     redirect(response, `/?error=${encodeURIComponent(code)}`);
@@ -45,6 +51,125 @@ export async function handleAuthRoute(ctx) {
     authorization.searchParams.set('state', state);
     setGoogleStateCookie(response, state, secureCookies);
     redirect(response, authorization.toString());
+    return true;
+  }
+
+  if (isConfirm && method === 'GET') {
+    if (!authProvider?.enabled) return redirect(response, '/?error=email_auth_unavailable');
+    const tokenHash = url.searchParams.get('token_hash');
+    const type = url.searchParams.get('type');
+    if (!tokenHash || !['email', 'recovery'].includes(type)) return redirect(response, '/?error=auth_link_invalid');
+    try {
+      const verified = await authProvider.verify(tokenHash, type);
+      const supabaseUser = verified.user;
+      const user = await dataStore.read((state) => state.users.find((item) => item.supabaseUserId === supabaseUser?.id || item.email === supabaseUser?.email));
+      if (!user) return redirect(response, '/?error=account_not_found');
+      if (type === 'recovery') {
+        const session = await createSession(dataStore, user.id, now, { recoveryOnly: true });
+        setAuthCookies(response, session.sessionToken, session.csrfToken, secureCookies);
+        setRecoveryCookie(response, verified.access_token, secureCookies);
+        return redirect(response, '/?recovery=1');
+      }
+      await dataStore.transact((state) => {
+        const current = state.users.find((item) => item.id === user.id);
+        if (current) current.emailConfirmedAt = new Date(now).toISOString();
+      });
+      const session = await createSession(dataStore, user.id, now);
+      setAuthCookies(response, session.sessionToken, session.csrfToken, secureCookies);
+      return redirect(response, '/?confirmed=1');
+    } catch {
+      return redirect(response, '/?error=auth_link_invalid');
+    }
+  }
+
+  if (isRecover && method === 'POST') {
+    const body = await readJson(request);
+    allowedKeys(body, ['email']);
+    const email = emailValue(body.email);
+    if (authProvider?.enabled) {
+      try { await authProvider.recover(email); } catch { /* generic response prevents account enumeration */ }
+    }
+    sendJson(response, 200, { ok: true, message: 'If an account exists, recovery instructions were sent.' });
+    return true;
+  }
+
+  if (isResendConfirmation && method === 'POST') {
+    const body = await readJson(request);
+    allowedKeys(body, ['email']);
+    const email = emailValue(body.email);
+    if (authProvider?.enabled) {
+      try { await authProvider.resendConfirmation(email); } catch { /* generic response */ }
+    }
+    sendJson(response, 200, { ok: true, message: 'If the account exists, confirmation instructions were sent.' });
+    return true;
+  }
+
+  if (isPasswordUpdate && method === 'POST') {
+    if (!auth?.session?.recoveryOnly) throw new HttpError(403, 'RECOVERY_REQUIRED', 'Password recovery session required.');
+    const body = await readJson(request);
+    allowedKeys(body, ['password']);
+    const password = passwordValue(body.password);
+    const recoveryToken = parseCookies(request.headers.cookie).mh_recovery;
+    if (!authProvider?.enabled || !recoveryToken) throw new HttpError(403, 'RECOVERY_INVALID', 'Password recovery session is invalid.');
+    await authProvider.updatePassword(recoveryToken, password);
+    await dataStore.transact((state) => {
+      state.sessions = state.sessions.filter((item) => item.userId !== auth.user.id);
+      const user = state.users.find((item) => item.id === auth.user.id);
+      if (user) user.emailConfirmedAt ||= new Date(now).toISOString();
+    });
+    clearAuthCookies(response, secureCookies);
+    clearRecoveryCookie(response, secureCookies);
+    sendJson(response, 200, { ok: true, message: 'Password updated. Sign in again to continue.' });
+    return true;
+  }
+
+  if (isMfa && authProvider?.enabled) {
+    if (method === 'GET' && pathname === '/api/auth/mfa') {
+      if (!auth?.upstreamTokens?.access_token) throw new HttpError(403, 'MFA_SESSION_REQUIRED', 'MFA session is unavailable.');
+      sendJson(response, 200, await authProvider.factors(auth.upstreamTokens.access_token));
+      return true;
+    }
+    if (method === 'POST' && pathname === '/api/auth/mfa/enroll') {
+      if (!auth || auth.session.recoveryOnly || auth.session.mfaPending || !auth.upstreamTokens?.access_token) throw new HttpError(403, 'MFA_SESSION_REQUIRED', 'A verified session is required.');
+      const factor = await authProvider.enrollFactor(auth.upstreamTokens.access_token);
+      await dataStore.transact((state) => { const session = state.sessions.find((item) => item.id === auth.session.id); if (session) session.mfaPendingFactorId = factor.id; });
+      sendJson(response, 201, { factor: { id: factor.id, type: factor.type, totp: factor.totp } });
+      return true;
+    }
+    if (method === 'POST' && pathname === '/api/auth/mfa/enroll/verify') {
+      if (!auth || !auth.session.mfaPendingFactorId || !auth.upstreamTokens?.access_token) throw new HttpError(403, 'MFA_ENROLLMENT_REQUIRED', 'Start MFA enrollment first.');
+      const body = await readJson(request); allowedKeys(body, ['code']);
+      const challenge = await authProvider.challengeFactor(auth.upstreamTokens.access_token, auth.session.mfaPendingFactorId);
+      const verified = await authProvider.verifyFactor(auth.upstreamTokens.access_token, auth.session.mfaPendingFactorId, challenge.id, stringValue(body.code, 'code', { required: true, min: 6, max: 8 }));
+      await dataStore.transact((state) => { const session = state.sessions.find((item) => item.id === auth.session.id); if (session) { delete session.mfaPendingFactorId; session.upstreamTokens = auth.session.upstreamTokens; } });
+      sendJson(response, 200, { ok: true, session: verified });
+      return true;
+    }
+    if (method === 'POST' && pathname === '/api/auth/mfa/verify') {
+      if (!auth?.session?.mfaPending || !auth.session.mfaFactorId || !auth.session.mfaChallengeId || !auth.upstreamTokens?.access_token) throw new HttpError(403, 'MFA_REQUIRED', 'MFA verification is not pending.');
+      const body = await readJson(request); allowedKeys(body, ['code']);
+      const verified = await authProvider.verifyFactor(auth.upstreamTokens.access_token, auth.session.mfaFactorId, auth.session.mfaChallengeId, stringValue(body.code, 'code', { required: true, min: 6, max: 8 }));
+      await dataStore.transact((state) => {
+        const session = state.sessions.find((item) => item.id === auth.session.id);
+        if (session) { session.mfaPending = false; delete session.mfaFactorId; delete session.mfaChallengeId; if (verified.access_token && verified.refresh_token) session.upstreamTokens = encryptSecret(JSON.stringify(verified)); }
+      });
+      sendJson(response, 200, { ok: true });
+      return true;
+    }
+    if (method === 'DELETE') {
+      const factorId = pathname.split('/').at(-1);
+      if (!auth?.upstreamTokens?.access_token || !factorId) throw new HttpError(403, 'MFA_SESSION_REQUIRED', 'A verified session is required.');
+      await authProvider.unenrollFactor(auth.upstreamTokens.access_token, factorId);
+      sendJson(response, 200, { ok: true });
+      return true;
+    }
+  }
+
+  if (isRevokeSessions && method === 'POST') {
+    if (!auth) throw new HttpError(401, 'UNAUTHENTICATED', 'Authentication required.');
+    await dataStore.transact((state) => { state.sessions = state.sessions.filter((item) => item.userId !== auth.user.id); });
+    clearAuthCookies(response, secureCookies);
+    sendJson(response, 200, { ok: true });
     return true;
   }
 
@@ -176,6 +301,27 @@ export async function handleAuthRoute(ctx) {
     } else if (['displayName', 'specialty', 'registrationId', 'organization', 'doctor', 'doctorProfile'].some((key) => body[key] !== undefined)) {
       throw new HttpError(400, 'INVALID_FIELD', 'Doctor registration fields require role doctor.');
     }
+    if (authProvider?.enabled) {
+      const upstream = await authProvider.signUp(email, password, role);
+      const user = {
+        id: newId(), email, role, supabaseUserId: upstream.user?.id,
+        ...(role === 'patient' ? { patientId: newId() } : { doctorProfile }),
+        ...(upstream.user?.email_confirmed_at ? { emailConfirmedAt: upstream.user.email_confirmed_at } : {}),
+        createdAt: new Date(now).toISOString(),
+      };
+      await dataStore.transact((state) => {
+        state.users.push(user);
+        state.profiles.push({ userId: user.id, ...profile, updatedAt: new Date(now).toISOString() });
+      });
+      if (!upstream.access_token) {
+        sendJson(response, 201, { pendingEmailConfirmation: true, message: 'Check your email to confirm your account before signing in.' });
+        return true;
+      }
+      const session = await createSession(dataStore, user.id, now, { upstreamTokens: upstream });
+      setAuthCookies(response, session.sessionToken, session.csrfToken, secureCookies);
+      sendJson(response, 201, { user: publicUser(user), profile: publicProfile(profile, user) });
+      return true;
+    }
     const existing = await dataStore.read((state) => state.users.some((user) => user.email === email));
     if (existing) {
       await dataStore.transact((state) => addAuditEvent(state, { action: 'auth.register', entityType: 'account', outcome: 'failure' }, now));
@@ -204,6 +350,26 @@ export async function handleAuthRoute(ctx) {
     allowedKeys(body, ['email', 'password']);
     const email = emailValue(body.email);
     const password = passwordValue(body.password);
+    if (authProvider?.enabled) {
+      let upstream;
+      try { upstream = await authProvider.signIn(email, password); } catch { throw new HttpError(401, 'INVALID_CREDENTIALS', 'Invalid email, password, or email confirmation.'); }
+      const user = await dataStore.read((state) => state.users.find((item) => item.supabaseUserId === upstream.user?.id || item.email === email));
+      if (!user) throw new HttpError(401, 'INVALID_CREDENTIALS', 'Invalid email or password.');
+      const session = await createSession(dataStore, user.id, now, { upstreamTokens: upstream });
+      let mfaRequired = false;
+      try {
+        const factors = await authProvider.factors(upstream.access_token);
+        const verifiedFactor = (factors?.all || factors || []).find((factor) => factor.status === 'verified');
+        if (verifiedFactor) {
+          const challenge = await authProvider.challengeFactor(upstream.access_token, verifiedFactor.id);
+          await dataStore.transact((state) => { const item = state.sessions.find((entry) => entry.id === session.sessionId); if (item) { item.mfaPending = true; item.mfaFactorId = verifiedFactor.id; item.mfaChallengeId = challenge.id; } });
+          mfaRequired = true;
+        }
+      } catch { /* MFA remains optional when provider factor APIs are unavailable */ }
+      setAuthCookies(response, session.sessionToken, session.csrfToken, secureCookies);
+      sendJson(response, 200, { user: publicUser(user), mfaRequired });
+      return true;
+    }
     const user = await dataStore.read((state) => state.users.find((item) => item.email === email));
     const valid = await verifyPassword(password, user?.passwordHash);
     if (!user || !valid) {
@@ -217,6 +383,9 @@ export async function handleAuthRoute(ctx) {
     return true;
   }
   if (isLogout && method === 'POST') {
+    if (authProvider?.enabled && auth?.upstreamTokens?.access_token) {
+      try { await authProvider.signOut(auth.upstreamTokens.access_token); } catch { /* local session is still revoked */ }
+    }
     if (auth) await dataStore.transact((state) => {
       state.sessions = state.sessions.filter((item) => item.id !== auth.session.id);
       addAuditEvent(state, { actorUserId: auth.user.id, action: 'auth.logout', entityType: 'session', entityId: auth.session.id, outcome: 'success' }, now);

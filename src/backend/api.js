@@ -1,11 +1,12 @@
 import { createServer as createHttpServer } from 'node:http';
 import { resolve } from 'node:path';
 import { DEFAULT_DATA_FILE, ROOT } from './constants.js';
-import { getAuth, googleAuthConfig, requireAuth, requireCsrf } from './auth.js';
+import { getAuth, googleAuthConfig, requireFullAuth, requireCsrf } from './auth.js';
 import { HttpError } from './errors.js';
 import { clientIp, sendError, staticResponse } from './http.js';
 import { RateLimiter } from './rate-limit.js';
 import { JsonDataStore, SupabaseDataStore } from './store.js';
+import { SupabaseAuthProvider } from './supabase-auth.js';
 import { handleAccessRoute } from './routes/access.js';
 import { handleAuthRoute } from './routes/auth.js';
 import { handleAdminRoute } from './routes/admin.js';
@@ -31,6 +32,7 @@ export async function createApp({
   googleRedirectUri,
   clinicianAdminKey = process.env.MEDIHUMAN_CLINICIAN_ADMIN_KEY,
   fetchImpl = globalThis.fetch,
+  authProvider = null,
 } = {}) {
   const selectedBackend = process.env.STORE_BACKEND || (process.env.VERCEL === '1' ? 'supabase' : 'json');
   const dataStore = store || await (selectedBackend === 'supabase'
@@ -40,6 +42,8 @@ export async function createApp({
       : Promise.reject(new Error('STORE_BACKEND must be json or supabase.')));
   const protectedDataFile = resolve(dataFile);
   const protectedDataDirectory = resolve(dataFile, '..');
+  const selectedAuthProvider = authProvider || (selectedBackend === 'supabase' ? new SupabaseAuthProvider({ fetchImpl }) : null);
+  if (selectedBackend === 'supabase' && !selectedAuthProvider?.enabled) throw new Error('Supabase backend requires Supabase Auth publishable key and public URL configuration.');
   if (store && !store.state) await store.init();
 
   return async function app(request, response) {
@@ -66,6 +70,7 @@ export async function createApp({
       }
       const context = {
         request, response, pathname, method, now, dataStore, auth, secureCookies, url,
+        authProvider: selectedAuthProvider,
         googleConfig: googleAuthConfig({
           clientId: google.clientId ?? googleClientId,
           clientSecret: google.clientSecret ?? googleClientSecret,
@@ -77,7 +82,7 @@ export async function createApp({
       if (await handleAuthRoute(context)) return;
       if (await handleAdminRoute(context)) return;
 
-      const current = requireAuth(auth);
+      const current = requireFullAuth(auth);
       context.current = current;
       if (await handlePatientRoute(context)) return;
       if (await handleAccessRoute(context)) return;
