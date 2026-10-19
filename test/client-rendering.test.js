@@ -283,6 +283,14 @@ test('pending doctor workspace blocks patient access request controls', () => {
   assert.match(markup, /organisation must verify this clinician account/);
 });
 
+test('authenticator setup is available from privacy settings', () => {
+  const state = { ...createState(), screen: 'shell', view: 'privacy', localOnly: false, mfaFactors: [] };
+  const markup = createViewRenderer({ state }).renderShell();
+
+  assert.match(markup, /Protect sign-in/);
+  assert.match(markup, /data-action="mfa-enroll"/);
+});
+
 test('camera card exposes mobile-safe action controls', () => {
   const state = { ...createState(), screen: 'shell', localOnly: true, view: 'scan' };
   const markup = createViewRenderer({ state }).renderShell();

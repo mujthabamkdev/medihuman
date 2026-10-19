@@ -79,6 +79,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       state.doctorProfile = data.user.doctorProfile || data.user.doctor || state.doctorProfile;
       state.localOnly = false; state.screen = 'shell';
       await loadRoleData();
+      await loadMfaFactors();
       render();
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 401) state.authError = error.message;
@@ -111,6 +112,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
         try { const [profile, medicines] = await Promise.all([api.profile(), api.medicines()]); state.profile = profile.profile || state.profile; state.medicines = medicines.medicines || []; } catch { /* auth succeeded; empty workspace is valid */ }
       }
       await loadRoleData();
+      await loadMfaFactors();
       render();
     } catch (error) { showAuthError(error.message); submit.disabled = false; }
   }
@@ -130,6 +132,24 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     state.authMode = 'login';
     state.authError = '';
     await hydrateRemote();
+  }
+
+  async function submitMfaEnrollment(form) {
+    const data = Object.fromEntries(new FormData(form).entries());
+    await api.mfaEnrollVerify(data.code);
+    state.mfaEnrollment = null;
+    await loadMfaFactors();
+  }
+
+  async function loadMfaFactors() {
+    if (state.localOnly) return;
+    try { const result = await api.mfaFactors(); state.mfaFactors = result.all || result.totp || []; } catch { state.mfaFactors = []; }
+  }
+
+  async function startMfaEnrollment() {
+    const result = await api.mfaEnroll();
+    state.mfaEnrollment = result.factor;
+    render();
   }
 
   function showAuthError(message) { const target = document.querySelector('#auth-error'); if (target) target.innerHTML = notice(escapeHtml(message), 'warning'); }
@@ -352,6 +372,8 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     const target = event.target.closest('[data-action]'); if (!target) return; const action = target.dataset.action;
     if (action === 'auth-login' || action === 'auth-register') { state.authMode = action === 'auth-register' ? 'register' : 'login'; render(); return; }
     if (action === 'auth-recover') { state.authMode = 'recover'; state.authError = ''; render(); return; }
+    if (action === 'mfa-enroll') { await startMfaEnrollment(); return; }
+    if (action === 'mfa-remove') { await api.mfaRemove(target.dataset.id); await loadMfaFactors(); render(); return; }
     if (action === 'auth-role') { state.authRole = target.dataset.role === 'doctor' ? 'doctor' : 'patient'; state.authRoleExplicit = true; render(); return; }
     if (action === 'local-mode') { enterLocal(); return; }
     if (action === 'toggle-menu') { state.mobileMenuOpen = !state.mobileMenuOpen; render(); return; }
@@ -402,7 +424,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'clear-data') { if (window.confirm('Clear this browser’s MediHuman workspace?')) { clearLocalWorkspace(); saveLocal(state); render(); } }
   });
 
-   root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; try { if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'password-reset') await submitPasswordReset(form); if (form.dataset.form === 'mfa') await submitMfa(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); if (form.dataset.form === 'doctor-indication') await submitIndication(form); } catch (error) { state.authError = error.message; render(); } });
+   root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; try { if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'password-reset') await submitPasswordReset(form); if (form.dataset.form === 'mfa') await submitMfa(form); if (form.dataset.form === 'mfa-enrollment') await submitMfaEnrollment(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); if (form.dataset.form === 'doctor-indication') await submitIndication(form); } catch (error) { state.authError = error.message; render(); } });
   root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); });
   root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); if (event.target.id === 'doctor-patient-select') loadDoctorPatient(event.target.value); });
   return { enterLocal, hydrateRemote, render };
