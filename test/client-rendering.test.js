@@ -274,6 +274,15 @@ test('open mobile drawer hides hamburger trigger while keeping mobile exit outsi
   assert.doesNotMatch(markup, /class="profile-menu"[\s\S]*data-action="logout"/);
 });
 
+test('pending doctor workspace blocks patient access request controls', () => {
+  const state = { ...createState(), screen: 'shell', role: 'doctor', view: 'dashboard', localOnly: false };
+  const markup = createViewRenderer({ state }).renderShell();
+
+  assert.match(markup, /Verification required/);
+  assert.match(markup, /disabled aria-disabled="true"/);
+  assert.match(markup, /organisation must verify this clinician account/);
+});
+
 test('camera card exposes mobile-safe action controls', () => {
   const state = { ...createState(), screen: 'shell', localOnly: true, view: 'scan' };
   const markup = createViewRenderer({ state }).renderShell();

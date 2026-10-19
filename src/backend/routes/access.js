@@ -1,4 +1,4 @@
-import { requireRole } from '../auth.js';
+import { requireRole, requireVerifiedDoctor } from '../auth.js';
 import { HttpError } from '../errors.js';
 import { readJson, sendJson } from '../http.js';
 import {
@@ -11,7 +11,7 @@ export async function handleAccessRoute(ctx) {
   const { pathname, method, request, response, dataStore, now, current } = ctx;
   const doctorRequestPath = pathname.match(/^\/api\/doctor\/access-requests(?:\/([^/]+))?$/);
   if (doctorRequestPath && method === 'POST') {
-    requireRole(current, 'doctor');
+    requireVerifiedDoctor(current);
     const body = doctorRequestPath[1] ? {} : await readJson(request);
     if (!doctorRequestPath[1]) allowedKeys(body, ['patientId']);
     const patientId = stringValue(doctorRequestPath[1] ? decodePathValue(doctorRequestPath[1], 'patientId') : body.patientId, 'patientId', { required: true, max: 200 });
@@ -28,7 +28,7 @@ export async function handleAccessRoute(ctx) {
     return true;
   }
   if (pathname === '/api/doctor/access-requests' && method === 'GET') {
-    requireRole(current, 'doctor');
+    requireVerifiedDoctor(current);
     const requests = await dataStore.read((state) => state.accessRequests
       .filter((item) => item.doctorUserId === current.user.id)
       .map((item) => publicAccessRequest(item, state.users.find((user) => user.id === item.patientUserId), current.user)));

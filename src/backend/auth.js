@@ -119,6 +119,14 @@ export function requireRole(auth, role) {
   return current;
 }
 
+export function requireVerifiedDoctor(auth) {
+  const current = requireRole(auth, 'doctor');
+  if (current.user.doctorProfile?.verified !== true || current.user.doctorProfile?.verificationStatus !== 'verified') {
+    throw new HttpError(403, 'CLINICIAN_VERIFICATION_REQUIRED', 'Clinician verification is required before patient records can be accessed.');
+  }
+  return current;
+}
+
 export function requireCsrf(request, auth) {
   const cookies = parseCookies(request.headers.cookie);
   const headerToken = request.headers['x-csrf-token'];
@@ -127,13 +135,16 @@ export function requireCsrf(request, auth) {
 }
 
 export function publicDoctor(doctor = {}) {
+  const verificationStatus = ['pending', 'verified', 'rejected'].includes(doctor.verificationStatus)
+    ? doctor.verificationStatus
+    : 'pending';
   return {
     displayName: doctor.displayName,
     specialty: doctor.specialty,
     organization: doctor.organization,
-    verificationStatus: 'pending',
-    status: 'pending',
-    verified: false,
+    verificationStatus,
+    status: verificationStatus,
+    verified: verificationStatus === 'verified' && doctor.verified === true,
   };
 }
 
@@ -143,8 +154,8 @@ export function publicUser(user) {
   if (result.role === 'doctor') {
     result.doctor = publicDoctor(user.doctorProfile);
     result.doctorProfile = result.doctor;
-    result.verificationStatus = 'pending';
-    result.verified = false;
+    result.verificationStatus = result.doctor.verificationStatus;
+    result.verified = result.doctor.verified;
   }
   return result;
 }

@@ -235,19 +235,37 @@ export function createViewRenderer({ state }) {
     return `<section class="card doctor-summary"><div class="card-heading"><div><p class="card-kicker">${aiAssisted ? 'AI-ASSISTED DRAFT' : 'STRUCTURED REVIEW'}</p><h3>${escapeHtml(summary.headline || (aiAssisted ? 'AI-assisted record draft' : 'Rule-based review'))}</h3><p class="muted">${escapeHtml(summary.disclaimer || 'Rule-based, non-AI information organization. Not diagnostic and not a treatment recommendation.')}</p></div><span class="soft-icon">${svgIcon('info')}</span></div>${normalizedFindings.length ? `<ul class="clinical-findings">${normalizedFindings.map((finding) => `<li class="clinical-finding finding-${escapeHtml(finding.severity)}"><span class="finding-severity">${findingSeverityLabel(finding.severity)}</span><div><strong>${escapeHtml(finding.title)}</strong><p>${escapeHtml(finding.detail)}</p><small>${escapeHtml(finding.source)}</small></div></li>`).join('')}</ul>` : `<div class="empty-state compact"><p>No ${aiAssisted ? 'AI-assisted' : 'rule-based'} findings from available records.</p></div>`}${notice(aiAssisted ? 'AI output is an assistive draft. Verify every finding against source records and clinical judgment.' : 'This summary organizes recorded information for a care conversation. It does not diagnose, prescribe, or replace clinical judgment.', 'warning')}</section>`;
   }
 
-  function renderDoctorDashboard() {
+  function renderDoctorDashboardLegacy() {
     const pending = state.doctorRequests.filter((request) => request.status === 'pending');
     const approved = state.doctorRequests.filter((request) => request.status === 'approved');
     const doctor = state.doctorProfile || {};
     return `<div class="dashboard-hero-layout workspace-hero" data-dashboard-layout="doctor" data-surface="dashboard-hero" aria-labelledby="doctor-dashboard-hero-heading"><div class="workspace-hero-copy feature-copy"><span class="card-kicker">DOCTOR WORKSPACE</span><h2 id="doctor-dashboard-hero-heading" class="dashboard-hero-heading">Coordinate care with patient-controlled access.</h2><p>Request records by opaque patient ID, then review approved information in one place.</p>${button('Open approved patient records', 'nav', 'button button-light', 'data-view="doctor-patients"')}</div><div class="workspace-hero-panel"><div class="scan-illustration"><span>${svgIcon('care-team')}</span><i></i><i></i><i></i></div>${renderAppointmentSummary({ title: 'Access overview', detail: 'Review request status and patient-approved records from this workspace.', metrics: [[pending.length, 'requests pending'], [approved.length, 'patients approved'], [state.doctorRequests.length, 'requests recorded']] })}</div></div>${notice(`<strong>Clinician account pending verification.</strong> ${escapeHtml(doctor.organization || 'Registration details are awaiting verification by your organisation.')}`, 'warning')}<div class="doctor-dashboard-grid"><section class="card"><div class="card-heading"><div><h3>Request access to a patient record</h3><p class="muted">Enter the patient’s private ID to request access.</p></div><span class="soft-icon">＋</span></div><form class="stack-form" data-form="doctor-request"><label>Opaque patient ID<input name="patientId" required maxlength="200" placeholder="Paste patient ID"></label><button class="button button-primary" type="submit">Request access</button><p class="form-footnote">The patient must approve before any health information is shown.</p></form></section><section class="card"><div class="card-heading"><div><h3>Pending requests</h3><p class="muted">${pending.length} awaiting patient decision</p></div>${requestStatusPill(String(pending.length))}</div>${requestRows(pending, 'doctor')}</section></div><section class="card approved-patients-card"><div class="card-heading"><div><h3>Patients with approved access</h3><p class="muted">${approved.length} patient${approved.length === 1 ? '' : 's'} available to review</p></div><button class="text-link" data-action="nav" data-view="doctor-patients">Open patient records →</button></div>${approved.length ? requestRows(approved, 'doctor') : '<div class="empty-state compact"><p>Patients with approved access appear here after consent.</p></div>'}</section>`;
   }
 
-  function renderDoctorPatients() {
+  function renderDoctorDashboard() {
+    const markup = renderDoctorDashboardLegacy();
+    if (state.localOnly || state.doctorProfile?.verified === true) {
+      return markup.replace('<strong>Clinician account pending verification.</strong>', '<strong>Clinician account verified.</strong>');
+    }
+    return markup
+      .replace('Request access</button>', 'Request access unavailable</button>')
+      .replace('<button class="button button-primary" type="submit">Request access unavailable</button>', '<button class="button button-primary" type="button" disabled aria-disabled="true">Verification required</button>')
+      .replace('The patient must approve before any health information is shown.', 'Your organisation must verify this clinician account before access requests can be submitted.');
+  }
+
+  function renderDoctorPatientsLegacy() {
     const approved = state.doctorRequests.filter((request) => request.status === 'approved');
     const selected = approved.find((request) => request.patientId === state.selectedPatientId) || approved[0];
     if (selected && state.selectedPatientId !== selected.patientId) state.selectedPatientId = selected.patientId;
     const records = selected ? state.doctorRecords[selected.patientId] : null;
     return `<div class="section-intro"><p class="eyebrow">APPROVED RECORDS</p><h2 class="page-title">Patient ID records</h2><p>Only records approved by the patient are shown. Confirm each section with the patient before using it in clinical care.</p></div>${approved.length ? `<section class="card patient-selector"><label>Patient ID<select id="doctor-patient-select" data-action="doctor-select-patient">${approved.map((request) => `<option value="${escapeHtml(request.patientId)}" ${request.patientId === state.selectedPatientId ? 'selected' : ''}>${escapeHtml(request.patientId)}</option>`).join('')}</select></label>${button('Refresh patient record', 'doctor-refresh-patient', 'button button-outline')}</section>${records ? renderDoctorRecord(records, selected.patientId) : `<section class="card empty-state"><p>Choose a patient to load approved records.</p></section>`}` : `<section class="card empty-state"><span class="empty-icon">${svgIcon('care-team')}</span><h3>No approved patients</h3><p>Send an access request from your dashboard. Patient approval is required before records can be viewed.</p>${button('Back to dashboard', 'nav', 'button button-primary', 'data-view="dashboard"')}</section>`}`;
+  }
+
+  function renderDoctorPatients() {
+    if (!state.localOnly && state.doctorProfile?.verified !== true) {
+      return `<div class="section-intro"><p class="eyebrow">APPROVED RECORDS</p><h2 class="page-title">Clinician verification required.</h2><p>Patient records are unavailable until your organisation verifies this clinician account.</p></div>${notice('<strong>Access blocked.</strong> Verification protects patient records and must be completed before viewing approved data.', 'warning')}`;
+    }
+    return renderDoctorPatientsLegacy();
   }
 
   function renderBaseDoctorRecord(records, patientId) {

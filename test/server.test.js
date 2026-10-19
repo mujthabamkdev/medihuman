@@ -415,7 +415,7 @@ test('Google OAuth creates doctor accounts from stored role state and ignores ca
 });
 
 test('role-scoped access requests require patient approval before doctor reads records', async (t) => {
-  const context = await startServer();
+  const context = await startServer({ clinicianAdminKey: 'test-clinician-admin-key' });
   t.after(() => context.server.close());
   const patient = await registerAccount(context.baseUrl, 'patient@example.com', {
     profile: { fullName: 'Scoped Patient', allergies: 'penicillin' },
@@ -438,6 +438,28 @@ test('role-scoped access requests require patient approval before doctor reads r
 
   const forbiddenPatientRoute = await request(context.baseUrl, '/api/patient/profile', { cookie: doctor.cookie });
   assert.equal(forbiddenPatientRoute.response.status, 403);
+
+  const blockedRequest = await request(context.baseUrl, '/api/doctor/access-requests', {
+    cookie: doctor.cookie,
+    csrf: doctor.csrf,
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ patientId: patient.body.user.patientId }),
+  });
+  assert.equal(blockedRequest.response.status, 403);
+  assert.equal(blockedRequest.body.error.code, 'CLINICIAN_VERIFICATION_REQUIRED');
+
+  const adminCsrfResponse = await request(context.baseUrl, '/api/csrf');
+  const adminCookie = cookieHeader(adminCsrfResponse.setCookie);
+  const verifyDoctor = await request(context.baseUrl, `/api/admin/clinicians/${doctor.body.user.id}/verification`, {
+    cookie: adminCookie,
+    csrf: adminCsrfResponse.body.csrfToken,
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-admin-key': 'test-clinician-admin-key' },
+    body: JSON.stringify({ status: 'verified' }),
+  });
+  assert.equal(verifyDoctor.response.status, 200);
+  assert.equal(verifyDoctor.body.user.doctor.verificationStatus, 'verified');
 
   const requestAccess = await request(context.baseUrl, '/api/doctor/access-requests', {
     cookie: doctor.cookie,

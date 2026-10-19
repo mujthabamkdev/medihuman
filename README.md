@@ -117,6 +117,7 @@ Set production environment variables in Vercel Project Settings or with `vercel 
 - `STORE_BACKEND=supabase`
 - `SUPABASE_URL=https://hagplohwjudzbenftljk.supabase.co`
 - `SUPABASE_SERVICE_ROLE_KEY` (server-only Supabase service-role key)
+- `MEDIHUMAN_CLINICIAN_ADMIN_KEY` (server-only clinician verification key)
 - `MEDIHUMAN_SUMMARY_URL` (optional)
 - `MEDIHUMAN_SUMMARY_API_KEY` (optional, server-side only)
 - `MEDIHUMAN_SUMMARY_MODEL` (optional)

@@ -8,6 +8,7 @@ import { RateLimiter } from './rate-limit.js';
 import { JsonDataStore, SupabaseDataStore } from './store.js';
 import { handleAccessRoute } from './routes/access.js';
 import { handleAuthRoute } from './routes/auth.js';
+import { handleAdminRoute } from './routes/admin.js';
 import { handleDoctorRoute } from './routes/doctor.js';
 import { handlePatientRoute } from './routes/patient.js';
 import { handleSystemRoute } from './routes/system.js';
@@ -28,6 +29,7 @@ export async function createApp({
   googleClientId,
   googleClientSecret,
   googleRedirectUri,
+  clinicianAdminKey = process.env.MEDIHUMAN_CLINICIAN_ADMIN_KEY,
   fetchImpl = globalThis.fetch,
 } = {}) {
   const selectedBackend = process.env.STORE_BACKEND || (process.env.VERCEL === '1' ? 'supabase' : 'json');
@@ -69,10 +71,11 @@ export async function createApp({
           clientSecret: google.clientSecret ?? googleClientSecret,
           redirectUri: google.redirectUri ?? googleRedirectUri,
         }),
-        fetchImpl,
+        fetchImpl, clinicianAdminKey,
       };
       if (await handleSystemRoute(context)) return;
       if (await handleAuthRoute(context)) return;
+      if (await handleAdminRoute(context)) return;
 
       const current = requireAuth(auth);
       context.current = current;

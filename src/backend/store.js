@@ -45,13 +45,18 @@ export function normalizeState(value) {
         registrationId: user.registrationId,
         organization: user.organization,
       };
+      const verificationStatus = ['pending', 'verified', 'rejected'].includes(doctor.verificationStatus)
+        ? doctor.verificationStatus
+        : 'pending';
       normalized.doctorProfile = {
         displayName: typeof doctor.displayName === 'string' ? doctor.displayName : '',
         specialty: typeof doctor.specialty === 'string' ? doctor.specialty : '',
         registrationId: typeof doctor.registrationId === 'string' ? doctor.registrationId : '',
         organization: typeof doctor.organization === 'string' ? doctor.organization : '',
-        verificationStatus: 'pending',
-        verified: false,
+        verificationStatus,
+        verified: verificationStatus === 'verified' && doctor.verified === true,
+        ...(typeof doctor.verifiedAt === 'string' ? { verifiedAt: doctor.verifiedAt } : {}),
+        ...(typeof doctor.updatedAt === 'string' ? { updatedAt: doctor.updatedAt } : {}),
       };
       delete normalized.patientId;
     }

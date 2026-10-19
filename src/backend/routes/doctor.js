@@ -1,4 +1,4 @@
-import { requireRole } from '../auth.js';
+import { requireVerifiedDoctor } from '../auth.js';
 import { HttpError } from '../errors.js';
 import { readJson, sendJson } from '../http.js';
 import {
@@ -13,7 +13,7 @@ export async function handleDoctorRoute(ctx) {
   const { pathname, method, response, dataStore, current } = ctx;
   const indicationPath = pathname.match(/^\/api\/doctor\/patients\/([^/]+)\/indications$/);
   if (indicationPath && method === 'POST') {
-    requireRole(current, 'doctor');
+    requireVerifiedDoctor(current);
     const patientId = decodePathValue(indicationPath[1], 'patientId');
     const body = await readJson(ctx.request);
     allowedKeys(body, ['title', 'detail', 'severity']);
@@ -35,7 +35,7 @@ export async function handleDoctorRoute(ctx) {
   }
   const doctorPatientMatch = pathname.match(/^\/api\/doctor\/patients\/([^/]+)(?:\/(profile|medicines|prescriptions|reconciliations|summary))?$/);
   if (doctorPatientMatch && method === 'GET') {
-    requireRole(current, 'doctor');
+    requireVerifiedDoctor(current);
     const patientId = decodePathValue(doctorPatientMatch[1], 'patientId');
     const patient = await dataStore.read((state) => findPatientByPublicId(state, patientId));
     if (!patient) throw new HttpError(404, 'PATIENT_NOT_FOUND', 'Patient not found.');
