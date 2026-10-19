@@ -264,6 +264,16 @@ test('shell exposes mobile navigation trigger and complete drawer hooks', () => 
   assert.match(markup, /class="mobile-sidebar-logout nav-item" data-action="logout"/);
 });
 
+test('open mobile drawer hides hamburger trigger while keeping mobile exit outside profile menu', () => {
+  const state = { ...createState(), screen: 'shell', localOnly: true, mobileMenuOpen: true, profileMenuOpen: true };
+  const markup = createViewRenderer({ state }).renderShell();
+
+  assert.doesNotMatch(markup, /class="mobile-nav-trigger"/);
+  assert.match(markup, /class="mobile-sidebar-logout nav-item" data-action="logout"/);
+  assert.match(markup, /class="profile-menu"/);
+  assert.doesNotMatch(markup, /class="profile-menu"[\s\S]*data-action="logout"/);
+});
+
 test('camera card exposes mobile-safe action controls', () => {
   const state = { ...createState(), screen: 'shell', localOnly: true, view: 'scan' };
   const markup = createViewRenderer({ state }).renderShell();
