@@ -130,6 +130,8 @@ Set production environment variables in Vercel Project Settings or with `vercel 
 - `MEDIHUMAN_SUMMARY_URL` (optional)
 - `MEDIHUMAN_SUMMARY_API_KEY` (optional, server-side only)
 - `MEDIHUMAN_SUMMARY_MODEL` (optional)
+- `MEDIHUMAN_SUMMARY_APPROVED_HOSTS` (comma-separated exact HTTPS host allowlist)
+- `MEDIHUMAN_SUMMARY_ALLOW_PHI=1` (explicit PHI-processing opt-in; otherwise rule-based summaries only)
 
 Vercel `/tmp` storage is not used by default. With `STORE_BACKEND=supabase`, accounts, sessions, and patient records use the linked Supabase database. Production still needs scheduled backup execution, audit logging, backups retention, and privacy/legal review.
 

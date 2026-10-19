@@ -84,6 +84,10 @@ export async function buildSummary(input, adapter = null) {
   const endpoint = process.env.MEDIHUMAN_SUMMARY_URL;
   const apiKey = process.env.MEDIHUMAN_SUMMARY_API_KEY;
   if (!endpoint || !apiKey) return buildRuleBasedSummary(input);
+  let parsedEndpoint;
+  try { parsedEndpoint = new URL(endpoint); } catch { return buildRuleBasedSummary(input); }
+  const approvedHosts = String(process.env.MEDIHUMAN_SUMMARY_APPROVED_HOSTS || '').split(',').map((host) => host.trim().toLowerCase()).filter(Boolean);
+  if (parsedEndpoint.protocol !== 'https:' || !approvedHosts.includes(parsedEndpoint.hostname.toLowerCase()) || process.env.MEDIHUMAN_SUMMARY_ALLOW_PHI !== '1') return buildRuleBasedSummary(input);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8_000);
   try {

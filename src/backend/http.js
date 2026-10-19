@@ -146,6 +146,11 @@ export async function staticResponse(request, response, publicRoot, pathname, pr
       'Content-Type': MIME_TYPES[extname(filePath)] || 'application/octet-stream',
       'Cache-Control': 'no-cache',
       'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co https://accounts.google.com https://oauth2.googleapis.com https://openidconnect.googleapis.com; media-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer',
+      'Permissions-Policy': 'camera=(self), microphone=(), geolocation=()',
+      ...(process.env.NODE_ENV === 'production' ? { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' } : {}),
     });
     response.end(request.method === 'HEAD' ? undefined : body);
   } catch {

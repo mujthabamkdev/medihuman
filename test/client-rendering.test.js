@@ -299,6 +299,12 @@ test('prescription records expose edit and delete controls', () => {
   assert.match(markup, /data-action="delete-prescription" data-id="rx-1"/);
 });
 
+test('urgent notices use assertive announcement semantics', () => {
+  const state = { ...createState(), screen: 'shell', view: 'composition', localOnly: true };
+  const markup = createViewRenderer({ state }).renderShell();
+  assert.match(markup, /role="alert" aria-live="assertive"/);
+});
+
 test('camera card exposes mobile-safe action controls', () => {
   const state = { ...createState(), screen: 'shell', localOnly: true, view: 'scan' };
   const markup = createViewRenderer({ state }).renderShell();

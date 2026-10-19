@@ -84,8 +84,12 @@ test('static deployment serves every offline-shell asset without exposing server
     assert.equal(response.status, 200, `Missing deployment asset: ${path}`);
     await response.arrayBuffer();
   }
-  const home = await fetch(origin + '/');
-  assert.match(home.headers.get('content-type'), /text\/html/);
+   const home = await fetch(origin + '/');
+   assert.match(home.headers.get('content-type'), /text\/html/);
+   assert.equal(home.headers.get('x-frame-options'), 'DENY');
+   assert.match(home.headers.get('content-security-policy'), /default-src 'self'/);
+   assert.equal(home.headers.get('referrer-policy'), 'no-referrer');
+   assert.match(home.headers.get('permissions-policy'), /camera/);
   assert.match(await home.text(), /<title>MediHuman/);
   const health = await fetch(origin + '/api/health');
   assert.deepEqual(await health.json(), { ok: true });

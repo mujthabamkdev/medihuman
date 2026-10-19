@@ -44,5 +44,5 @@ export function initials(state) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 }
 
-export function notice(text, kind = 'info') { return `<div class="notice notice-${kind}" role="status"><span class="notice-icon">${kind === 'warning' ? '!' : 'i'}</span><span>${text}</span></div>`; }
+export function notice(text, kind = 'info') { return `<div class="notice notice-${kind}" role="${kind === 'warning' ? 'alert' : 'status'}" aria-live="${kind === 'warning' ? 'assertive' : 'polite'}"><span class="notice-icon">${kind === 'warning' ? '!' : 'i'}</span><span>${text}</span></div>`; }
 export function button(label, action, className = 'button button-primary', extra = '') { return `<button type="button" class="${className}" data-action="${action}" ${extra}>${label}</button>`; }

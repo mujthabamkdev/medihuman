@@ -15,8 +15,10 @@ import { escapeHtml, notice } from './ui.js';
 /** Orchestrate browser events, API calls, persistence, and camera/OCR lifecycle. */
 export function createController({ root, state, views, ocr = createOcrAdapter() }) {
   function render() {
+    const focusedId = globalThis.document?.activeElement?.id;
     root.innerHTML = state.screen === 'auth' ? views.renderAuth() : views.renderShell();
     bindCamera();
+    if (focusedId) globalThis.document?.getElementById(focusedId)?.focus();
   }
 
   function bindCamera() {
@@ -480,5 +482,11 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
    root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; try { if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'password-reset') await submitPasswordReset(form); if (form.dataset.form === 'mfa') await submitMfa(form); if (form.dataset.form === 'mfa-enrollment') await submitMfaEnrollment(form); if (form.dataset.form === 'prescription-edit') await submitPrescriptionEdit(form); if (form.dataset.form === 'indication-edit') await submitIndicationEdit(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); if (form.dataset.form === 'doctor-indication') await submitIndication(form); } catch (error) { state.authError = error.message; render(); } });
   root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); });
   root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); if (event.target.id === 'doctor-patient-select') loadDoctorPatient(event.target.value); });
+  root.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      if (state.localExitPrompt) { state.localExitPrompt = false; render(); return; }
+      if (state.mobileMenuOpen || state.patientMenuOpen || state.profileMenuOpen || state.notificationsOpen) { state.mobileMenuOpen = false; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; render(); }
+    }
+  });
   return { enterLocal, hydrateRemote, render };
 }
