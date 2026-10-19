@@ -30,7 +30,9 @@ test('deployed entrypoint serves HTML, assets, and API without binding its own p
       }
       const health = await fetch(origin + '/api/health');
       assert.equal(health.status, 200);
-      assert.deepEqual(await health.json(), { ok: true });
+       const healthBody = await health.json();
+       assert.equal(healthBody.ok, true);
+       assert.equal(typeof healthBody.backend, 'string');
       const csrf = await fetch(origin + '/api/csrf');
       assert.equal(csrf.status, 200);
       assert.match(csrf.headers.get('set-cookie'), /Secure/);
@@ -92,7 +94,9 @@ test('static deployment serves every offline-shell asset without exposing server
    assert.match(home.headers.get('permissions-policy'), /camera/);
   assert.match(await home.text(), /<title>MediHuman/);
   const health = await fetch(origin + '/api/health');
-  assert.deepEqual(await health.json(), { ok: true });
+  const healthBody = await health.json();
+  assert.equal(healthBody.ok, true);
+  assert.equal(typeof healthBody.backend, 'string');
   for (const path of ['/src/backend/api.js', '/server.js', '/.env.example', '/.data/medihuman.json', '/stale.txt']) {
     const response = await fetch(origin + path);
     assert.equal(response.status, 404, `Private or stale file exposed: ${path}`);

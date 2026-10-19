@@ -5,7 +5,7 @@ import { cookieOptions, sendJson } from '../http.js';
 export async function handleSystemRoute(ctx) {
   const { pathname, method, response, dataStore, auth, secureCookies } = ctx;
   if (pathname === '/api/health' && method === 'GET') {
-    sendJson(response, 200, { ok: true });
+    sendJson(response, 200, { ok: true, backend: process.env.STORE_BACKEND || 'json', timestamp: new Date().toISOString() });
     return true;
   }
   if (pathname === '/api/csrf' && method === 'GET') {

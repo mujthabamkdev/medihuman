@@ -194,3 +194,5 @@ Send JSON with `Content-Type: application/json`. Send `X-CSRF-Token` matching th
 ## Checks
 
 `npm test` covers comparison logic, the limited composition/risk rules, API authentication, password storage, cookie/CSRF enforcement, validation errors, patient data, prescriptions, and reconciliation persistence. Before production deployment, add HTTPS termination, secret management, email verification, password reset, MFA, distributed rate limiting, durable database migrations/backups, audit logging, monitoring, privacy/legal review, and an authoritative clinical interaction data source.
+
+Operational readiness procedures live in [`OPERATIONS.md`](./OPERATIONS.md). They cover monitoring, backup/restore drills, incident response, and privacy/legal gates.
