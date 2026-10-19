@@ -427,6 +427,8 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'manual-review') { state.prescriptionText = document.querySelector('#manual-prescription')?.value || ''; state.ocrText = state.prescriptionText; state.scanSource = 'Manual entry'; state.view = 'review'; saveLocal(state); render(); return; }
      if (action === 'save-review') { state.prescriptionText = document.querySelector('#review-text')?.value || ''; state.view = 'reconcile'; saveLocal(state); await persistPrescriptionReview(); render(); return; }
     if (action === 'run-reconcile') { await saveReconciliation(); return; }
+    if (action === 'reopen-reconciliation') { const record = state.reconciliations.find((item) => item.id === target.dataset.id); if (record) { state.prescriptionText = (record.prescriptionMedicines || []).join('\n'); state.dispensedText = (record.dispensedMedicines || []).join('\n'); state.view = 'reconcile'; render(); } return; }
+    if (action === 'delete-reconciliation') { await api.deleteReconciliation(target.dataset.id); state.reconciliations = state.reconciliations.filter((item) => item.id !== target.dataset.id); render(); return; }
     if (action === 'care-request') { await updateCareRequest(target.dataset.id, target.dataset.status); return; }
     if (action === 'doctor-refresh-patient') { await loadDoctorPatient(); return; }
     if (action === 'remove-question') { state.questions.splice(Number(target.dataset.index), 1); saveLocal(state); render(); return; }

@@ -196,13 +196,31 @@ export async function handlePatientRoute(ctx) {
     return true;
   }
   const reconciliationMatch = pathname.match(/^\/api\/reconciliations\/([^/]+)$/);
-  if (reconciliationMatch && method === 'GET') {
+  if (reconciliationMatch) {
     requireRole(current, 'patient');
     const id = decodeURIComponent(reconciliationMatch[1]);
     const reconciliation = await dataStore.read((state) => state.reconciliations.find((item) => item.id === id && item.userId === current.user.id));
     if (!reconciliation) throw new HttpError(404, 'NOT_FOUND', 'Reconciliation not found.');
-    sendJson(response, 200, { reconciliation: publicReconciliation(reconciliation) });
-    return true;
+    if (method === 'GET') {
+      sendJson(response, 200, { reconciliation: publicReconciliation(reconciliation) });
+      return true;
+    }
+    if (method === 'PUT') {
+      const body = await readJson(request);
+      allowedKeys(body, ['prescriptionMedicines', 'dispensedMedicines', 'notes']);
+      const prescriptionMedicines = body.prescriptionMedicines === undefined ? reconciliation.prescriptionMedicines : listValue(body.prescriptionMedicines, 'prescriptionMedicines');
+      const dispensedMedicines = body.dispensedMedicines === undefined ? reconciliation.dispensedMedicines : listValue(body.dispensedMedicines, 'dispensedMedicines');
+      const comparison = compareMedicines(prescriptionMedicines.join('\n'), dispensedMedicines.join('\n'));
+      const updated = { ...reconciliation, prescriptionMedicines, dispensedMedicines, matched: comparison.matched, missing: comparison.missing, unexpected: comparison.unexpected, isExactMatch: comparison.isExactMatch, notes: body.notes === undefined ? reconciliation.notes : stringValue(body.notes, 'notes', { max: 1_000 }), updatedAt: new Date(now).toISOString() };
+      await dataStore.transact((state) => { const item = state.reconciliations.find((entry) => entry.id === id && entry.userId === current.user.id); Object.assign(item, updated); addAuditEvent(state, { actorUserId: current.user.id, action: 'record.reconciliation_update', entityType: 'reconciliation', entityId: id }, now); });
+      sendJson(response, 200, { reconciliation: publicReconciliation(updated) });
+      return true;
+    }
+    if (method === 'DELETE') {
+      await dataStore.transact((state) => { state.reconciliations = state.reconciliations.filter((item) => item.id !== id || item.userId !== current.user.id); addAuditEvent(state, { actorUserId: current.user.id, action: 'record.reconciliation_delete', entityType: 'reconciliation', entityId: id }, now); });
+      sendJson(response, 200, { ok: true });
+      return true;
+    }
   }
   return false;
 }

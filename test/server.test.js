@@ -143,6 +143,25 @@ test('auth uses scrypt, HttpOnly cookies, CSRF, and stores no raw password', asy
   assert.equal(reconciliation.response.status, 201);
   assert.equal(reconciliation.body.reconciliation.missing[0].name, 'Metformin 500 mg');
 
+  const updatedReconciliation = await request(context.baseUrl, `/api/reconciliations/${reconciliation.body.reconciliation.id}`, {
+    cookie: rotatedCookie,
+    csrf: authenticatedCsrf,
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ dispensedMedicines: ['Metformin 500 mg'] }),
+  });
+  assert.equal(updatedReconciliation.response.status, 200);
+  assert.equal(updatedReconciliation.body.reconciliation.isExactMatch, true);
+
+  const deletedReconciliation = await request(context.baseUrl, `/api/reconciliations/${reconciliation.body.reconciliation.id}`, {
+    cookie: rotatedCookie,
+    csrf: authenticatedCsrf,
+    method: 'DELETE',
+  });
+  assert.equal(deletedReconciliation.response.status, 200);
+  const deletedReconciliationRead = await request(context.baseUrl, `/api/reconciliations/${reconciliation.body.reconciliation.id}`, { cookie: rotatedCookie });
+  assert.equal(deletedReconciliationRead.response.status, 404);
+
   const stored = JSON.parse(await readFile(context.dataFile, 'utf8'));
   assert.equal(stored.users[0].passwordHash.algorithm, 'scrypt');
   assert.equal(JSON.stringify(stored).includes('correct horse battery staple'), false);
