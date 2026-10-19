@@ -123,7 +123,19 @@ export async function handlePatientRoute(ctx) {
       return true;
     }
     if (method === 'PUT') {
-      const prescription = prescriptionValue(await readJson(request));
+      const input = await readJson(request);
+      allowedKeys(input, ['medicationName', 'strength', 'dose', 'route', 'frequency', 'startDate', 'endDate', 'instructions', 'prescriber']);
+      const prescription = prescriptionValue({
+        medicationName: input.medicationName ?? existing.medicationName,
+        strength: input.strength ?? existing.strength,
+        dose: input.dose ?? existing.dose,
+        route: input.route ?? existing.route,
+        frequency: input.frequency ?? existing.frequency,
+        startDate: input.startDate ?? existing.startDate,
+        endDate: input.endDate ?? existing.endDate,
+        instructions: input.instructions ?? existing.instructions,
+        prescriber: input.prescriber ?? existing.prescriber,
+      });
       const updated = { ...existing, ...prescription, updatedAt: new Date(now).toISOString() };
       await dataStore.transact((state) => { const item = state.prescriptions.find((entry) => entry.id === id && entry.userId === current.user.id); Object.assign(item, updated); });
       sendJson(response, 200, { prescription: publicPrescription(updated) });

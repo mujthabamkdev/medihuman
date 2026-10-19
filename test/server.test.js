@@ -122,6 +122,17 @@ test('auth uses scrypt, HttpOnly cookies, CSRF, and stores no raw password', asy
   });
   assert.equal(prescription.response.status, 201);
 
+  const updatedPrescription = await request(context.baseUrl, `/api/prescriptions/${prescription.body.prescription.id}`, {
+    cookie: rotatedCookie,
+    csrf: authenticatedCsrf,
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ instructions: 'Take with food.' }),
+  });
+  assert.equal(updatedPrescription.response.status, 200);
+  assert.equal(updatedPrescription.body.prescription.medicationName, 'Metformin');
+  assert.equal(updatedPrescription.body.prescription.instructions, 'Take with food.');
+
   const reconciliation = await request(context.baseUrl, '/api/reconciliations', {
     cookie: rotatedCookie,
     csrf: authenticatedCsrf,

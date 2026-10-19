@@ -249,6 +249,16 @@ test('camera card exposes mobile-safe action controls', () => {
   assert.match(markup, /class="button button-secondary file-button"/);
 });
 
+test('medicine editor exposes clinical detail fields', () => {
+  const state = { ...createState(), screen: 'shell', localOnly: true, view: 'medicines' };
+  state.medicines = [{ name: 'Warfarin', strength: '5 mg', dose: '1 tablet', route: 'oral', timing: 'evening', notes: 'Keep consistent' }];
+  const markup = createViewRenderer({ state }).renderShell();
+
+  for (const field of ['name', 'strength', 'dose', 'route', 'timing', 'notes']) {
+    assert.match(markup, new RegExp(`data-med-key="${field}"`));
+  }
+});
+
 test('safety card keeps icon and copy in aligned heading wrapper', () => {
   const state = { ...createState(), screen: 'shell', localOnly: true, view: 'dashboard' };
   const markup = createViewRenderer({ state }).renderShell();

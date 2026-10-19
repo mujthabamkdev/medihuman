@@ -31,6 +31,7 @@
 .large-label textarea,
 .large-label input,
 .medicine-fields input,
+.medicine-fields textarea,
 .add-question input { width: 100%; min-width: 0; background: #fdfcf8; border: 1px solid var(--line-strong); border-radius: var(--radius-control); color: var(--ink); padding: 12px 13px; font-size: .83rem; font-weight: 400; }
 .stack-form .check-row { flex-direction: row; font-weight: 400; }
 .stack-form .check-row input { width: 16px; height: 16px; padding: 0; border-radius: 0; }
@@ -42,6 +43,7 @@
 .large-label textarea:focus,
 .large-label input:focus,
 .medicine-fields input:focus,
+.medicine-fields textarea:focus,
 .add-question input:focus { border-color: var(--focus); box-shadow: 0 0 0 3px rgba(75, 149, 128, .16); }
 .form-actions { display: flex; align-items: center; gap: 15px; margin-top: 3px; }
 .two-column { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(250px, .7fr); gap: 20px; }

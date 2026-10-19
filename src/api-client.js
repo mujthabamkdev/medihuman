@@ -76,6 +76,7 @@ export const api = {
   saveMedicines: (medicines) => json('PUT', '/patient/medicines', { medicines }),
   prescriptions: () => request('/prescriptions'),
   savePrescription: (prescription) => json('POST', '/prescriptions', prescription),
+  reconciliations: () => request('/reconciliations'),
   saveReconciliation: (body) => json('POST', '/reconciliations', body),
   doctorAccessRequests: () => request('/doctor/access-requests'),
   requestPatient: (patientId) => json('POST', '/doctor/access-requests', { patientId }),

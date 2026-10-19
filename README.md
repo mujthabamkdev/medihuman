@@ -57,11 +57,12 @@ Remove conflicting dashboard overrides or align them with these values. `npm sta
 
 Vercel serves these files directly from its CDN and routes every `/api/:path*` request through `api/index.js`, which uses the shared serverless handler. This explicit rewrite avoids relying on catch-all function filenames for nested API paths. After deployment, check `/`, `/index.html`, `/styles.css`, `/api/health`, and a nested API path such as `/api/patient/profile`; the first three should return HTML/CSS, health should return JSON, and the nested path should return an application JSON response rather than a Vercel platform 404. If runtime logs report `No exports found in module "/var/task/server.mjs"`, confirm `server.js` includes its default handler export and recheck the Other preset. `/var/task` is Vercel's runtime filesystem, not a local project folder.
 
+Use Vercel CLI without a global install:
+
 ```sh
-npm install --global vercel
-vercel login
-vercel
-vercel --prod
+npx --yes vercel login
+npx --yes vercel
+npx --yes vercel --prod
 ```
 
 Set production environment variables in Vercel Project Settings or with `vercel env add`:
