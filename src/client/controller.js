@@ -157,16 +157,22 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
   function formValues(form) { return Object.fromEntries(new FormData(form).entries()); }
 
   async function saveProfile() {
-    const form = document.querySelector('[data-form="profile"]'); state.profile = formValues(form); saveLocal(state);
-    if (!state.localOnly) { try { const response = await api.saveProfile(state.profile); state.profile = response.profile || state.profile; } catch (error) { alert(error.message); } }
+    const form = document.querySelector('[data-form="profile"]'); state.profile = formValues(form); state.saveStatus.profile = 'Saving…'; saveLocal(state); render();
+    if (!state.localOnly) {
+      try { const response = await api.saveProfile(state.profile); state.profile = response.profile || state.profile; state.saveStatus.profile = 'Saved to your account'; }
+      catch (error) { state.saveStatus.profile = `Not saved: ${error.message}`; }
+    } else state.saveStatus.profile = 'Saved on this device';
     render();
   }
 
   function updateMedicineField(target) { const item = state.medicines[Number(target.dataset.medIndex)]; if (item) { item[target.dataset.medKey] = target.value; saveLocal(state); } }
 
   async function saveMedicines() {
-    state.medicines = state.medicines.filter((item) => item.name.trim()); saveLocal(state);
-    if (!state.localOnly) { try { const response = await api.saveMedicines(state.medicines); state.medicines = response.medicines || state.medicines; } catch (error) { alert(error.message); } }
+    state.medicines = state.medicines.filter((item) => item.name.trim()); state.saveStatus.medicines = 'Saving…'; saveLocal(state); render();
+    if (!state.localOnly) {
+      try { const response = await api.saveMedicines(state.medicines); state.medicines = response.medicines || state.medicines; state.saveStatus.medicines = 'Saved to your account'; }
+      catch (error) { state.saveStatus.medicines = `Not saved: ${error.message}`; }
+    } else state.saveStatus.medicines = 'Saved on this device';
     render();
   }
 
@@ -190,19 +196,23 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
 
   async function saveReconciliation() {
     goReconcile();
+    state.saveStatus.reconciliation = 'Saving…';
+    render();
     const comparison = compareMedicines(state.prescriptionText, state.dispensedText);
     if (comparison.prescribed.length || comparison.dispensed.length) {
       const payload = { prescriptionMedicines: comparison.prescribed, dispensedMedicines: comparison.dispensed, notes: 'Reviewed in MediHuman.' };
       if (state.localOnly) {
         state.reconciliations.push({ id: `local-reconciliation-${Date.now()}`, ...payload, matched: comparison.matched, missing: comparison.missing, unexpected: comparison.unexpected, isExactMatch: comparison.isExactMatch, createdAt: new Date().toISOString() });
+        state.saveStatus.reconciliation = 'Saved on this device';
         saveLocal(state);
       } else {
         try {
           const response = await api.saveReconciliation(payload);
           if (response.reconciliation) state.reconciliations.push(response.reconciliation);
-        } catch { /* local result remains useful if persistence is unavailable */ }
+          state.saveStatus.reconciliation = 'Saved to your account';
+        } catch (error) { state.saveStatus.reconciliation = `Not saved: ${error.message}`; }
       }
-    }
+    } else state.saveStatus.reconciliation = 'Nothing to save';
     state.view = 'reconcile'; render();
   }
 
