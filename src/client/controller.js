@@ -15,11 +15,26 @@ import { escapeHtml, notice } from './ui.js';
 /** Orchestrate browser events, API calls, persistence, and camera/OCR lifecycle. */
 export function createController({ root, state, views, ocr = createOcrAdapter() }) {
   let previousView = null;
+
+  /** Chart widths come from CSSOM so the strict CSP never blocks inline styles. */
+  function applyChartMetrics() {
+    const doc = globalThis.document;
+    if (!doc || typeof doc.querySelectorAll !== 'function') return;
+    doc.querySelectorAll('[data-progress-width]').forEach((element) => {
+      const value = Number(element.dataset.progressWidth);
+      if (Number.isFinite(value)) element.style.width = `${Math.min(Math.max(value, 0), 100)}%`;
+    });
+    doc.querySelectorAll('[data-bar-width]').forEach((element) => {
+      const value = Number(element.dataset.barWidth);
+      if (Number.isFinite(value)) element.style.setProperty('--bar', `${Math.min(Math.max(value, 0), 100)}%`);
+    });
+  }
   function render() {
     const focusedId = globalThis.document?.activeElement?.id;
     const viewChanged = previousView !== null && previousView !== state.view;
     previousView = state.view;
     root.innerHTML = state.screen === 'auth' ? views.renderAuth() : views.renderShell();
+    applyChartMetrics();
     bindCamera();
     ensureSelectedDoctorRecord();
     if (state.localExitPrompt) {

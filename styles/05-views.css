@@ -44,12 +44,12 @@
 .overview-card-heading h3 { font-size: 1.15rem; line-height: 1.15; }
 .overview-progress-value { color: var(--teal-dark); font-family: var(--font-mono); font-size: .75rem; }
 .overview-progress { height: 11px; overflow: hidden; margin: 31px 0 17px; background: var(--mint-2); border-radius: 999px; }
-.overview-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--teal), #92c7a6); }
+.overview-progress span { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--teal), #92c7a6); }
 .overview-completion > p { color: var(--muted); font-size: .8125rem; line-height: 1.5; margin: 0; }
 .overview-bars { display: flex; flex-direction: column; gap: 8px; align-items: stretch; justify-content: center; padding: 4px 0 0; }
 .overview-bar-item { min-width: 0; display: grid; grid-template-columns: 96px minmax(0, 1fr) 20px; grid-template-areas: "label bar value"; align-items: center; gap: 8px; }
 .overview-bar-value { grid-area: value; color: var(--teal-dark); font-family: var(--font-mono); font-size: .75rem; text-align: right; }
-.overview-bar { grid-area: bar; width: var(--bar); min-width: 4px; height: 8px !important; border-radius: 999px; background: linear-gradient(90deg, #78b394, var(--teal)); }
+.overview-bar { grid-area: bar; width: var(--bar, 0%); min-width: 4px; height: 8px !important; border-radius: 999px; background: linear-gradient(90deg, #78b394, var(--teal)); }
 .overview-bar-label { grid-area: label; width: 100%; overflow: hidden; color: var(--muted); font-size: .75rem; line-height: 1.2; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .indication-list { display: grid; gap: 10px; padding: 0; margin: 0; list-style: none; }
 .indication-list li { display: flex; align-items: flex-start; gap: 9px; color: var(--ink-soft); font-size: .8125rem; line-height: 1.45; }

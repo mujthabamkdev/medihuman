@@ -79,6 +79,7 @@
 .side-note p { color: var(--muted); font-size: .8125rem; line-height: 1.6; }
 .notice { display: flex; align-items: flex-start; gap: 9px; border-radius: 15px; padding: 14px 15px; font-size: .8125rem; line-height: 1.5; }
 .notice-icon { width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; flex: none; font-size: .68rem; font-weight: 800; background: var(--mint); color: var(--teal-dark); }
+.notice-dismiss { float: right; margin-left: 1rem; }
 .notice-info { color: var(--ink-soft); background: var(--mint-2); border: 1px solid #d3dfd5; }
 .notice-warning { color: #705a24; background: #f8f1d9; border: 1px solid #e8dcae; }
 .notice-warning .notice-icon { background: #ead38e; color: #705a24; }

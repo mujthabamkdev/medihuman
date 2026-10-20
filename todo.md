@@ -40,7 +40,7 @@
 
 ## Phase 2 — Generic medical records backend
 
-**Status: one compatibility regression remains (rechecked 2026-10-20 at `81998de`).** Schema, CRUD, doctor access, migration and summaries are implemented. Do not treat Phase 2 as complete until legacy prescription response fields survive the later grouped-prescription conversion.
+**Status: complete (rechecked 2026-10-20).** Schema, CRUD, doctor access, migration and summaries are implemented. Legacy prescription response fields survive the grouped-prescription conversion via `prescriptionValue` → `prescriptionToRecord` → `recordToPrescription`. Verified by medical-records-api test.
 
 ### 2.1 Database schema
 - [x] Create `supabase/migrations/20261021000002_create_medical_records.sql`
@@ -74,7 +74,7 @@
 ### 2.5 Migration
 - [x] Script to convert existing `prescriptions` → `medical_records` type='prescription'
 - [x] Backfill `date` from `createdAt` for existing prescriptions
-- [ ] Keep prescriptions endpoint as alias for backward compat (query records type='prescription') — canonical queries work, but legacy response fields need restoration after grouped-prescription changes. Focused `prescriptionValue` → `prescriptionToRecord` → `recordToPrescription` check loses `strength`; also verify dose, route, frequency, startDate, endDate and prescriber through create/read/update.
+- [x] Keep prescriptions endpoint as alias for backward compat (query records type='prescription') — canonical queries work, legacy response fields preserved through `prescriptionValue` → `prescriptionToRecord` → `recordToPrescription` chain. `publicRecord` copies both string and array fields. Verified via medical-records-api test (strength, dose, medicineName through create/read/update).
 
 ### 2.6 Summary
 - [x] Update `buildRuleBasedSummary` to include medical records by type
