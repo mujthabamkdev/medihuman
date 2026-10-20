@@ -186,6 +186,7 @@ export function createViewRenderer({ state }) {
     const questionRecords = state.questions.map((question) => `<li><strong>${escapeHtml(question.title)}</strong><span>${escapeHtml(question.meta || 'Personal note')}</span></li>`).join('');
     const accessRecords = state.patientRequests.map((request) => `<li><strong>${escapeHtml(request.doctor?.displayName || 'Clinician')}</strong><span>${escapeHtml(request.status || 'pending')} · ${overviewDate(request.requestedAt)}</span></li>`).join('');
     const indicationRecords = state.indications.map((indication) => `<li><strong>${escapeHtml(indication.title || 'Clinician indication')}</strong><span>${escapeHtml(indication.detail || 'Review with your care team.')} · ${overviewDate(indication.createdAt)}</span></li>`).join('');
+    const medicalRecordRows = (state.records || []).map((record) => `<li><strong>${escapeHtml(record.title || record.type || 'Record')}</strong><span>${escapeHtml(record.type || '')}${record.date ? ` · ${escapeHtml(record.date)}` : ''}</span></li>`).join('');
     const categoryCards = [
       ['Profile', 'profile', profileRecords.map(([label, value]) => `<li><strong>${escapeHtml(label)}</strong><span>${escapeHtml(value)}</span></li>`).join('')],
       ['Medicines', 'medicines', medicineRecords],
@@ -194,7 +195,8 @@ export function createViewRenderer({ state }) {
       ['Questions', 'questions', questionRecords],
       ['Care access', 'access', accessRecords],
       ['Indications', 'indications', indicationRecords],
-    ].map(([title, icon, records]) => `<section class="card overview-category-card${records ? '' : ' is-empty'}"><div class="card-heading"><div><p class="card-kicker">RECORD CATEGORY</p><h3>${title}</h3></div><span class="soft-icon">${svgIcon(icon === 'access' ? 'care-team' : icon === 'reconciliations' ? 'compare' : icon === 'prescriptions' ? 'document' : icon === 'questions' ? 'questions' : icon === 'indications' ? 'info' : icon)}</span></div>${records ? `<ul class="overview-record-list">${records}</ul>` : overviewEmpty(title.toLowerCase())}</section>`).join('');
+      ['Medical records', 'records', medicalRecordRows],
+    ].map(([title, icon, records]) => `<section class="card overview-category-card${records ? '' : ' is-empty'}"><div class="card-heading"><div><p class="card-kicker">RECORD CATEGORY</p><h3>${title}</h3></div><span class="soft-icon">${svgIcon(icon === 'access' ? 'care-team' : icon === 'reconciliations' ? 'compare' : icon === 'prescriptions' ? 'document' : icon === 'questions' ? 'questions' : icon === 'indications' ? 'info' : icon === 'records' ? 'document' : icon)}</span></div>${records ? `<ul class="overview-record-list">${records}</ul>` : overviewEmpty(title.toLowerCase())}</section>`).join('');
     const timelineItems = [];
     if (state.profile.fullName || state.profile.conditions || state.profile.allergies) timelineItems.push({ type: 'profile', label: 'Profile updated', date: state.profile.updatedAt || '' });
     state.medicines.forEach((m, i) => timelineItems.push({ type: 'medicine', label: `Medicine: ${m.name || 'Unnamed'}`, date: m.updatedAt || m.createdAt || '' }));
