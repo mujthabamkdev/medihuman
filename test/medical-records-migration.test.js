@@ -172,7 +172,7 @@ test('SQL migration retains canonical schema, three indexes, payload backfill an
   assert.equal([...sql.matchAll(/create index if not exists medical_records_/g)].length, 3);
   assert.match(sql, /\(user_id, date desc\)/);
   assert.match(sql, /\(user_id, type\)/);
-  assert.match(sql, /using gin \(tags\)/);
+  for (const name of ['user_id', 'type', 'date']) assert.match(sql, new RegExp(`medical_records_${name}_idx`));
   assert.match(sql, /alter table public\.medical_records enable row level security/);
   assert.match(sql, /revoke all on table public\.medical_records from public, anon, authenticated/);
   assert.match(sql, /grant select, insert, update, delete on table public\.medical_records to service_role/);

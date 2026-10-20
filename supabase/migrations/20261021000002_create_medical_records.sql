@@ -18,9 +18,9 @@ create table if not exists public.medical_records (
   data jsonb not null default '{}'::jsonb
 );
 
-create index if not exists medical_records_user_date_idx on public.medical_records (user_id, date desc);
-create index if not exists medical_records_user_type_idx on public.medical_records (user_id, type);
-create index if not exists medical_records_tags_idx on public.medical_records using gin (tags);
+create index if not exists medical_records_user_id_idx on public.medical_records (user_id);
+create index if not exists medical_records_type_idx on public.medical_records (user_id, type);
+create index if not exists medical_records_date_idx on public.medical_records (user_id, date desc);
 
 alter table public.medical_records enable row level security;
 revoke all on table public.medical_records from public, anon, authenticated;
