@@ -40,6 +40,8 @@
 
 ## Phase 2 — Generic medical records backend
 
+**Status: one compatibility regression remains (rechecked 2026-10-20 at `81998de`).** Schema, CRUD, doctor access, migration and summaries are implemented. Do not treat Phase 2 as complete until legacy prescription response fields survive the later grouped-prescription conversion.
+
 ### 2.1 Database schema
 - [x] Create `supabase/migrations/20261021000002_create_medical_records.sql`
 - [x] Table: `medical_records` (id, user_id, type, title, date, description, file_ref, mime_type, size_bytes, tags, source, created_at, updated_at, data)
@@ -72,7 +74,7 @@
 ### 2.5 Migration
 - [x] Script to convert existing `prescriptions` → `medical_records` type='prescription'
 - [x] Backfill `date` from `createdAt` for existing prescriptions
-- [x] Keep prescriptions endpoint as alias for backward compat (query records type='prescription')
+- [ ] Keep prescriptions endpoint as alias for backward compat (query records type='prescription') — canonical queries work, but legacy response fields need restoration after grouped-prescription changes. Focused `prescriptionValue` → `prescriptionToRecord` → `recordToPrescription` check loses `strength`; also verify dose, route, frequency, startDate, endDate and prescriber through create/read/update.
 
 ### 2.6 Summary
 - [x] Update `buildRuleBasedSummary` to include medical records by type
@@ -83,7 +85,7 @@
 - [x] Supabase store test: medical_records round-trip through RPC
 - [x] Migration test: prescriptions → medical_records
 
-Phase 2 verification (2026-10-20): `npm test` passes 128 tests (76 baseline + 52); `npm run build` passes; Docker build runs the same suite on Linux and runtime smoke checks pass. `POSTGRES_CONTAINER=supabase_db_medihuman npm run check:records-db` verifies real PostgreSQL backfill, idempotence, grants/RLS, RPC writes and rollback in a disposable database. Existing local `supabase db lint --local` reports an unrelated installed `medihuman_rate_limit_hit` ambiguity (`bucket_key`); no existing/remote database was migrated. Apply the new SQL migration before deploying to Supabase. Upload/storage integration remains Phase 5.
+Phase 2 verification (2026-10-20): original implementation passed 128 tests plus Linux Docker build/runtime smoke checks. Recheck at `81998de`: `npm test -- --test-reporter=dot`, `npm run build` and `POSTGRES_CONTAINER=supabase_db_medihuman npm run check:records-db` pass, but an additional legacy-field preservation assertion fails (`strength`: expected `10 mg`, actual `undefined`); existing tests do not fully protect the old response contract. PostgreSQL check verifies backfill, idempotence, grants/RLS, RPC writes and rollback in a disposable database. Existing local `supabase db lint --local` previously reported an unrelated installed `medihuman_rate_limit_hit` ambiguity (`bucket_key`); no existing/remote database was migrated by this Phase 2 work. Apply the new SQL migration before deploying to Supabase. Upload/storage integration remains Phase 5. Push of this completion update is on hold until the compatibility item passes.
 
 ---
 
@@ -99,19 +101,19 @@ Phase 2 verification (2026-10-20): `npm test` passes 128 tests (76 baseline + 52
 - [x] Update `GET /api/patient/medicines` to return medicines with status
 - [x] Update `PUT /api/patient/medicines` to handle status changes
 - [x] Add `startedAt`/`stoppedAt` to medicine update
-- [ ] Notify approved doctors on medicine status change
+- [x] Notify approved doctors on medicine status change (via whole-list PUT and per-item routes)
 
 ### 3.3 Frontend
 - [x] Render "Currently taking" section (status='active')
 - [x] Render "Previously taken" section (status='discontinued' | 'completed')
-- [ ] Add "Mark as discontinued" / "Mark as completed" buttons
+- [x] Add "Mark as discontinued" / "Mark as completed" buttons (text-link actions)
 - [x] Add date pickers for started/stopped dates
 - [x] Add "Reason" text field for discontinued medicines
 - [x] Update `renderMedicines` with timeline layout
-- [ ] Add medicine count badge (active count)
+- [x] Add medicine count badge (active count in card heading)
 
 ### 3.4 Doctor view
-- [ ] Show medicine timeline in doctor-patients view
+- [x] Show medicine timeline in doctor-patients view (status + dates per medicine)
 - [x] Show active + historical medicines with dates
 - [x] Highlight discontinued medicines with different styling
 
@@ -126,26 +128,26 @@ Phase 2 verification (2026-10-20): `npm test` passes 128 tests (76 baseline + 52
 
 ### 4.1 Unified records endpoint
 - [x] `GET /api/doctor/patients/:id/records` — all medical records sorted by date
-- [ ] `GET /api/doctor/patients/:id/records?type=lab_report` — filter by type
+- [x] `GET /api/doctor/patients/:id/records?type=lab_report` — filter by type
 - [x] `GET /api/doctor/patients/:id/records/:id` — single record
-- [ ] Doctor can read all record types with approved access
+- [x] Doctor can read all record types with approved access
 
 ### 4.2 Doctor UI
-- [ ] Add "Records" tab to doctor-patients view
+- [x] Add "Records" section to doctor-patients view
 - [x] Show records grouped by type and date
-- [ ] Show record count by type in summary
-- [ ] Add "View record" link to open record detail
-- [ ] Add filter by record type
+- [x] Show record count by type in summary (filter dropdown)
+- [x] Add "View record" link to open record detail
+- [x] Add filter by record type (frontend dropdown)
 
 ### 4.3 Notifications
-- [ ] Patient record upload → notify approved doctors (already wired via `notifyApprovedDoctors`)
-- [ ] Add notification type 'record' with entity reference
+- [x] Patient record upload → notify approved doctors (already wired via `notifyApprovedDoctors`)
+- [x] Add notification type 'record' with entity reference (patient-record type)
 - [x] Doctor notification click → navigate to patient records
 
 ### 4.4 Tests
-- [ ] Doctor can read approved patient's records
-- [ ] Doctor cannot read without approval
-- [ ] Records filtered by type
+- [x] Doctor can read approved patient's records
+- [x] Doctor cannot read without approval
+- [x] Records filtered by type
 
 ---
 

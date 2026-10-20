@@ -65,7 +65,9 @@ export async function handleDoctorRoute(ctx) {
     if (resource === 'summary') {
       sendJson(response, 200, { summary: await buildSummary(records) });
     } else if (resource === 'records') {
-      sendJson(response, 200, { records: records.medicalRecords || [] });
+      const typeFilter = ctx.url.searchParams.get('type');
+      const filtered = typeFilter ? (records.medicalRecords || []).filter((r) => r.type === typeFilter) : (records.medicalRecords || []);
+      sendJson(response, 200, { records: filtered });
     } else if (resource) {
       sendJson(response, 200, { [resource]: records[resource] });
     } else {
