@@ -84,7 +84,7 @@ test('patient shell renders stable navigation and event hooks', () => {
   assert.match(markup, /data-action="privacy"/);
   assert.match(markup, /data-action="toggle-profile-menu"/);
   assert.match(markup, /class="mobile-sidebar-logout nav-item" data-action="logout"/);
-  assert.doesNotMatch(markup, /data-view="care-team"/);
+  assert.match(markup, /data-action="nav" data-view="care-team"/);
   assert.match(markup, /data-action="nav" data-view="medicines"/);
   assert.match(markup, /data-action="go-scan"/);
   assert.match(markup, /class="app-footer"/);

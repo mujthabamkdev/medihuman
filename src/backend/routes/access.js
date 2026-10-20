@@ -7,6 +7,7 @@ import {
 } from '../records.js';
 import { newId } from '../security.js';
 import { allowedKeys, stringValue } from '../validation.js';
+import { addNotification } from '../notifications.js';
 
 export async function handleAccessRoute(ctx) {
   const { pathname, method, request, response, dataStore, now, current } = ctx;
@@ -26,6 +27,7 @@ export async function handleAccessRoute(ctx) {
     };
     await dataStore.transact((state) => {
       state.accessRequests.push(requestRecord);
+      addNotification(state, patient.id, { type: 'access-request', title: 'Access request', message: `${current.user.doctorProfile?.displayName || 'A clinician'} requested access to your records.`, entityType: 'access_request', entityId: requestRecord.id }, now);
       addAuditEvent(state, { actorUserId: current.user.id, action: 'access.request', entityType: 'access_request', entityId: requestRecord.id }, now);
     });
     sendJson(response, 201, { request: publicAccessRequest(requestRecord, patient, current.user) });

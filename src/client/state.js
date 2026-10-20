@@ -4,7 +4,8 @@ export const LOCAL_TTL_MS = 30 * 60 * 1000;
 
 export const patientNavItems = [
   ['dashboard', 'home', 'Today'], ['medicines', 'medicines', 'Medicines'],
-  ['scan', 'scan', 'Scan prescription'], ['doctors', 'questions', 'Doctor discussion'],
+  ['scan', 'scan', 'Scan prescription'], ['care-team', 'care-team', 'Clinician access'],
+  ['doctors', 'questions', 'Doctor discussion'],
 ];
 export const doctorNavItems = [
   ['dashboard', 'home', 'Doctor dashboard'], ['doctor-patients', 'care-team', 'Approved patients'],
