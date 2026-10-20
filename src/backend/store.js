@@ -340,6 +340,7 @@ export class JsonDataStore {
   async transact(mutator) {
     const operation = this.writeChain.catch(() => undefined).then(async () => {
       const result = await mutator(this.state);
+      this.state = normalizeState(this.state);
       await this.persist();
       return result;
     });
