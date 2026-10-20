@@ -7,4 +7,6 @@ node_modules/
 .waveform-cache/
 .home/
 caption-overrides.json
+renders/work-*/
+renders/.*.hf-transaction-*/
 *.log
