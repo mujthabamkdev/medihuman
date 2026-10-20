@@ -430,7 +430,6 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
   }
 
   async function loadDoctorPatient(patientId = state.selectedPatientId) {
-    console.log('PROBE loadDoctorPatient', JSON.stringify(patientId), state.localOnly);
     if (!patientId) return;
     try {
       state.selectedPatientId = patientId;

@@ -1,4 +1,5 @@
-import { copyFile, mkdir, rm, stat } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -67,6 +68,19 @@ export async function buildStatic(outputDirectory = resolve(projectRoot, 'public
     await mkdir(dirname(destination), { recursive: true });
     await copyFile(source, destination);
   }
+
+  // Stamp the service worker with a hash of the shipped shell. A new hash
+  // installs a new worker, so browsers re-cache the current assets and drop
+  // the previous release instead of serving a stale shell.
+  const digest = createHash('sha256');
+  for (const asset of browserAssets) {
+    digest.update(await readFile(resolve(projectRoot, asset)));
+  }
+  const shellHash = digest.digest('hex').slice(0, 12);
+  const workerPath = resolve(output, 'service-worker.js');
+  const worker = (await readFile(workerPath, 'utf8')).replace('__SHELL_HASH__', shellHash);
+  await writeFile(workerPath, worker, 'utf8');
+  process.stdout.write(`service worker shell hash ${shellHash}\n`);
   return output;
 }
 

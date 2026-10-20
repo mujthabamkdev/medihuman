@@ -1,4 +1,7 @@
-const CACHE = 'medihuman-shell-v6';
+// The build replaces the placeholder with a hash of the shipped shell, so a
+// new deployment always installs a fresh service worker and re-caches the
+// current markup and scripts instead of serving an older shell.
+const CACHE = 'medihuman-shell-__SHELL_HASH__';
 const SHELL = [
   '/',
   '/index.html',
