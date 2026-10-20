@@ -88,6 +88,25 @@
 .filter-label { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0; font-size: .75rem; color: var(--muted); border: 1px solid #cbdcd6; border-radius: 10px; padding: 9px 12px; background: #fbfdfc; }
 .filter-label input { flex: 1; border: 0; background: transparent; outline: none; font: inherit; color: var(--ink); min-width: 0; }
 .filter-label input::placeholder { color: var(--muted); opacity: .7; }
+.filter-label select {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background-color: transparent;
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+  padding: 0 26px 0 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235e6762' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 2px center;
+  background-size: 14px 14px;
+  cursor: pointer;
+}
+.filter-label select:focus-visible { box-shadow: 0 0 0 3px rgba(46, 125, 114, .24); border-radius: 8px; }
+.filter-label select option { background: var(--paper); color: var(--ink); }
 .status-pill { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 8px 11px; font-size: .75rem; font-weight: 800; white-space: nowrap; }
 .pill-green { background: var(--mint); color: var(--teal-dark); }
 .pill-warn { background: var(--yellow); color: var(--yellow-ink); }

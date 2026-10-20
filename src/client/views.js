@@ -4,6 +4,7 @@ import { googleAuthUrl } from '../api-client.js';
 import { handwritingTips } from '../prescription-parse.js';
 import { doctorNavGroups, patientNavGroups } from './state.js';
 import { brandIcon, button, escapeHtml, googleIcon, initials, notice, svgIcon } from './ui.js';
+import { ACCEPTED_UPLOAD_ATTRIBUTE } from './file-upload.js';
 
 function findingSeverityLabel(severity) {
   return { high: 'Priority review', medium: 'Review', info: 'Information' }[severity] || escapeHtml(severity);
@@ -256,6 +257,7 @@ export function createViewRenderer({ state }) {
   }
 
   function renderRecords() {
+    const upload = state.recordUpload || { file: null, preview: '', progress: 0, error: '', busy: false };
     const sortDir = state.recordsSort || 'desc';
     const fromDate = state.recordsFromDate || '';
     const toDate = state.recordsToDate || '';
@@ -283,6 +285,15 @@ export function createViewRenderer({ state }) {
       </div>
       <div class="overview-record-list">${typeFiltered.length ? recordRows : '<div class="empty-state"><span class="empty-icon">${svgIcon("document")}</span><h3>No records found</h3><p>Upload a record or adjust your search.</p></div>'}</div>
       <div class="medicine-actions">${button('＋ Add record', 'add-record', 'button button-secondary')}</div>
+      <section class="card record-upload-panel">
+        <div class="card-heading"><div><p class="card-kicker">UPLOAD</p><h3>Add a medical record file</h3><p class="muted">PDF, JPEG, PNG, WebP, HEIC, or plain text up to 4 MB.</p></div><span class="soft-icon">${svgIcon('document')}</span></div>
+        <label class="button button-secondary file-button">Choose file<input id="record-file" type="file" accept="${ACCEPTED_UPLOAD_ATTRIBUTE}"></label>
+        <label class="button button-secondary file-button">Use camera<input id="record-camera-file" type="file" accept="image/*" capture="environment"></label>
+        ${upload.preview ? `<div class="record-upload-preview"><img src="${upload.preview}" alt="Selected file preview"></div>` : ''}
+        ${upload.error ? `<p class="record-upload-error">${escapeHtml(upload.error)}</p>` : ''}
+        ${upload.busy ? `<div class="record-upload-progress" role="status"><span style="width:${upload.progress}%"></span><small>${upload.progress}%</small></div>` : ''}
+        <div class="form-actions">${button('Upload record', 'upload-record', 'button button-primary', upload.busy || !upload.file ? 'disabled' : '')}</div>
+      </section>
       </section>
       ${notice('<strong>Privacy tip.</strong> Records are shared with approved doctors only. You control who has access.', 'info')}`;
   }
@@ -487,7 +498,7 @@ export function createViewRenderer({ state }) {
     const selectedName = selected ? (selected.patientName || state.doctorRecords[selected.patientId]?.profile?.fullName || '') : '';
     const triggerLabel = selected ? `Approved patient: ${selectedName ? `${selectedName}, ` : ''}${displayId(selected.patientId)}` : 'Select an approved patient';
     const picker = approved.length ? `<div class="patient-picker"><span class="patient-picker-label" id="doctor-patient-label">Approved patient</span><button type="button" class="patient-picker-trigger" data-action="toggle-doctor-patient-menu" aria-label="${escapeHtml(triggerLabel)}" aria-haspopup="listbox" aria-expanded="${pickerOpen}" aria-controls="doctor-patient-list">${selectedName ? `<span class="patient-picker-name">${escapeHtml(selectedName)}</span> ` : ''}${selected ? `<span class="patient-picker-value" title="${escapeHtml(selected.patientId)}">${escapeHtml(displayId(selected.patientId))}</span>` : ''}<span class="patient-picker-chevron">${svgIcon('chevron-down')}</span></button>${pickerOpen ? `<div class="patient-picker-menu" id="doctor-patient-list" role="listbox" aria-labelledby="doctor-patient-label">${patientOptions || '<p class="patient-picker-empty">No patients match your search.</p>'}</div>` : ''}</div>` : '';
-    const selector = `<section class="card patient-selector"><div class="card-heading"><div><p class="card-kicker">APPROVED ACCESS</p><h3>Patients with approved access</h3><p class="muted">Select a patient to open their approved record.</p></div></div><div class="patient-selector-controls"><label class="filter-label"><span class="sr-only">Search patients</span><input id="patient-search" value="${escapeHtml(state.patientSearch || '')}" placeholder="Search by name or patient ID"></label>${picker}</div></section>`;
+    const selector = `<section class="card patient-selector"><div class="card-heading"><div><p class="card-kicker">APPROVED ACCESS</p><h3>Patients with approved access</h3><p class="muted">Select a patient to open their approved record.</p></div></div><div class="patient-selector-controls"><div class="patient-selector-field"><span class="patient-picker-label">Search patients</span><label class="filter-label"><span class="sr-only">Search patients</span><input id="patient-search" value="${escapeHtml(state.patientSearch || '')}" placeholder="Name or patient ID"></label></div>${picker}</div></section>`;
     return `<div class="section-intro"><p class="eyebrow">APPROVED RECORDS</p><h2 class="page-title">Patient records</h2><p>Only records approved by the patient are shown. Confirm each section with the patient before using it in clinical care.</p></div>${approved.length ? `${selector}${records ? renderDoctorRecord(records, selected.patientId) : `<section class="card empty-state"><p>Select a patient to load their approved record.</p></section>`}` : `<section class="card empty-state"><span class="empty-icon">${svgIcon('care-team')}</span><h3>No approved patients</h3><p>Send an access request from your dashboard. Patient approval is required before records can be viewed.</p>${button('Back to dashboard', 'nav', 'button button-primary', 'data-view="dashboard"')}</section>`}`;
   }
 

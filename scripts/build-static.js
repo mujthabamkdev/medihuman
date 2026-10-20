@@ -36,6 +36,7 @@ const browserAssets = [
   'src/client/ui.js',
   'src/client/views.js',
   'src/client/controller.js',
+  'src/client/file-upload.js',
 ];
 
 // The stylesheets self-host the brand typefaces. They are optional: a build

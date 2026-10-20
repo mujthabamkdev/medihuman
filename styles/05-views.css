@@ -206,6 +206,13 @@
 .timeline-date { font-size: .7rem; color: var(--muted); white-space: nowrap; }
 .record-group { margin-top: 12px; }
 .record-group-title { font-size: .85rem; font-weight: 700; margin: 0 0 6px; color: var(--ink-soft); }
+.record-upload-panel { margin-top: 20px; }
+.record-upload-preview { margin-top: 14px; }
+.record-upload-preview img { max-width: 100%; max-height: 220px; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.record-upload-error { color: var(--rose-ink); font-size: .78rem; margin: 12px 0 0; }
+.record-upload-progress { position: relative; margin-top: 14px; height: 8px; border-radius: 999px; background: var(--mint-2); overflow: visible; }
+.record-upload-progress span { display: block; height: 100%; border-radius: 999px; background: var(--teal); transition: width .2s; }
+.record-upload-progress small { position: absolute; right: 0; top: 12px; font-size: .7rem; color: var(--muted); }
 .medicine-section { margin-top: 12px; }
 .medicine-section-title { font-size: .95rem; font-weight: 700; margin: 0 0 2px; color: var(--ink); }
 .medicine-section-meta { font-size: .72rem; color: var(--muted); margin: 0 0 8px; }
@@ -234,7 +241,6 @@
 .records-toolbar .filter-label-search { flex: 1 1 240px; }
 .records-toolbar .filter-label-select { flex: 0 0 168px; }
 .records-toolbar .filter-label-date { flex: 0 0 172px; }
-.records-toolbar .filter-label select { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: inherit; outline: none; }
 .records-toolbar .filter-label input[type="date"] { width: 100%; }
 .records-toolbar .records-sort { flex: none; align-self: stretch; min-height: 44px; }
 .medicine-dialog { width: min(620px, 100%); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; box-shadow: 0 25px 80px rgba(18, 60, 58, .25); position: relative; }

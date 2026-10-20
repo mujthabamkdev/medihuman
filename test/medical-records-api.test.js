@@ -229,3 +229,53 @@ test('doctor records require verification and active patient approval', async (t
     assert.equal(store.state.notifications.filter((item) => item.recipientUserId === doctor.user.id).length, before);
   });
 });
+
+test('records support search, type and date range filters', async (t) => {
+  const { request, register } = await fixture(t);
+  const patient = await register('filter-patient@example.test');
+  const create = (body) => request('/api/patient/records', patient, 'POST', body);
+
+  await create({ type: 'lab_report', title: 'Blood panel', date: '2026-01-10', description: 'Annual blood work', tags: ['annual'], source: 'lab' });
+  await create({ type: 'imaging', title: 'Chest X-ray', date: '2026-06-15', description: 'Radiology report', tags: ['imaging'], source: 'clinic' });
+  await create({ type: 'clinical_note', title: 'Follow up visit', date: '2026-09-20', description: 'Clinic note', tags: ['visit'], source: 'clinic' });
+
+  const all = await request('/api/patient/records', patient);
+  assert.equal(all.body.records.length, 3);
+
+  const byType = await request('/api/patient/records?type=imaging', patient);
+  assert.equal(byType.body.records.length, 1);
+  assert.equal(byType.body.records[0].title, 'Chest X-ray');
+
+  const bySearch = await request('/api/patient/records?q=blood', patient);
+  assert.equal(bySearch.body.records.length, 1);
+  assert.equal(bySearch.body.records[0].title, 'Blood panel');
+
+  const byTag = await request('/api/patient/records?q=visit', patient);
+  assert.equal(byTag.body.records.length, 1);
+
+  const byRange = await request('/api/patient/records?from=2026-05-01&to=2026-12-31', patient);
+  assert.equal(byRange.body.records.length, 2);
+
+  assert.equal((await request('/api/patient/records?from=bad-date', patient)).status, 400);
+  assert.equal((await request('/api/patient/records?from=2026-12-01&to=2026-01-01', patient)).status, 400);
+});
+
+test('summary and export include medical record counts and records', async (t) => {
+  const { request, register } = await fixture(t);
+  const patient = await register('summary-patient@example.test');
+  await request('/api/patient/records', patient, 'POST', { type: 'lab_report', title: 'Panel', date: '2026-02-02', source: 'lab' });
+  await request('/api/patient/records', patient, 'POST', { type: 'lab_report', title: 'Panel 2', date: '2026-03-03', source: 'lab' });
+  await request('/api/patient/records', patient, 'POST', { type: 'imaging', title: 'Scan', date: '2026-04-04', source: 'clinic' });
+
+  const summary = await request('/api/patient/summary', patient);
+  assert.equal(summary.status, 200);
+  assert.equal(summary.body.summary.sourceCounts.records, 3);
+  assert.equal(summary.body.summary.recordCountsByType.lab_report, 2);
+  assert.equal(summary.body.summary.recordCountsByType.imaging, 1);
+  assert.ok(summary.body.summary.lastUpdated);
+
+  const exported = await request('/api/account/export', patient);
+  assert.equal(exported.status, 200);
+  assert.equal(exported.body.records.medicalRecords.length, 3);
+  assert.equal(exported.body.records.medicalRecords.some((record) => 'userId' in record), false);
+});

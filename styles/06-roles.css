@@ -30,7 +30,9 @@
 .access-request-link:focus-visible { color: var(--teal-dark); text-decoration-color: var(--teal); outline: none; }
 .access-request.is-openable:hover .access-request-avatar { background: var(--teal); }
 .patient-selector { display: grid; gap: 8px; max-width: none; padding: 12px 16px; margin-bottom: 18px; }
-.patient-selector-controls { display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap; }
+.patient-selector-controls { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; }
+.patient-selector-field { flex: 1 1 0; min-width: 0; display: grid; gap: 7px; align-content: end; color: var(--ink-soft); font-size: .8125rem; font-weight: 700; }
+.patient-selector-field .filter-label { min-height: 44px; font-size: .8125rem; }
 .patient-picker { position: relative; flex: 1 1 0; min-width: 0; display: grid; gap: 7px; color: var(--ink-soft); font-size: .8125rem; font-weight: 700; }
 .filter-label { flex: 1 1 0; min-width: 0; }
 .patient-picker-trigger { width: 100%; min-width: 0; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; border: 1px solid #cbdcd6; border-radius: 10px; background: #fbfdfc; color: var(--ink); font: 600 .75rem/1.35 var(--font-mono); text-align: left; cursor: pointer; }

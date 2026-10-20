@@ -1,5 +1,5 @@
 import { compareMedicines } from '../medication-logic.js';
-import { api, ApiError, googleAuthErrorMessage } from '../api-client.js';
+import { api, ApiError, currentCsrfToken, googleAuthErrorMessage } from '../api-client.js';
 import { createOcrAdapter } from '../ocr-adapter.js';
 import { analyzePrescriptionText } from '../prescription-parse.js';
 import {
@@ -12,6 +12,7 @@ import {
   setLocalMode,
 } from './state.js';
 import { escapeHtml, notice } from './ui.js';
+import { readFilePreview, uploadRecordFile, validateFile } from './file-upload.js';
 
 /** Orchestrate browser events, API calls, persistence, and camera/OCR lifecycle. */
 export function createController({ root, state, views, ocr = createOcrAdapter() }) {
@@ -226,6 +227,38 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     link.download = format === 'csv' ? 'medihuman-account-export.csv' : 'medihuman-account-export.json';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  async function selectRecordFile(file) {
+    const problem = validateFile(file);
+    if (problem) {
+      state.recordUpload = { file: null, preview: '', progress: 0, error: problem, busy: false };
+      render();
+      return;
+    }
+    state.recordUpload = { file, preview: await readFilePreview(file), progress: 0, error: '', busy: false };
+    render();
+  }
+
+  async function uploadRecord() {
+    const upload = state.recordUpload || {};
+    if (!upload.file || upload.busy) return;
+    state.recordUpload = { ...upload, busy: true, progress: 0, error: '' };
+    render();
+    try {
+      const response = await uploadRecordFile({
+        file: upload.file,
+        csrf: currentCsrfToken(),
+        fields: { type: 'other', title: upload.file.name || 'Uploaded record', source: 'self' },
+        onProgress: (progress) => { state.recordUpload = { ...state.recordUpload, progress }; render(); },
+      });
+      if (response.record) state.records = [response.record, ...(state.records || [])];
+      state.recordUpload = { file: null, preview: '', progress: 0, error: '', busy: false };
+      render();
+    } catch (error) {
+      state.recordUpload = { ...state.recordUpload, busy: false, error: error.message };
+      render();
+    }
   }
 
   function showAuthError(message) { const target = document.querySelector('#auth-error'); if (target) target.innerHTML = notice(escapeHtml(message), 'warning'); }
@@ -659,6 +692,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'go-reconcile') { state.view = 'reconcile'; render(); return; }
     if (action === 'go-composition') { state.view = 'composition'; render(); return; }
     if (action === 'toggle-records-sort') { state.recordsSort = state.recordsSort === 'asc' ? 'desc' : 'asc'; render(); return; }
+    if (action === 'upload-record') { await uploadRecord(); return; }
     if (action === 'save-profile') { await saveProfile(); return; }
     if (action === 'add-medicine') { openMedicineDialog('new'); return; }
     if (action === 'edit-medicine') { openMedicineDialog('edit', Number(target.dataset.index)); return; }
@@ -694,7 +728,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
 
    root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; try { if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'password-reset') await submitPasswordReset(form); if (form.dataset.form === 'mfa') await submitMfa(form); if (form.dataset.form === 'mfa-enrollment') await submitMfaEnrollment(form); if (form.dataset.form === 'prescription-edit') await submitPrescriptionEdit(form); if (form.dataset.form === 'indication-edit') await submitIndicationEdit(form); if (form.dataset.form === 'medicine-dialog') await submitMedicineDialog(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); if (form.dataset.form === 'doctor-indication') await submitIndication(form); } catch (error) { state.authError = error.message; render(); } });
   root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); if (event.target.id === 'medicine-filter') { state.medicineFilter = event.target.value; render(); } if (event.target.id === 'patient-search') { state.patientSearch = event.target.value; state.selectedPatientId = ''; render(); } if (event.target.id === 'records-search') { state.recordsFilter = event.target.value; render(); } if (event.target.id === 'records-from') { state.recordsFromDate = event.target.value; render(); } if (event.target.id === 'records-to') { state.recordsToDate = event.target.value; render(); } });
-  root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); if (event.target.id === 'record-type-filter') { state.recordTypeFilter = event.target.value; render(); } if (event.target.id === 'records-type-filter') { state.recordsTypeFilter = event.target.value; render(); } });
+  root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); if (event.target.id === 'record-type-filter') { state.recordTypeFilter = event.target.value; render(); } if (event.target.id === 'records-type-filter') { state.recordsTypeFilter = event.target.value; render(); } if (event.target.id === 'record-file' || event.target.id === 'record-camera-file') selectRecordFile(event.target.files?.[0]); });
   root.addEventListener('keydown', (event) => {
     if (state.doctorPatientMenuOpen && event.key === 'Escape') { state.doctorPatientMenuOpen = false; render(); globalThis.document?.querySelector('.patient-picker-trigger')?.focus(); return; }
     if (state.doctorPatientMenuOpen && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {

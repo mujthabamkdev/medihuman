@@ -32,6 +32,57 @@ PORT=8080 PUBLIC_ROOT=public npm start
 
 Copy `.env.example` for environment variable names. The server does not read `.env` automatically; export variables in your shell or use a compatible environment loader. `PUBLIC_ROOT=public` serves only generated browser assets; do not expose the source directory as a production document root. Re-run `npm run build` after frontend changes.
 
+## Demo accounts for testing
+
+The repository ships a fictional but realistic dataset: patients keep a home medicine list, record the prescription they were given, and compare the two name lists to see what the pharmacy did or did not dispense. Clinicians then request access, read the approved record, and leave indications.
+
+**Password for every account: `MediHuman@2026`**
+
+### Clinicians
+
+| Email | Name | Specialty | Access |
+| --- | --- | --- | --- |
+| `ananya.rao@clinic.example.com` | Dr. Ananya Rao | General Medicine | verified |
+| `vikram.shetty@clinic.example.com` | Dr. Vikram Shetty | Cardiology | verified |
+| `meera.iyer@clinic.example.com` | Dr. Meera Iyer | Endocrinology and Diabetology | verified |
+| `rohan.gupta@clinic.example.com` | Dr. Rohan Gupta | Psychiatry | pending — records stay blocked |
+
+### Patients
+
+| Email | Name | Patient ID | Scenario |
+| --- | --- | --- | --- |
+| `ramesh.kumar@example.com` | Ramesh Kumar | `pid-7c1d4a92` | Diabetes and hypertension. A prescribed medicine was out of stock and an over-the-counter painkiller was added. |
+| `sunita.devi@example.com` | Sunita Devi | `pid-b3e75c10` | Hypothyroidism. The pharmacy dispensed the brand form of the same thyroid tablet, so the names do not match. |
+| `joseph.thomas@example.com` | Joseph Thomas | `pid-2fa09d7c` | Post-heart-attack care. A schedule medicine was not dispensed and a self-purchased painkiller conflicts with his kidney record. |
+| `priya.menon@example.com` | Priya Menon | `pid-9d44b8e2` | Pregnancy, 28 weeks. Everything dispensed exactly as prescribed. Access was revoked, so it shows the revoked state. |
+| `lakshmi.devi@example.com` | Lakshmi Devi | `pid-4c82f0a6` | COPD with a recorded penicillin allergy, and a penicillin-class antibiotic was dispensed. Access request pending. |
+| `fatima.khan@example.com` | Fatima Khan | `pid-6e15b7d3` | Rheumatoid arthritis. The methotrexate label reads daily, but the medicine is taken once a week. |
+| `ravi.shankar@example.com` | Ravi Shankar | `pid-1a90b4e5` | Reflux. An old acid medicine is still on the list next to the current one. |
+| `anjali.sharma@example.com` | Anjali Sharma | `pid-5d37e9a1` | Migraine and anxiety. Ibuprofen is both prescribed and recorded as an allergy. Access request pending. |
+
+### Seed the data
+
+The dataset lives in `scripts/demo-data.js`; `scripts/seed-demo-data.js` applies it.
+
+```sh
+# seed the linked Supabase project (creates the matching auth accounts too)
+npm run seed:demo -- --project-ref hagplohwjudzbenftljk
+
+# or write the same data into the local JSON store
+npm run seed:demo -- --local
+```
+
+Replace the project ref with your own. `--dry-run` prints the plan, `--purge` clears the existing demo rows first, and `--sql <file>` writes a plain SQL seed for `supabase db reset`.
+
+### Two-step walkthrough
+
+1. Sign in as `lakshmi.devi@example.com` → **Clinician access** → approve Dr. Ananya Rao's request.
+2. Sign in as `ananya.rao@clinic.example.com` → **Approved patients** → select `pid-4c82f0a6` → read the high-priority penicillin-allergy indication → add your own indication.
+
+The patient ID is what a clinician types to request access; it is not the name.
+
+All of these accounts live on the shared demo project, so anyone can sign in as them. The data is fictional and is not medical advice. Change the demo password and use separate credentials before storing anything real.
+
 ## Docker
 
 ```sh

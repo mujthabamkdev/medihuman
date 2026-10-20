@@ -9,6 +9,7 @@
  * Usage:
  *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/seed-demo-data.js
  *   node scripts/seed-demo-data.js --project-ref hagplohwjudzbenftljk
+ *   node scripts/seed-demo-data.js --local
  *   node scripts/seed-demo-data.js --dry-run
  *   node scripts/seed-demo-data.js --sql supabase/seed.sql
  *   node scripts/seed-demo-data.js --purge
@@ -17,15 +18,18 @@ import { spawnSync } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
 import { buildDemoState, demoAccounts, DEMO_PASSWORD } from './demo-data.js';
 import { hashPassword } from '../src/backend/security.js';
+import { DEFAULT_DATA_FILE } from '../src/backend/constants.js';
+import { JsonDataStore } from '../src/backend/store.js';
 
 const DEFAULT_PROJECT_REF = 'hagplohwjudzbenftljk';
 
 function parseArgs(argv) {
-  const options = { dryRun: false, purge: false, sql: '', projectRef: '', url: '', key: '' };
+  const options = { dryRun: false, purge: false, sql: '', projectRef: '', url: '', key: '', local: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--dry-run') options.dryRun = true;
     else if (arg === '--purge') options.purge = true;
+    else if (arg === '--local') options.local = true;
     else if (arg === '--sql') options.sql = argv[++index] || '';
     else if (arg === '--project-ref') options.projectRef = argv[++index] || '';
     else if (arg === '--url') options.url = argv[++index] || '';
@@ -39,6 +43,7 @@ function printHelp() {
   process.stdout.write(`Seed MediHuman with realistic demo patients, clinicians, and records.
 
 Options:
+  --local                   Write the demo state to the local JSON store instead of Supabase
   --dry-run                 Show what would be written without touching the project
   --purge                   Remove the demo rows and demo auth accounts first
   --sql <file>              Also write a plain SQL seed file (for local supabase db reset)
@@ -47,7 +52,7 @@ Options:
   --key <key>               Supabase service role key (overrides SUPABASE_SERVICE_ROLE_KEY)
 
 Environment:
-  SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+  SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, DATA_FILE
 `);
 }
 
@@ -394,6 +399,26 @@ async function purgeDemoData(admin) {
   process.stdout.write('Removed existing demo rows and demo auth accounts.\n');
 }
 
+/** Write the demo state into the local JSON store used by `npm start`. */
+async function seedLocalStore(state, options) {
+  const dataFile = process.env.DATA_FILE || DEFAULT_DATA_FILE;
+  const store = new JsonDataStore(dataFile);
+  await store.init();
+  if (options.dryRun) {
+    process.stdout.write(`would write the demo state to ${dataFile}\n`);
+    return;
+  }
+  await store.transact((current) => {
+    for (const key of Object.keys(current)) {
+      if (key === 'version') continue;
+      if (Array.isArray(state[key])) current[key] = state[key];
+    }
+    current.version = state.version;
+  });
+  process.stdout.write(`wrote the demo state to ${dataFile}\n`);
+  printDemoAccounts();
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
@@ -401,6 +426,16 @@ async function main() {
     return;
   }
   const state = buildDemoState();
+
+  // The local JSON backend verifies its own scrypt hash, so the same demo
+  // accounts can sign in there as well as through Supabase Auth.
+  for (const user of state.users) user.passwordHash = await hashPassword(DEMO_PASSWORD);
+
+  if (options.local) {
+    await seedLocalStore(state, options);
+    return;
+  }
+
   const { url, key } = resolveCredentials(options);
   const admin = new SupabaseAdmin({ url, key });
 
@@ -408,10 +443,6 @@ async function main() {
   process.stdout.write(`${demoAccounts.length} demo accounts, ${state.prescriptions.length} prescriptions, ${state.reconciliations.length} comparisons, ${state.indications.length} indications.\n\n`);
 
   if (options.purge && !options.dryRun) await purgeDemoData(admin);
-
-  // The local JSON backend verifies its own scrypt hash, so the same demo
-  // accounts can sign in there as well as through Supabase Auth.
-  for (const user of state.users) user.passwordHash = await hashPassword(DEMO_PASSWORD);
 
   const authIds = await ensureAuthAccounts(admin, state, options);
 
@@ -431,14 +462,16 @@ async function main() {
     process.stdout.write(`\nwrote SQL seed file ${options.sql}\n`);
   }
 
-  if (!options.dryRun) {
-    process.stdout.write('\nDemo sign-in details (password for every account: ' + DEMO_PASSWORD + ')\n');
-    for (const account of demoAccounts) {
-      const detail = account.role === 'doctor'
-        ? `${account.specialty} · ${account.verificationStatus}`
-        : `${account.condition} · patient ID ${account.patientId}`;
-      process.stdout.write(`  ${account.role.padEnd(7)} ${account.email.padEnd(38)} ${detail}\n`);
-    }
+  if (!options.dryRun) printDemoAccounts();
+}
+
+function printDemoAccounts() {
+  process.stdout.write('\nDemo sign-in details (password for every account: ' + DEMO_PASSWORD + ')\n');
+  for (const account of demoAccounts) {
+    const detail = account.role === 'doctor'
+      ? `${account.specialty} · ${account.verificationStatus}`
+      : `${account.condition} · patient ID ${account.patientId}`;
+    process.stdout.write(`  ${account.role.padEnd(7)} ${account.email.padEnd(38)} ${detail}\n`);
   }
 }
 

@@ -2,6 +2,11 @@ const API_ROOT = '/api';
 export const GOOGLE_AUTH_PATH = `${API_ROOT}/auth/google`;
 let csrfToken = '';
 
+/** Current CSRF token, used by direct multipart uploads. */
+export function currentCsrfToken() {
+  return csrfToken;
+}
+
 export function googleAuthUrl(role = 'patient') {
   const selectedRole = role === 'doctor' ? 'doctor' : 'patient';
   return `${GOOGLE_AUTH_PATH}?role=${encodeURIComponent(selectedRole)}`;
