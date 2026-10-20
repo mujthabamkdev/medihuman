@@ -100,6 +100,13 @@ const PATIENTS = [
       { title: 'Start Glimepiride only after the pharmacy confirms supply', detail: 'The comparison shows Glimepiride 1 mg was prescribed but not dispensed. Please start it from the first collection where it is in stock, and note the start date.', severity: 'review' },
       { title: 'Paracetamol bought over the counter', detail: 'Paracetamol 500 mg is not part of this plan. Keep taking it for knee pain only after a pharmacist confirms it fits with your diabetes and blood pressure treatment.', severity: 'info' },
     ],
+    medicalRecords: [
+      { type: 'lab_report', title: 'HbA1c and lipid profile', daysAgo: 45, description: 'HbA1c 7.4%, Total cholesterol 182 mg/dL, LDL 110 mg/dL, HDL 42 mg/dL, Triglycerides 168 mg/dL.', tags: ['diabetes', 'lipids'], source: 'lab', mimeType: 'application/pdf' },
+      { type: 'lab_report', title: 'Fasting glucose and renal function', daysAgo: 12, description: 'Fasting glucose 138 mg/dL, Creatinine 0.9 mg/dL, eGFR 82 mL/min/1.73m².', tags: ['diabetes', 'kidney'], source: 'lab', mimeType: 'application/pdf' },
+      { type: 'imaging', title: 'Chest X-ray (PA view)', daysAgo: 60, description: 'No cardiomegaly. Lung fields clear. No pleural effusion.', tags: ['chest', 'xray'], source: 'clinic', mimeType: 'image/jpeg' },
+      { type: 'clinical_note', title: 'Annual diabetes review', daysAgo: 30, description: 'Blood pressure 138/86. Foot exam normal. No retinopathy on fundus exam. Medication adherence good.', tags: ['review', 'diabetes'], source: 'clinic' },
+      { type: 'vaccination', title: 'Influenza vaccine (2025)', daysAgo: 90, description: 'Annual influenza vaccination administered.', tags: ['vaccine', 'flu'], source: 'clinic' },
+    ],
   },
   {
     key: 'sunita',
@@ -129,6 +136,11 @@ const PATIENTS = [
     indications: [
       { title: 'Repeat TSH before any dose change', detail: 'The last thyroid panel was seven months ago. Repeat TSH and free T4 before the levothyroxine dose is adjusted at the next visit.', severity: 'review' },
       { title: 'Brand versus generic levothyroxine', detail: 'Your record shows levothyroxine 50 mcg, and the pharmacy dispensed Thyronorm 50 mcg. Please confirm both are the 50 mcg strength and take them the same way.', severity: 'info' },
+    ],
+    medicalRecords: [
+      { type: 'lab_report', title: 'Thyroid panel (TSH, free T4, TPO antibodies)', daysAgo: 200, description: 'TSH 4.8 mIU/L, free T4 1.1 ng/dL, TPO antibodies positive. Consistent with Hashimoto thyroiditis.', tags: ['thyroid', 'labs'], source: 'lab', mimeType: 'application/pdf' },
+      { type: 'lab_report', title: 'Complete blood count', daysAgo: 40, description: 'Haemoglobin 10.2 g/dL, MCV 78 fL, ferritin 12 ng/mL. Microcytic hypochromic anaemia.', tags: ['anaemia', 'labs'], source: 'lab', mimeType: 'application/pdf' },
+      { type: 'clinical_note', title: 'Endocrinology follow-up', daysAgo: 30, description: 'TSH slightly elevated. Continue current dose. Recheck TSH in 8 weeks. Iron supplementation started.', tags: ['follow-up', 'thyroid'], source: 'clinic' },
     ],
   },
   {
@@ -416,6 +428,7 @@ export function buildDemoState(now = Date.now()) {
   const medicines = [];
   const prescriptions = [];
   const reconciliations = [];
+  const medicalRecords = [];
   const indications = [];
   const accessRequests = [];
   const notifications = [];
@@ -458,6 +471,11 @@ export function buildDemoState(now = Date.now()) {
         route: medicine.route || '',
         timing: medicine.timing || '',
         notes: medicine.notes || '',
+        status: 'active',
+        startedAt: dateOnly(-120 + index * 10, now),
+        stoppedAt: '',
+        reason: '',
+        prescriber: patient.doctorKey ? `Dr. ${DOCTORS.find((d) => d.key === patient.doctorKey)?.displayName?.replace('Dr. ', '') || ''}` : '',
         createdAt: timeAgo(120 - index, now),
         updatedAt: timeAgo(10 - index, now),
       })),
@@ -481,6 +499,29 @@ export function buildDemoState(now = Date.now()) {
         updatedAt: timeAgo(Math.max(120 - index * 20, 2), now),
       });
     }
+
+    // Medical records (lab reports, imaging, clinical notes, etc.)
+    if (patient.medicalRecords) {
+      for (const [index, record] of patient.medicalRecords.entries()) {
+        medicalRecords.push({
+          id: `${patient.id}-record-${index + 1}`,
+          userId: patient.id,
+          type: record.type,
+          title: record.title,
+          date: dateOnly(record.daysAgo * -1, now),
+          description: record.description || '',
+          fileRef: '',
+          mimeType: record.mimeType || '',
+          sizeBytes: 0,
+          tags: record.tags || [],
+          source: record.source || 'clinic',
+          createdAt: timeAgo(record.daysAgo, now),
+          updatedAt: timeAgo(record.daysAgo, now),
+          data: record.data || {},
+        });
+      }
+    }
+
 
     const comparison = compareMedicines(patient.reconciliation.prescribed.join('\n'), patient.reconciliation.dispensed.join('\n'));
     reconciliations.push({
@@ -578,6 +619,7 @@ export function buildDemoState(now = Date.now()) {
     profiles,
     medicines,
     prescriptions,
+    medicalRecords,
     reconciliations,
     indications,
     notifications,
