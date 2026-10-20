@@ -133,6 +133,24 @@
 .review-status { color: var(--teal-dark); background: var(--mint); padding: 6px 8px; border-radius: 5px; font-size: .75rem; font-weight: 700; }
 .review-checks { display: flex; gap: 20px; flex-wrap: wrap; padding: 18px 0; border-bottom: 1px solid var(--line); margin-bottom: 17px; }
 .review-checks div { display: flex; gap: 7px; align-items: center; color: var(--muted); font-size: .8125rem; }
+.review-quality { margin-bottom: 16px; }
+.review-issues { margin: 8px 0 0; padding-left: 18px; }
+.review-issues li { margin-bottom: 4px; }
+.review-issues li span { font-weight: 700; }
+.review-quality p { margin: 8px 0 0; }
+.review-confidence { margin: 0 0 14px; color: var(--muted); font-size: .75rem; }
+.review-confidence.is-low { color: var(--yellow-ink); font-weight: 700; }
+.review-flags { margin: 16px 0 0; padding: 14px 16px; border: 1px solid #e8dcae; border-radius: 12px; background: #f8f1d9; }
+.review-flags h3 { font-size: .95rem; margin: 0 0 10px; }
+.review-flags ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.review-flags code { display: block; font-family: var(--font-mono); font-size: .78rem; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin-bottom: 4px; overflow-wrap: anywhere; }
+.review-flags li span { color: #705a24; font-size: .78rem; line-height: 1.45; }
+.review-confirm { margin-top: 14px; align-items: flex-start; }
+.review-confirm input { width: 16px; height: 16px; flex: none; margin-top: 2px; accent-color: var(--teal); }
+.capture-tips { margin-top: 20px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--canvas); }
+.capture-tips strong { display: block; font-size: .875rem; color: var(--ink); margin-bottom: 8px; }
+.capture-tips ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; }
+.capture-tips li { color: var(--ink-soft); font-size: .8125rem; line-height: 1.5; }
 .check-icon { width: 18px; height: 18px; display: grid; place-items: center; background: var(--mint); color: var(--teal); border-radius: 50%; font-size: .75rem; font-weight: 800; }
 .list-input-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .reconciliation-card { max-width: 1100px; margin-bottom: 18px; }
@@ -207,6 +225,18 @@
 .medicine-view-actions { flex: 0 0 auto; gap: 8px; justify-content: flex-end; }
 .medicine-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
 .medicine-toolbar .filter-label { margin: 0; flex: 1 1 auto; min-width: 0; }
+
+/* Records filter bar. The search field takes the free space, the type and
+   date filters keep a steady size, and the sort control matches the field
+   height so the row reads as one aligned form instead of stacked blocks. */
+.records-toolbar { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
+.records-toolbar .filter-label { margin: 0; flex: 0 0 auto; min-width: 0; }
+.records-toolbar .filter-label-search { flex: 1 1 240px; }
+.records-toolbar .filter-label-select { flex: 0 0 168px; }
+.records-toolbar .filter-label-date { flex: 0 0 172px; }
+.records-toolbar .filter-label select { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: inherit; outline: none; }
+.records-toolbar .filter-label input[type="date"] { width: 100%; }
+.records-toolbar .records-sort { flex: none; align-self: stretch; min-height: 44px; }
 .medicine-dialog { width: min(620px, 100%); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; box-shadow: 0 25px 80px rgba(18, 60, 58, .25); position: relative; }
 .medicine-dialog h3 { margin-top: 0; padding-right: 44px; }
 .medicine-dialog-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; }

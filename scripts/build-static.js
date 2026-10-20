@@ -25,6 +25,7 @@ const browserAssets = [
   'src/app.js',
   'src/api-client.js',
   'src/ocr-adapter.js',
+  'src/prescription-parse.js',
   'src/medication-logic.js',
   'src/clinical-logic.js',
   'src/icon.svg',

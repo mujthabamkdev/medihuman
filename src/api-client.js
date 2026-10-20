@@ -79,6 +79,11 @@ export const api = {
   mfaEnrollVerify: (code) => json('POST', '/auth/mfa/enroll/verify', { code }),
   mfaRemove: (factorId) => request(`/auth/mfa/${encodeURIComponent(factorId)}`, { method: 'DELETE' }),
   exportAccount: () => request('/account/export'),
+  exportAccountCsv: async () => {
+    const response = await fetch(`${API_ROOT}/account/export?format=csv`, { credentials: 'include' });
+    if (!response.ok) throw new ApiError('Could not export your account data.', response.status);
+    return response.text();
+  },
   deleteAccount: (confirmation) => json('DELETE', '/account', { confirmation }),
   saveConsent: (accepted, version = 'v1') => json('PUT', '/patient/consent', { accepted, version }),
   logout: async () => { const result = await json('POST', '/auth/logout', {}); csrfToken = ''; return result; },

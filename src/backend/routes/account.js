@@ -9,6 +9,7 @@ import { allowedKeys, stringValue } from '../validation.js';
 export async function handleAccountRoute(ctx) {
   const { pathname, method, request, response, dataStore, current, now } = ctx;
   if (pathname === '/api/account/export' && method === 'GET') {
+    const format = ctx.url.searchParams.get('format') === 'csv' ? 'csv' : 'json';
     const exported = await dataStore.read((state) => {
       const user = state.users.find((item) => item.id === current.user.id);
       if (!user) throw new HttpError(404, 'ACCOUNT_NOT_FOUND', 'Account not found.');
@@ -19,6 +20,22 @@ export async function handleAccountRoute(ctx) {
       return { exportedAt: new Date(now).toISOString(), user: publicUser(user), records };
     });
     await dataStore.transact((state) => addAuditEvent(state, { actorUserId: current.user.id, action: 'account.export', entityType: 'account', entityId: current.user.id }, now));
+    if (format === 'csv') {
+      const headers = ['type', 'title', 'date', 'description', 'source', 'fileRef', 'tags'];
+      const rows = (exported.records.medicalRecords || []).map((record) => headers.map((header) => {
+        const value = record[header];
+        if (Array.isArray(value)) return value.join('|');
+        return value === undefined || value === null ? '' : String(value);
+      }));
+      const csv = [headers.join(','), ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))].join('\n');
+      response.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'Content-Disposition': 'attachment; filename="medihuman-account-export.csv"',
+      });
+      response.end(csv);
+      return true;
+    }
     sendJson(response, 200, exported, { 'Content-Disposition': 'attachment; filename="medihuman-account-export.json"' });
     return true;
   }

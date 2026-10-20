@@ -53,10 +53,17 @@ export function buildRuleBasedSummary({ profile = {}, medicines = [], prescripti
     });
   }
 
+  const latestRecordDate = medicalRecords
+    .map((record) => record.date || record.updatedAt || record.createdAt || '')
+    .filter(Boolean)
+    .sort()
+    .at(-1) || '';
+
   return {
     method: 'rule-based',
     isAiGenerated: false,
     disclaimer: RULE_BASED_SUMMARY_DISCLAIMER,
+    lastUpdated: latestRecordDate,
     sourceCounts: {
       profile: [profile.fullName, profile.dateOfBirth, profile.allergies, profile.conditions].filter(Boolean).length,
       medicines: medicines.length,

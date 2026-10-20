@@ -1,6 +1,7 @@
 import { compareMedicines } from '../medication-logic.js';
 import { api, ApiError, googleAuthErrorMessage } from '../api-client.js';
 import { createOcrAdapter } from '../ocr-adapter.js';
+import { analyzePrescriptionText } from '../prescription-parse.js';
 import {
   LOCAL_KEY,
   emptyProfile,
@@ -217,11 +218,13 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     render();
   }
 
-  async function exportAccount() {
-    const payload = await api.exportAccount();
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  async function exportAccount(format = 'json') {
+    const payload = format === 'csv' ? await api.exportAccountCsv() : JSON.stringify(await api.exportAccount(), null, 2);
+    const blob = new Blob([payload], { type: format === 'csv' ? 'text/csv;charset=utf-8' : 'application/json' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a'); link.href = url; link.download = 'medihuman-account-export.json'; link.click();
+    const link = document.createElement('a'); link.href = url;
+    link.download = format === 'csv' ? 'medihuman-account-export.csv' : 'medihuman-account-export.json';
+    link.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
@@ -390,13 +393,22 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
 
   function stopCamera() { state.cameraStream?.getTracks().forEach((track) => track.stop()); state.cameraStream = null; render(); }
 
+  function applyOcrResult(result) {
+    state.ocrResult = result || null;
+    state.ocrText = result?.text || '';
+    state.ocrAnalysis = state.ocrText ? analyzePrescriptionText(state.ocrText) : null;
+    state.ocrConfirmed = false;
+  }
+
   async function captureCamera() {
     const video = document.querySelector('#camera-video'); if (!video || video.readyState < 2) return;
     const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0); state.scanSource = 'Camera capture · manual confirmation required';
     try {
-      const result = await ocr.recognize(canvas); state.ocrText = result.text || ''; state.view = 'review'; state.scanSeen = true;
+      const result = await ocr.recognize(canvas);
+      applyOcrResult(result);
+      state.view = 'review'; state.scanSeen = true;
     } catch {
-      state.ocrText = '';
+      applyOcrResult(null);
       state.cameraError = 'OCR could not read this frame. Review the prescription manually or capture a clearer image.';
       state.view = 'scan';
     }
@@ -408,11 +420,11 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     state.scanSource = 'Uploaded photo · manual confirmation required';
     try {
       const result = await ocr.recognize(file);
-      state.ocrText = result.text || '';
+      applyOcrResult(result);
       state.view = 'review';
       state.scanSeen = true;
     } catch {
-      state.ocrText = '';
+      applyOcrResult(null);
       state.cameraError = 'OCR could not read this image. Review it manually or try a clearer, well-lit photo.';
       state.view = 'scan';
     }
@@ -542,6 +554,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'auth-recover') { state.authMode = 'recover'; state.authError = ''; render(); return; }
     if (action === 'mfa-enroll') { await startMfaEnrollment(); return; }
     if (action === 'export-account') { await exportAccount(); return; }
+    if (action === 'export-account-csv') { await exportAccount('csv'); return; }
     if (action === 'delete-account') { if (!window.confirm('Permanently delete your MediHuman account and records?')) return; const confirmation = window.prompt('Type DELETE MY ACCOUNT to confirm.'); if (confirmation) { await api.deleteAccount(confirmation); await api.logout().catch(() => undefined); state.screen = 'auth'; state.user = null; state.localOnly = false; render(); } return; }
     if (action === 'mfa-remove') { await api.mfaRemove(target.dataset.id); await loadMfaFactors(); render(); return; }
     if (action === 'edit-prescription') { state.editingPrescriptionId = target.dataset.id; render(); return; }
@@ -658,8 +671,16 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'camera-start') { await startCamera(); return; }
     if (action === 'camera-stop') { stopCamera(); return; }
     if (action === 'camera-capture') { await captureCamera(); return; }
-    if (action === 'manual-review') { state.prescriptionText = document.querySelector('#manual-prescription')?.value || ''; state.ocrText = state.prescriptionText; state.scanSource = 'Manual entry'; state.view = 'review'; state.scanSeen = true; state.dirty = true; saveLocal(state); render(); return; }
-     if (action === 'save-review') { state.prescriptionText = document.querySelector('#review-text')?.value || ''; state.dirty = true; state.view = 'reconcile'; state.scanSeen = true; saveLocal(state); await persistPrescriptionReview(); render(); return; }
+    if (action === 'manual-review') { state.prescriptionText = document.querySelector('#manual-prescription')?.value || ''; state.ocrText = state.prescriptionText; state.scanSource = 'Manual entry'; state.ocrResult = null; state.ocrAnalysis = null; state.ocrConfirmed = true; state.view = 'review'; state.scanSeen = true; state.dirty = true; saveLocal(state); render(); return; }
+     if (action === 'save-review') {
+      const confirmed = Boolean(document.querySelector('#ocr-review-confirmed')?.checked);
+      if ((state.ocrAnalysis?.checkCount || 0) > 0 && !confirmed) {
+        showError('Check the flagged lines against the original document, then confirm before saving.');
+        document.querySelector('#ocr-review-confirmed')?.focus();
+        return;
+      }
+      state.prescriptionText = document.querySelector('#review-text')?.value || ''; state.dirty = true; state.view = 'reconcile'; state.scanSeen = true; saveLocal(state); await persistPrescriptionReview(); render(); return;
+    }
     if (action === 'run-reconcile') { await saveReconciliation(); return; }
     if (action === 'reopen-reconciliation') { const record = state.reconciliations.find((item) => item.id === target.dataset.id); if (record) { state.prescriptionText = (record.prescriptionMedicines || []).join('\n'); state.dispensedText = (record.dispensedMedicines || []).join('\n'); state.view = 'reconcile'; render(); } return; }
     if (action === 'delete-reconciliation') { if (!window.confirm('Remove this reconciliation record?')) return; if (state.localOnly) { state.reconciliations = state.reconciliations.filter((item) => item.id !== target.dataset.id); saveLocal(state); } else { await api.deleteReconciliation(target.dataset.id); state.reconciliations = state.reconciliations.filter((item) => item.id !== target.dataset.id); } render(); return; }
