@@ -1,4 +1,4 @@
-import { copyFile, mkdir, rm } from 'node:fs/promises';
+import { copyFile, mkdir, rm, stat } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -33,6 +33,13 @@ const browserAssets = [
   'src/client/controller.js',
 ];
 
+// The stylesheets self-host the brand typefaces. They are optional: a build
+// without the font binaries still ships, with the system stack as fallback.
+const fontAssets = [
+  'fonts/geist-latin.woff2',
+  'fonts/geist-mono-latin.woff2',
+];
+
 export async function buildStatic(outputDirectory = resolve(projectRoot, 'public')) {
   const output = resolve(outputDirectory);
   const sources = browserAssets.map((asset) => resolve(projectRoot, asset));
@@ -47,6 +54,18 @@ export async function buildStatic(outputDirectory = resolve(projectRoot, 'public
     const destination = resolve(output, asset);
     await mkdir(dirname(destination), { recursive: true });
     await copyFile(sources[index], destination);
+  }
+  for (const asset of fontAssets) {
+    const source = resolve(projectRoot, asset);
+    try {
+      await stat(source);
+    } catch {
+      process.stdout.write(`skipped missing font asset ${asset}\n`);
+      continue;
+    }
+    const destination = resolve(output, asset);
+    await mkdir(dirname(destination), { recursive: true });
+    await copyFile(source, destination);
   }
   return output;
 }

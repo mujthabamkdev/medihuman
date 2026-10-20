@@ -7,6 +7,13 @@
         "medihuman-buildathon"
       ],
       "updated_at": "2026-10-20T12:24:35.124Z"
+    },
+    "voice": {
+      "value": "7e48c8d406b04a8089c5eb3cd057cb2e",
+      "confirmed_in": [
+        "medihuman-buildathon"
+      ],
+      "updated_at": "2026-10-20T12:30:40.077Z"
     }
   },
   "sightings": {}

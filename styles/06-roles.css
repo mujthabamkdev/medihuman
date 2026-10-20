@@ -19,17 +19,30 @@
 .access-request strong { font-size: .8125rem; overflow-wrap: anywhere; }
 .access-request > div > span { color: var(--muted); font-size: .75rem; margin-top: 4px; }
 .access-request-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; flex-wrap: wrap; }
+.access-request-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.access-request-avatar { width: 36px; height: 36px; flex: none; border-radius: 11px; display: grid; place-items: center; background: var(--deep); color: #fff; font-size: .75rem; font-weight: 700; }
+.access-request-link {
+  border: 0; background: none; padding: 0; font: inherit; font-size: .8125rem; font-weight: 700;
+  color: var(--ink); text-align: left; cursor: pointer; text-decoration: underline;
+  text-decoration-color: var(--line-strong); text-underline-offset: 3px; overflow-wrap: anywhere;
+}
+.access-request-link:hover,
+.access-request-link:focus-visible { color: var(--teal-dark); text-decoration-color: var(--teal); outline: none; }
+.access-request.is-openable:hover .access-request-avatar { background: var(--teal); }
 .patient-selector { display: flex; align-items: end; gap: 12px; max-width: none; padding: 16px 20px; margin-bottom: 18px; }
 .patient-picker { position: relative; flex: 0 1 430px; min-width: 0; display: grid; gap: 7px; color: var(--ink-soft); font-size: .8125rem; font-weight: 700; }
 .patient-picker-trigger { width: 100%; min-width: 0; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; border: 1px solid #cbdcd6; border-radius: 10px; background: #fbfdfc; color: var(--ink); font: 600 .75rem/1.35 var(--font-mono); text-align: left; cursor: pointer; }
 .patient-picker-trigger:hover { border-color: #9fbaaa; background: var(--paper); }
 .patient-picker-trigger:focus-visible { outline: 3px solid rgba(46, 125, 114, .24); outline-offset: 2px; }
 .patient-picker-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.patient-picker-name { color: var(--ink); font: 700 .8125rem/1.35 var(--font-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .patient-picker-chevron { width: 16px; height: 16px; display: grid; place-items: center; flex: none; color: var(--muted); transition: transform .2s; }
 .patient-picker-chevron svg { width: 14px; height: 14px; }
 .patient-picker-trigger[aria-expanded="true"] .patient-picker-chevron { transform: rotate(180deg); }
 .patient-picker-menu { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 30; display: grid; gap: 2px; max-height: 280px; overflow: auto; padding: 6px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 32px rgba(18, 60, 58, .16); }
-.patient-picker-option { width: 100%; min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-soft); font: 600 .72rem/1.4 var(--font-mono); text-align: left; cursor: pointer; }
+.patient-picker-option { width: 100%; min-height: 42px; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-soft); font: 600 .72rem/1.4 var(--font-mono); text-align: left; cursor: pointer; }
+.patient-picker-option .patient-picker-name { flex: 1; min-width: 0; }
+.patient-picker-option .patient-picker-code { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .patient-picker-option:hover,
 .patient-picker-option:focus-visible { background: var(--canvas); color: var(--ink); outline: none; }
 .patient-picker-option.is-selected { background: var(--mint); color: var(--teal-dark); }

@@ -211,3 +211,105 @@
   .review-card,
   .reconciliation-card { width: 100%; max-width: none; }
 }
+
+/* Desktop navigation rail. A labelled sidebar with grouped items reads
+   faster on large screens than a single horizontal row. */
+@media (min-width: 1200px) {
+  .app-shell { flex-direction: row; align-items: flex-start; }
+  .shell-content { min-height: 100vh; }
+
+  .sidebar.workspace-nav {
+    position: sticky; top: 0; left: 0; z-index: 30;
+    width: 288px; min-width: 288px; flex: none;
+    height: 100vh; height: 100dvh; min-height: 0;
+    flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 0;
+    padding: 24px 16px 18px;
+    background: var(--paper);
+    border-right: 1px solid var(--line);
+    border-bottom: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .workspace-nav .sidebar-head {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+    gap: 6px 12px; padding: 0 6px 22px;
+  }
+  .workspace-nav .sidebar-head .brand { font-size: 1.05rem; letter-spacing: -.03em; }
+  .workspace-brand-caption {
+    display: block; grid-column: 1; margin: 0;
+    color: var(--muted); font-family: var(--font-mono);
+    font-size: .58rem; letter-spacing: .16em; text-transform: uppercase;
+  }
+  .workspace-nav .close-menu { display: none; }
+
+  .workspace-nav .primary-nav { display: grid; align-content: start; gap: 0; padding: 0; flex: 1; }
+  .nav-section { display: grid; gap: 2px; }
+  .nav-section + .nav-section { margin-top: 24px; }
+  .nav-section-label {
+    display: block; padding: 0 12px 9px;
+    color: var(--muted); font-family: var(--font-mono);
+    font-size: .58rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
+  }
+
+  .workspace-nav .nav-item {
+    width: 100%; min-height: 42px; padding: 9px 12px; gap: 11px;
+    border-radius: 10px; font-size: .8125rem; color: var(--ink-soft);
+  }
+  .workspace-nav .nav-item:hover { background: var(--canvas); color: var(--ink); }
+  .workspace-nav .nav-item.active { background: var(--mint); color: var(--teal-dark); font-weight: 700; }
+  .workspace-nav .nav-item.active:before {
+    content: ""; position: absolute; left: -11px; top: 50%;
+    width: 3px; height: 20px; border-radius: 0 3px 3px 0;
+    background: var(--teal); transform: translateY(-50%);
+  }
+  .workspace-nav .nav-icon { width: 19px; color: var(--muted); }
+  .workspace-nav .nav-item.active .nav-icon { color: var(--teal-dark); }
+  .workspace-nav .nav-item .nav-icon svg { width: 18px; height: 18px; }
+  .workspace-nav .nav-badge { font-size: .55rem; letter-spacing: .08em; text-transform: uppercase; }
+
+  .workspace-nav .nav-group { display: grid; gap: 2px; }
+  .workspace-nav .nav-submenu {
+    position: static; min-width: 0; gap: 2px; padding: 2px 0 2px 14px; margin: 2px 0 0 20px;
+    background: none; border: 0; border-left: 1px solid var(--line); border-radius: 0; box-shadow: none;
+  }
+  .workspace-nav .nav-subitem { min-height: 36px; padding: 7px 10px; border-radius: 8px; font-size: .78rem; }
+
+  .workspace-nav .sidebar-bottom {
+    display: grid; align-items: stretch; justify-content: stretch; gap: 4px;
+    width: 100%; margin-top: auto; padding-top: 16px; border-top: 1px solid var(--line);
+  }
+  .workspace-nav .workspace-controls .nav-item { padding: 9px 12px; }
+  .workspace-nav .workspace-controls .nav-item > span:last-child { display: block; }
+  .workspace-nav .notification-trigger {
+    width: 100%; min-height: 42px; padding: 9px 12px; gap: 11px;
+    display: flex; align-items: center; border-radius: 10px;
+    color: var(--muted); font-size: .8125rem;
+  }
+  .workspace-nav .notification-trigger:hover,
+  .workspace-nav .notification-trigger:focus-visible { background: var(--canvas); color: var(--ink); }
+  .workspace-nav .notification-label { display: block; }
+  .workspace-nav .notification-count { position: static; margin-left: auto; }
+  .workspace-nav .notification-panel {
+    left: 0; right: 0; top: auto; bottom: calc(100% + 10px); width: auto;
+  }
+
+  .workspace-nav .workspace-account { width: 100%; }
+  .workspace-nav .profile-trigger {
+    width: 100%; justify-content: flex-start; gap: 10px;
+    min-height: 52px; padding: 8px 9px;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--canvas);
+  }
+  .workspace-nav .profile-trigger:hover,
+  .workspace-nav .profile-trigger:focus-visible { background: var(--mint-2); outline: none; }
+  .workspace-nav .profile-trigger .avatar { width: 34px; height: 34px; border-radius: 10px; }
+  .workspace-account-copy { display: grid; gap: 2px; min-width: 0; text-align: left; }
+  .workspace-account-copy strong { color: var(--ink); font-size: .78rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .workspace-account-copy small { color: var(--muted); font-size: .68rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .workspace-nav .profile-menu { left: 0; right: auto; top: auto; bottom: calc(100% + 8px); width: 100%; }
+
+  /* The rail narrows the content column, so display type scales down with it. */
+  .workspace-hero h1,
+  .workspace-hero h2 { font-size: clamp(2.4rem, 4.2vw, 4rem); max-width: 14ch; }
+  .content-page > .section-intro .page-title { font-size: clamp(2.5rem, 3.6vw, 3.9rem); }
+}

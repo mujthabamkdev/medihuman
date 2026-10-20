@@ -1,5 +1,5 @@
 {
-  "provider": "kokoro",
+  "provider": "heygen",
   "speed": "1.0",
   "lines": [
     {
@@ -41,5 +41,5 @@
     "blob": "MediHuman turns medication information into a clearer, privacy-conscious care conversation.",
     "arc": "Hook → Problem → Product intro → Demo → Trust → CTA"
   },
-  "voice": "am_michael"
+  "voice": "7e48c8d406b04a8089c5eb3cd057cb2e"
 }

@@ -430,6 +430,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
   }
 
   async function loadDoctorPatient(patientId = state.selectedPatientId) {
+    console.log('PROBE loadDoctorPatient', JSON.stringify(patientId), state.localOnly);
     if (!patientId) return;
     try {
       state.selectedPatientId = patientId;
@@ -441,6 +442,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     } catch (error) { showError(error.message); }
   }
 
+  /** Open the record of the patient a clinician is looking at, defaulting to the first approved one. */
   function clearLocalWorkspace() {
     sessionStorage.removeItem(LOCAL_KEY);
     state.profile = emptyProfile(); state.medicines = []; state.prescriptionText = ''; state.dispensedText = ''; state.questions = [];
@@ -494,6 +496,15 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       document.querySelector('.patient-picker-trigger')?.focus();
       return;
     }
+    if (action === 'doctor-open-patient') {
+      const patientId = target.dataset.patientId;
+      if (!patientId) return;
+      state.doctorPatientMenuOpen = false;
+      if (target.dataset.view) state.view = target.dataset.view;
+      state.selectedPatientId = patientId;
+      await loadDoctorPatient(patientId);
+      return;
+    }
     if (action === 'toggle-notifications') {
       state.notificationsOpen = !state.notificationsOpen;
       state.profileMenuOpen = false;
@@ -510,10 +521,15 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
         if (!state.localOnly) { try { await api.markNotificationRead(notification.id); } catch { /* local read state still improves current view */ } }
         saveLocal(state);
       }
+      const view = target.dataset.view;
+      if (view) { state.view = view; state.notificationsOpen = false; state.profileMenuOpen = false; state.mobileMenuOpen = false; }
       render();
       return;
     }
-    if (action === 'nav') { state.view = target.dataset.view; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; state.doctorPatientMenuOpen = false; state.mobileMenuOpen = false; render(); return; }
+    if (action === 'nav') {
+      state.view = target.dataset.view; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; state.doctorPatientMenuOpen = false; state.mobileMenuOpen = false; render();
+      return;
+    }
     if (action === 'privacy') { state.view = 'privacy'; state.profileMenuOpen = false; state.notificationsOpen = false; state.doctorPatientMenuOpen = false; state.mobileMenuOpen = false; render(); return; }
     if (action === 'logout') { if (state.localOnly) { state.localExitPrompt = true; state.profileMenuOpen = false; state.notificationsOpen = false; state.mobileMenuOpen = false; render(); return; } stopCamera(); try { await api.logout(); } catch { /* clear UI regardless */ } setLocalMode(false); state.screen = 'auth'; state.user = null; state.localOnly = false; state.role = state.authRole; state.view = 'dashboard'; state.notificationsOpen = false; state.mobileMenuOpen = false; render(); return; }
     if (action === 'local-exit-preserve') { exitLocal(false); return; }
@@ -543,7 +559,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
   });
 
    root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; try { if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'password-reset') await submitPasswordReset(form); if (form.dataset.form === 'mfa') await submitMfa(form); if (form.dataset.form === 'mfa-enrollment') await submitMfaEnrollment(form); if (form.dataset.form === 'prescription-edit') await submitPrescriptionEdit(form); if (form.dataset.form === 'indication-edit') await submitIndicationEdit(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); if (form.dataset.form === 'doctor-indication') await submitIndication(form); } catch (error) { state.authError = error.message; render(); } });
-  root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); if (event.target.id === 'medicine-filter') { state.medicineFilter = event.target.value; render(); } });
+  root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); if (event.target.id === 'medicine-filter') { state.medicineFilter = event.target.value; render(); } if (event.target.id === 'patient-search') { state.patientSearch = event.target.value; state.selectedPatientId = ''; render(); } });
   root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); });
   root.addEventListener('keydown', (event) => {
     if (state.doctorPatientMenuOpen && event.key === 'Escape') { state.doctorPatientMenuOpen = false; render(); globalThis.document?.querySelector('.patient-picker-trigger')?.focus(); return; }
