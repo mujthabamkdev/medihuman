@@ -3,9 +3,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npx --yes hyperframes@0.8.181 preview",
-    "check": "npx --yes hyperframes@0.8.181 check",
-    "render": "npx --yes hyperframes@0.8.181 render",
-    "publish": "npx --yes hyperframes@0.8.181 publish"
+    "prepare": "node scripts/prepare.mjs",
+    "test": "node scripts/verify.mjs",
+    "dev": "hyperframes preview --background",
+    "check": "hyperframes check",
+    "render": "hyperframes render --quality delivery --output renders/video.mp4",
+    "publish": "hyperframes publish"
+  },
+  "devDependencies": {
+    "@fontsource-variable/inter": "5.2.8",
+    "gsap": "3.14.2",
+    "hyperframes": "0.8.181",
+    "node": "22.14.0"
   }
 }

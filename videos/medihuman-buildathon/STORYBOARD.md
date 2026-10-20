@@ -5,6 +5,7 @@ message: "MediHuman turns medication information into a clearer, privacy-conscio
 arc: Hook → Problem → Product intro → Demo → Trust → CTA
 audience: buildathon judges and healthcare product reviewers
 mode: autonomous
+music: none
 ---
 
 ## Video direction
@@ -17,7 +18,7 @@ mode: autonomous
 
 ## Frame 1 — The scattered story (0-8s)
 - act: Hook
-- status: outline
+- status: animated
 - duration: 8s
 - poster: 5s
 - transition_in: cut
@@ -31,7 +32,7 @@ mode: autonomous
 
 ## Frame 2 — A clearer care workspace (8-18s)
 - act: Product intro
-- status: outline
+- status: animated
 - duration: 10s
 - poster: 14s
 - transition_in: crossfade
@@ -45,7 +46,7 @@ mode: autonomous
 
 ## Frame 3 — Capture without guessing (18-30s)
 - act: Demo
-- status: outline
+- status: animated
 - duration: 12s
 - poster: 25s
 - transition_in: cut-the-curve
@@ -59,7 +60,7 @@ mode: autonomous
 
 ## Frame 4 — Verify every field (30-42s)
 - act: Demo
-- status: outline
+- status: animated
 - duration: 12s
 - poster: 37s
 - transition_in: crossfade
@@ -73,7 +74,7 @@ mode: autonomous
 
 ## Frame 5 — Compare what changed (42-55s)
 - act: Demo
-- status: outline
+- status: animated
 - duration: 13s
 - poster: 49s
 - transition_in: cut-the-curve
@@ -87,7 +88,7 @@ mode: autonomous
 
 ## Frame 6 — Keep the conversation ready (55-67s)
 - act: Organise
-- status: outline
+- status: animated
 - duration: 12s
 - poster: 62s
 - transition_in: crossfade
@@ -101,7 +102,7 @@ mode: autonomous
 
 ## Frame 7 — Access stays patient-controlled (67-79s)
 - act: Trust
-- status: outline
+- status: animated
 - duration: 12s
 - poster: 74s
 - transition_in: crossfade
@@ -115,7 +116,7 @@ mode: autonomous
 
 ## Frame 8 — Built for responsible clarity (79-90s)
 - act: CTA
-- status: outline
+- status: animated
 - duration: 11s
 - poster: 86s
 - transition_in: crossfade

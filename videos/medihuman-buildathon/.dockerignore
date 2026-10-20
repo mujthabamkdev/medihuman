@@ -1,0 +1,12 @@
+node_modules
+.venv
+.home
+.media
+.thumbnails
+.waveform-cache
+.hyperframes/artifacts
+.hyperframes/history
+.hyperframes/frame-packets
+.hyperframes/video-state.json
+renders
+*.log

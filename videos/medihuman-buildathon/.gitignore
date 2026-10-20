@@ -1,0 +1,10 @@
+node_modules/
+.venv/
+.hyperframes/*
+!.hyperframes/caption-skin.html
+.media/
+.thumbnails/
+.waveform-cache/
+.home/
+caption-overrides.json
+*.log

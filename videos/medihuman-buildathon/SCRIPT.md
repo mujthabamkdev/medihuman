@@ -1,6 +1,6 @@
 # SCRIPT — medihuman-buildathon
 
-**Voice:** professional neutral narrator; provider selected during TTS pass
+**Voice:** Jonah — Clear & Professional (HeyGen Starfish, 7e48c8d406b04a8089c5eb3cd057cb2e)
 **Voice settings:** measured pace · clear diction · restrained emphasis
 **Voice direction:** Calm, credible, human. Explain rather than sell. Leave short pauses for UI reads.
 

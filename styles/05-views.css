@@ -159,15 +159,16 @@
 .result-empty { color: var(--muted); font-size: .8125rem; font-style: italic; line-height: 1.5; margin-top: 16px; }
 
 /* Medicine, risk, questions, lifestyle, and privacy views. */
-.medicine-editor { width: 100%; max-width: none; margin-bottom: 17px; }
-.medicine-detail { display: grid; grid-template-columns: 36px minmax(0, 1fr) 25px; gap: 12px; border-top: 1px solid var(--line); padding: 17px 0; align-items: start; }
+.medicine-editor { width: 100%; max-width: none; margin-bottom: 17px; padding: 16px 20px; }
+.medicine-detail { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 12px; border-top: 1px solid var(--line); padding: 14px 0; align-items: start; }
 .medicine-number { font-family: var(--font-mono); color: var(--muted); font-size: .8125rem; padding-top: 10px; }
 .medicine-fields { min-width: 0; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .7fr) minmax(0, 1fr); gap: 10px; }
 .medicine-fields label { min-width: 0; color: var(--muted); font-size: .75rem; display: grid; gap: 5px; }
 .medicine-fields input { font-size: .875rem; }
-.remove-button { background: none; border: 0; color: #7c918b; font-size: 1.35rem; min-width: 44px; min-height: 44px; padding: 5px; }
-.remove-button:hover { color: var(--rose-ink); }
+.remove-button { background: none; border: 0; color: #7c918b; font-size: 1.35rem; min-width: 44px; min-height: 44px; padding: 5px; border-radius: 8px; }
+.remove-button:hover { color: var(--rose-ink); background: var(--canvas); }
 .medicine-actions { display: flex; align-items: center; gap: 11px; padding-top: 18px; }
+.medicine-editor .filter-label { margin-bottom: 12px; }
 .risk-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 18px; }
 .risk-overview { background: #f7f0db; border-color: #e7dcc0; }
 .risk-score { display: flex; align-items: center; gap: 17px; margin-bottom: 20px; }

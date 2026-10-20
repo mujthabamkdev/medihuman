@@ -296,7 +296,7 @@
 
   .workspace-nav .workspace-account { width: 100%; }
   .workspace-nav .profile-trigger {
-    width: 100%; justify-content: flex-start; gap: 10px;
+    display: flex; align-items: center; width: 100%; justify-content: flex-start; gap: 10px;
     min-height: 52px; padding: 8px 9px;
     border: 1px solid var(--line); border-radius: 12px; background: var(--canvas);
   }

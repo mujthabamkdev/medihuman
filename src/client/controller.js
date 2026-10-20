@@ -21,6 +21,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     previousView = state.view;
     root.innerHTML = state.screen === 'auth' ? views.renderAuth() : views.renderShell();
     bindCamera();
+    ensureSelectedDoctorRecord();
     if (state.localExitPrompt) {
       globalThis.document?.getElementById('local-exit-keep')?.focus();
     } else if (viewChanged && state.screen !== 'auth') {
@@ -28,6 +29,17 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     } else if (focusedId) {
       globalThis.document?.getElementById(focusedId)?.focus();
     }
+  }
+
+  /**
+   * The clinician record view always shows the patient it has selected, so a
+   * missing record is fetched as soon as the view is painted.
+   */
+  function ensureSelectedDoctorRecord() {
+    if (state.localOnly || state.role !== 'doctor' || state.view !== 'doctor-patients') return;
+    const patientId = state.selectedPatientId;
+    if (!patientId || state.doctorRecords[patientId]) return;
+    loadDoctorPatient(patientId);
   }
 
   function bindCamera() {
@@ -499,9 +511,12 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       const patientId = target.dataset.patientId;
       if (!patientId) return;
       state.doctorPatientMenuOpen = false;
-      if (target.dataset.view) state.view = target.dataset.view;
       state.selectedPatientId = patientId;
+      // Opening an approved patient from the dashboard lands on their record.
+      state.view = target.dataset.view || 'doctor-patients';
+      render();
       await loadDoctorPatient(patientId);
+      render();
       return;
     }
     if (action === 'toggle-notifications') {
@@ -526,7 +541,12 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       return;
     }
     if (action === 'nav') {
-      state.view = target.dataset.view; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; state.doctorPatientMenuOpen = false; state.mobileMenuOpen = false; render();
+      state.view = target.dataset.view; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; state.doctorPatientMenuOpen = false; state.mobileMenuOpen = false;
+      if (state.view === 'doctor-patients' && state.role === 'doctor' && !state.selectedPatientId) {
+        const firstApproved = state.doctorRequests.find((request) => request.status === 'approved');
+        if (firstApproved) state.selectedPatientId = firstApproved.patientId;
+      }
+      render();
       return;
     }
     if (action === 'privacy') { state.view = 'privacy'; state.profileMenuOpen = false; state.notificationsOpen = false; state.doctorPatientMenuOpen = false; state.mobileMenuOpen = false; render(); return; }
