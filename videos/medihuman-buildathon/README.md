@@ -2,7 +2,7 @@
 
 ## Deliverable
 
-- `renders/video.mp4` — 90 seconds, 1920×1080, 30 fps, H.264 video and AAC narration.
+- `renders/video.mp4` — 90 seconds, 1920×1080, 30 fps, H.264 video and AAC narration/music mix.
 - `renders/verification.jpg` — decoded MP4 contact sheet used for visual verification.
 - `boards/stills/contact-sheet.jpg` — pre-render scene contact sheet.
 - `index.html` and `compositions/` — editable HyperFrames source.
@@ -25,8 +25,8 @@ npm exec -- hyperframes browser ensure
 ```
 
 Node 22.14.0 is pinned in `.nvmrc` and the project-local Node dependency. HyperFrames
-0.8.181, GSAP 3.14.2 and Inter 5.2.8 are pinned in `package-lock.json`. Setup requires
-network access; rendering uses committed narration, local fonts and local GSAP.
+0.8.181 (CLI and audio core), GSAP 3.14.2 and Inter 5.2.8 are pinned in `package-lock.json`. Setup requires
+network access; rendering uses committed narration/music, local fonts and local GSAP.
 Install FFmpeg and Chrome system dependencies using the supplied Dockerfile on Linux.
 No HeyGen login, API key, Python environment or external agent skill is needed to
 re-render the checked-in composition. Voice assets and timestamp metadata are frozen.
@@ -83,7 +83,14 @@ records. Source edits should be checked and rendered again before replacing outp
 
 - Voice: HeyGen Starfish, Jonah — Clear & Professional; eight frozen WAV clips.
 - Captions: actual provider word timestamps, grouped into a lower-third overlay.
-- Music: none; narration-only soundtrack.
+- Music: HeyGen audio catalogue, track `7c7c9903947c472e9568a88fe44bc24a`;
+  soft piano and light strings. Frozen at `assets/music/calm-piano-bed.mp3`.
+  The 55-second source repeats through a five-second equal-gain crossfade, trimmed
+  to 90 seconds, with a 1.2-second fade-in and four-second fade-out. Provenance is
+  recorded in `assets/music/SOURCE.json`; no credentials are included.
+- Mix: music base gain 0.28; spectral and level carve (strength 0.8) follows all
+  eight narration clips through the `voiceover` group. Frozen effect/automation
+  attributes in `index.html` keep preview and re-render consistent without API calls.
 - Font: Inter; licence included at `assets/fonts/OFL.txt`.
 - Animation runtime: local GSAP; package header retains its licence notice.
 - Story: `BRIEF.md`, `SCRIPT.md`, `STORYBOARD.md`.

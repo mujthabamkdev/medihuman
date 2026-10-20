@@ -3,7 +3,7 @@ import { addAuditEvent } from '../audit.js';
 import { HttpError } from '../errors.js';
 import { readJson, sendJson } from '../http.js';
 import {
-  decodePathValue, findPatientByPublicId, hasApprovedAccess, patientRecords,
+  decodePathValue, findPatientByPublicId, hasApprovedAccess, patientRecords, publicRecord,
 } from '../records.js';
 import { addNotification, publicIndication } from '../notifications.js';
 import { newId } from '../security.js';
@@ -51,7 +51,7 @@ export async function handleDoctorRoute(ctx) {
     sendJson(response, 201, { indication: publicIndication(indication, current.user) });
     return true;
   }
-  const doctorPatientMatch = pathname.match(/^\/api\/doctor\/patients\/([^/]+)(?:\/(profile|medicines|prescriptions|reconciliations|summary))?$/);
+  const doctorPatientMatch = pathname.match(/^\/api\/doctor\/patients\/([^/]+)(?:\/(profile|medicines|prescriptions|reconciliations|records|summary))?$/);
   if (doctorPatientMatch && method === 'GET') {
     requireVerifiedDoctor(current);
     const patientId = decodePathValue(doctorPatientMatch[1], 'patientId');
@@ -64,11 +64,31 @@ export async function handleDoctorRoute(ctx) {
     const resource = doctorPatientMatch[2];
     if (resource === 'summary') {
       sendJson(response, 200, { summary: await buildSummary(records) });
+    } else if (resource === 'records') {
+      sendJson(response, 200, { records: records.medicalRecords || [] });
     } else if (resource) {
       sendJson(response, 200, { [resource]: records[resource] });
     } else {
       sendJson(response, 200, records);
     }
+    return true;
+  }
+  const doctorRecordMatch = pathname.match(/^\/api\/doctor\/patients\/([^/]+)\/records\/([^/]+)$/);
+  if (doctorRecordMatch && method === 'GET') {
+    requireVerifiedDoctor(current);
+    const patientId = decodePathValue(doctorRecordMatch[1], 'patientId');
+    const recordId = decodePathValue(doctorRecordMatch[2], 'recordId');
+    const patient = await dataStore.read((state) => findPatientByPublicId(state, patientId));
+    if (!patient) throw new HttpError(404, 'PATIENT_NOT_FOUND', 'Patient not found.');
+    const approved = await dataStore.read((state) => hasApprovedAccess(state, current.user.id, patient.id));
+    if (!approved) throw new HttpError(403, 'PATIENT_ACCESS_REQUIRED', 'Patient approval is required.');
+    const record = await dataStore.read((state) => {
+      const rec = (state.medicalRecords || []).find((r) => r.id === recordId && r.userId === patient.id);
+      return rec ? publicRecord(rec) : null;
+    });
+    if (!record) throw new HttpError(404, 'NOT_FOUND', 'Record not found.');
+    await dataStore.transact((state) => addAuditEvent(state, { actorUserId: current.user.id, action: 'record.patient_record_read', entityType: 'medical_record', entityId: recordId }, ctx.now));
+    sendJson(response, 200, { record });
     return true;
   }
   if (pathname === '/api/doctor/profile' && method === 'PUT') {

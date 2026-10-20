@@ -70,7 +70,9 @@ export function doctorRegistrationValue(input = {}) {
 
 export function medicineValue(input, index = 0) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new HttpError(400, 'INVALID_FIELD', `medicines[${index}] must be an object.`);
-  allowedKeys(input, ['id', 'name', 'strength', 'dose', 'route', 'timing', 'notes']);
+  allowedKeys(input, ['id', 'name', 'strength', 'dose', 'route', 'timing', 'notes', 'status', 'startedAt', 'stoppedAt', 'reason', 'prescriber']);
+  const status = stringValue(input.status || 'active', `medicines[${index}].status`, { max: 20 }).toLowerCase();
+  if (!['active', 'discontinued', 'completed'].includes(status)) throw new HttpError(400, 'INVALID_FIELD', `medicines[${index}].status must be active, discontinued, or completed.`);
   return {
     id: typeof input.id === 'string' && input.id ? input.id : newId(),
     name: stringValue(input.name, `medicines[${index}].name`, { required: true, max: 160 }),
@@ -79,6 +81,11 @@ export function medicineValue(input, index = 0) {
     route: stringValue(input.route, `medicines[${index}].route`, { max: 80 }),
     timing: stringValue(input.timing, `medicines[${index}].timing`, { max: 160 }),
     notes: stringValue(input.notes, `medicines[${index}].notes`, { max: 500 }),
+    status,
+    startedAt: dateValue(input.startedAt || '', `medicines[${index}].startedAt`),
+    stoppedAt: dateValue(input.stoppedAt || '', `medicines[${index}].stoppedAt`),
+    reason: stringValue(input.reason || '', `medicines[${index}].reason`, { max: 500 }),
+    prescriber: stringValue(input.prescriber || '', `medicines[${index}].prescriber`, { max: 160 }),
   };
 }
 

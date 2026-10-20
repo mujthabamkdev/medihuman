@@ -25,6 +25,8 @@ Create a 90-second buildathon submission that explains the medication-informatio
 ## Customizations
 
 - Professional neutral voice-over.
+- Matching calm instrumental background music: soft piano and light strings,
+  mixed beneath narration with a smooth opening and ending.
 - On-screen captions for judge-friendly silent playback.
 - Show stored-browser mode, profile/medicine organisation, prescription capture/review, reconciliation, privacy controls, and clinician access boundary.
 - Include concise architecture proof: normalized Supabase tables, RLS/service-role boundary, and distributed rate limiting.

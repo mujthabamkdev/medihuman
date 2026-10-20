@@ -13,6 +13,7 @@ import { handleAdminRoute } from './routes/admin.js';
 import { handleAccountRoute } from './routes/account.js';
 import { handleDoctorRoute } from './routes/doctor.js';
 import { handlePatientRoute } from './routes/patient.js';
+import { handleMedicalRecordsRoute } from './routes/medical-records.js';
 import { handleSystemRoute } from './routes/system.js';
 
 const AUTH_PATHS = new Set([
@@ -87,6 +88,7 @@ export async function createApp({
       const current = requireFullAuth(auth);
       context.current = current;
       if (await handleAccountRoute(context)) return;
+      if (await handleMedicalRecordsRoute(context)) return;
       if (await handlePatientRoute(context)) return;
       if (await handleAccessRoute(context)) return;
       if (await handleDoctorRoute(context)) return;

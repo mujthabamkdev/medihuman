@@ -12,6 +12,7 @@
   },
   "devDependencies": {
     "@fontsource-variable/inter": "5.2.8",
+    "@hyperframes/core": "0.8.181",
     "gsap": "3.14.2",
     "hyperframes": "0.8.181",
     "node": "22.14.0"

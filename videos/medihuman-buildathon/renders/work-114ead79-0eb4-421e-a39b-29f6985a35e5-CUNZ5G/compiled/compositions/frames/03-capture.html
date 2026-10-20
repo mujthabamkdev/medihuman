@@ -1,0 +1,123 @@
+<template>
+  <div data-hf-id="hf-x4zi" id="root" data-composition-id="03-capture" data-width="1920" data-height="1080" data-duration="12">
+    <style>
+      #root { width:100%; height:100%; position:relative; container-type:size; overflow:hidden; color:#151917; font-family:sans-serif; }
+      #root * { box-sizing:border-box; }
+      .f03-capture-ground { position:absolute; inset:0; background:#f4f5f2; }
+      .f03-capture-content { position:absolute; inset:0; }
+      .f03-capture-eyebrow { position:absolute; left:5cqw; top:5cqw; color:#167c70; font-size:0.8cqw; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; }
+      .f03-capture-title { position:absolute; left:5cqw; top:8.8cqw; width:25cqw; margin:0; font-size:4.2cqw; line-height:1.08; font-weight:700; letter-spacing:-0.02em; }
+      .f03-capture-choices { position:absolute; left:5cqw; top:16.5cqw; width:24cqw; }
+      .f03-capture-choice { display:flex; align-items:center; gap:1cqw; height:4cqw; font-size:1.65cqw; font-weight:500; color:#123c3a; }
+      .f03-capture-choice svg { width:1.8cqw; height:1.8cqw; color:#167c70; flex:none; }
+      .f03-capture-window { position:absolute; left:32.5cqw; top:5cqw; width:62.5cqw; height:37.5cqw; border:1.5px solid rgba(22,124,112,0.2); border-radius:14px; background:rgba(22,124,112,0.04); overflow:hidden; }
+      .f03-capture-chrome { height:4cqw; padding:0 1.75cqw; display:flex; align-items:center; justify-content:space-between; border-bottom:1.5px solid rgba(22,124,112,0.2); }
+      .f03-capture-chrome-title { font-size:1.4cqw; font-weight:600; letter-spacing:-0.02em; }
+      .f03-capture-tag { display:flex; align-items:center; gap:0.45cqw; border-radius:100px; padding:0.45cqw 0.85cqw; background:rgba(22,124,112,0.08); font-size:0.8cqw; color:#167c70; font-weight:600; }
+      .f03-capture-tag svg { width:0.95cqw; height:0.95cqw; }
+      .f03-capture-tabs { position:absolute; left:1.75cqw; right:1.75cqw; top:5.3cqw; display:flex; gap:0.85cqw; }
+      .f03-capture-tab { width:19.1cqw; height:4.7cqw; display:flex; gap:0.7cqw; align-items:center; justify-content:center; border:1.5px solid rgba(22,124,112,0.2); border-radius:12px; background:rgba(22,124,112,0.04); color:#123c3a; font-size:1.4cqw; font-weight:500; transform-origin:50% 50%; }
+      .f03-capture-tab svg { width:1.7cqw; height:1.7cqw; color:#167c70; }
+      .f03-capture-viewport { position:absolute; left:1.75cqw; right:1.75cqw; top:11.4cqw; height:24.1cqw; overflow:hidden; border-radius:12px; }
+      .f03-capture-screens { position:absolute; left:0; top:0; width:118cqw; height:24.1cqw; display:flex; }
+      .f03-capture-screen { flex:0 0 59cqw; height:24.1cqw; position:relative; }
+      .f03-capture-photo-card { position:absolute; inset:0; border:1.5px solid rgba(22,124,112,0.2); border-radius:12px; background:rgba(22,124,112,0.04); }
+      .f03-capture-document { position:absolute; left:4cqw; top:2cqw; width:15cqw; height:19cqw; padding:1.5cqw; border:1.5px solid rgba(22,124,112,0.2); border-radius:10px; background:#f4f5f2; }
+      .f03-capture-rx { color:#167c70; font-size:3cqw; line-height:1; font-weight:600; margin-bottom:1.8cqw; }
+      .f03-capture-ink { height:0.35cqw; border-radius:6px; background:rgba(22,124,112,0.15); margin-bottom:1.05cqw; }
+      .f03-capture-ink-short { width:65%; }
+      .f03-capture-ink-space { margin-top:2cqw; }
+      .f03-capture-photo-copy { position:absolute; left:22cqw; top:6cqw; width:32cqw; }
+      .f03-capture-photo-copy h2 { margin:0 0 1.2cqw; font-size:2.6cqw; font-weight:600; line-height:1.1; letter-spacing:-0.02em; }
+      .f03-capture-photo-copy p { margin:0; color:#123c3a; font-size:1.4cqw; line-height:1.6; }
+      .f03-capture-photo-badge { margin-top:1.8cqw; display:inline-flex; align-items:center; gap:0.6cqw; color:#167c70; font-size:1.4cqw; font-weight:500; }
+      .f03-capture-photo-badge svg { width:1.6cqw; height:1.6cqw; }
+      .f03-capture-manual { padding:0.3cqw 0.1cqw; }
+      .f03-capture-manual h2 { margin:0 0 1.3cqw; font-size:2.6cqw; font-weight:600; line-height:1.1; letter-spacing:-0.02em; }
+      .f03-capture-fields { display:grid; grid-template-columns:1fr 1fr; gap:1cqw 1.4cqw; }
+      .f03-capture-field-wide { grid-column:1 / -1; }
+      .f03-capture-field label { display:block; font-size:1.4cqw; line-height:1.4; color:#123c3a; margin-bottom:0.5cqw; }
+      .f03-capture-input { height:3.6cqw; padding:0 1cqw; display:flex; align-items:center; border:1.5px solid rgba(22,124,112,0.2); border-radius:10px; background:rgba(22,124,112,0.04); }
+      .f03-capture-placeholder { display:block; width:32%; height:0.25cqw; border-radius:6px; background:rgba(22,124,112,0.15); }
+      .f03-capture-review { position:absolute; bottom:0.4cqw; left:0.1cqw; display:flex; align-items:center; gap:0.6cqw; color:#167c70; font-size:1.4cqw; font-weight:500; }
+      .f03-capture-review svg { width:1.6cqw; height:1.6cqw; }
+      .f03-capture-review-button { position:absolute; right:0.1cqw; bottom:0; height:3.1cqw; padding:0 1.4cqw; display:flex; align-items:center; border-radius:100px; background:#167c70; color:#f4f5f2; font-size:1.4cqw; font-weight:600; }
+      .f03-capture-privacy { position:absolute; left:5cqw; top:30.2cqw; width:24cqw; padding:1.2cqw 1.2cqw 1.2cqw 1.4cqw; border-left:4px solid #167c70; border-radius:12px; background:rgba(22,124,112,0.08); }
+      .f03-capture-privacy-heading { display:flex; align-items:center; gap:0.65cqw; font-size:1.4cqw; line-height:1.3; font-weight:600; color:#123c3a; }
+      .f03-capture-privacy-heading svg { width:1.8cqw; height:1.8cqw; color:#167c70; flex:none; }
+      .f03-capture-privacy-detail { margin:0.8cqw 0 0; font-size:1.4cqw; line-height:1.45; color:#123c3a; }
+      .f03-capture-progress { position:absolute; left:0; top:46.3cqw; width:100%; height:3px; background:rgba(22,124,112,0.08); }
+      .f03-capture-progress-fill { width:37.5%; height:100%; background:#167c70; transform-origin:left center; }
+      .f03-capture-icon { fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+    </style>
+    <div data-hf-id="hf-yawv" class="clip f03-capture-ground" data-start="0" data-duration="12" data-track-index="0"></div>
+    <div data-hf-id="hf-zgj6" class="clip f03-capture-content" data-start="0" data-duration="12" data-track-index="1">
+      <div data-hf-id="hf-brf8" class="f03-capture-eyebrow">Prescription capture</div>
+      <h1 data-hf-id="hf-wi95" class="f03-capture-title">Start here.</h1>
+      <div data-hf-id="hf-viln" class="f03-capture-choices">
+        <div data-hf-id="hf-19j6" id="03-capture-photo-label" class="f03-capture-choice"><svg data-hf-id="hf-8vsu" class="f03-capture-icon" viewBox="0 0 24 24"><rect data-hf-id="hf-sbof" x="3" y="4" width="18" height="16" rx="3"/><circle data-hf-id="hf-vwzb" cx="8" cy="9" r="1.5"/><path data-hf-id="hf-bnh7" d="m4 18 5-5 4 3 3-4 5 6"/></svg><span data-hf-id="hf-816d">Prescription photo</span></div>
+        <div data-hf-id="hf-ehh6" id="03-capture-manual-label" class="f03-capture-choice"><svg data-hf-id="hf-1o82" class="f03-capture-icon" viewBox="0 0 24 24"><path data-hf-id="hf-tbck" d="m14 5 5 5M4 20l4-1 12-12a2.1 2.1 0 0 0-3-3L5 16l-1 4Z"/></svg><span data-hf-id="hf-5qtp">Manual details</span></div>
+      </div>
+      <section data-hf-id="hf-e9ok" id="03-capture-window" class="f03-capture-window" aria-label="Prescription capture product illustration">
+        <div data-hf-id="hf-oa7z" class="f03-capture-chrome"><span data-hf-id="hf-rqmp" class="f03-capture-chrome-title">Capture prescription</span><span data-hf-id="hf-7sny" class="f03-capture-tag"><svg data-hf-id="hf-22j3" class="f03-capture-icon" viewBox="0 0 24 24"><rect data-hf-id="hf-f0wc" x="5" y="10" width="14" height="11" rx="2"/><path data-hf-id="hf-apke" d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Private by design</span></div>
+        <div data-hf-id="hf-ruap" class="f03-capture-tabs">
+          <div data-hf-id="hf-f7kv" id="03-capture-camera-tab" class="f03-capture-tab"><svg data-hf-id="hf-2gu4" class="f03-capture-icon" viewBox="0 0 24 24"><path data-hf-id="hf-gbi8" d="M8 6l2-3h4l2 3h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z"/><circle data-hf-id="hf-kysq" cx="12" cy="12" r="4"/></svg>Camera</div>
+          <div data-hf-id="hf-vjzp" id="03-capture-photo-tab" class="f03-capture-tab"><svg data-hf-id="hf-2v55" class="f03-capture-icon" viewBox="0 0 24 24"><rect data-hf-id="hf-s0bj" x="3" y="4" width="18" height="16" rx="3"/><circle data-hf-id="hf-2ks7" cx="8" cy="9" r="1.5"/><path data-hf-id="hf-ciqj" d="m4 18 5-5 4 3 3-4 5 6"/></svg>Photo</div>
+          <div data-hf-id="hf-m56l" id="03-capture-manual-tab" class="f03-capture-tab"><svg data-hf-id="hf-39g6" class="f03-capture-icon" viewBox="0 0 24 24"><path data-hf-id="hf-mpcc" d="m14 5 5 5M4 20l4-1 12-12a2.1 2.1 0 0 0-3-3L5 16l-1 4Z"/></svg>Manual</div>
+        </div>
+        <div data-hf-id="hf-hh7n" class="f03-capture-viewport">
+          <div data-hf-id="hf-6bmt" id="03-capture-screens" class="f03-capture-screens" data-layout-allow-overflow>
+            <div data-hf-id="hf-rsgl" class="f03-capture-screen">
+              <div data-hf-id="hf-gdky" class="f03-capture-photo-card">
+                <div data-hf-id="hf-m6a8" id="03-capture-document" class="f03-capture-document" aria-label="Illustrated prescription, no patient data"><div data-hf-id="hf-k2s9" class="f03-capture-rx">Rx</div><div data-hf-id="hf-5y63" class="f03-capture-ink"></div><div data-hf-id="hf-o6vx" class="f03-capture-ink f03-capture-ink-short"></div><div data-hf-id="hf-1ill" class="f03-capture-ink f03-capture-ink-space"></div><div data-hf-id="hf-hg57" class="f03-capture-ink"></div><div data-hf-id="hf-5khd" class="f03-capture-ink f03-capture-ink-short"></div></div>
+                <div data-hf-id="hf-r5bz" class="f03-capture-photo-copy"><h2 data-hf-id="hf-ad6j">Prescription photo</h2><p data-hf-id="hf-988m">Camera or photo library</p><div data-hf-id="hf-8fid" id="03-capture-photo-selected" class="f03-capture-photo-badge"><svg data-hf-id="hf-3nr7" class="f03-capture-icon" viewBox="0 0 24 24"><circle data-hf-id="hf-1iwn" cx="12" cy="12" r="9"/><path data-hf-id="hf-t5d2" d="m8 12 3 3 5-6"/></svg>Photo selected</div></div>
+              </div>
+            </div>
+            <div data-hf-id="hf-3ets" class="f03-capture-screen f03-capture-manual">
+              <h2 data-hf-id="hf-ur8z">Manual details</h2>
+              <div data-hf-id="hf-7eau" class="f03-capture-fields">
+                <div data-hf-id="hf-881o" class="f03-capture-field f03-capture-field-wide"><label data-hf-id="hf-mawd">Medication name</label><div data-hf-id="hf-2g6z" class="f03-capture-input"><span data-hf-id="hf-xdrj" class="f03-capture-placeholder"></span></div></div>
+                <div data-hf-id="hf-1m73" class="f03-capture-field"><label data-hf-id="hf-gnqc">Dosage</label><div data-hf-id="hf-sy0r" class="f03-capture-input"><span data-hf-id="hf-83kf" class="f03-capture-placeholder"></span></div></div>
+                <div data-hf-id="hf-93bz" class="f03-capture-field"><label data-hf-id="hf-3g2x">Frequency</label><div data-hf-id="hf-sjpq" class="f03-capture-input"><span data-hf-id="hf-7p9e" class="f03-capture-placeholder"></span></div></div>
+              </div>
+              <div data-hf-id="hf-zok5" id="03-capture-review-note" class="f03-capture-review"><svg data-hf-id="hf-4228" class="f03-capture-icon" viewBox="0 0 24 24"><path data-hf-id="hf-v6wo" d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Z"/><path data-hf-id="hf-f27e" d="m8 12 3 3 5-6"/></svg>Review before recording</div>
+              <div data-hf-id="hf-2796" id="03-capture-review-button" class="f03-capture-review-button">Review details</div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <aside data-hf-id="hf-aya1" id="03-capture-privacy" class="f03-capture-privacy">
+        <div data-hf-id="hf-qetl" class="f03-capture-privacy-heading"><svg data-hf-id="hf-y3gt" class="f03-capture-icon" viewBox="0 0 24 24"><path data-hf-id="hf-bfyo" d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Z"/><path data-hf-id="hf-fgif" d="m8 12 3 3 5-6"/></svg>Browser processing</div>
+        <p data-hf-id="hf-8ai2" id="03-capture-privacy-detail" class="f03-capture-privacy-detail">Images stay on your device.</p>
+      </aside>
+      <div data-hf-id="hf-a1gs" class="f03-capture-progress"><div data-hf-id="hf-m9j8" id="03-capture-progress-fill" class="f03-capture-progress-fill"></div></div>
+    </div>
+    <script>
+      (() => {
+        const tl = gsap.timeline({ paused: true });
+        const root = document.querySelector('[data-composition-id="03-capture"]');
+        const pick = (selector) => root.querySelector(selector.startsWith('#') ? '[id="' + selector.slice(1) + '"]' : selector);
+        tl.fromTo(pick('.f03-capture-eyebrow'), { opacity:0, y:12 }, { opacity:1, y:0, duration:0.45, ease:'power2.out' }, 0);
+        tl.fromTo(pick('.f03-capture-title'), { opacity:0, y:20 }, { opacity:1, y:0, duration:0.65, ease:'power3.out' }, 0.05);
+        tl.fromTo(pick('#03-capture-window'), { opacity:0, x:95 }, { opacity:1, x:0, duration:0.95, ease:'power3.out' }, 0.05);
+        tl.fromTo(pick('#03-capture-photo-label'), { opacity:0, y:16 }, { opacity:1, y:0, duration:0.5, ease:'power2.out' }, 0.65);
+        tl.fromTo(pick('#03-capture-document'), { opacity:0, y:22, scale:0.97 }, { opacity:1, y:0, scale:1, duration:0.65, ease:'power3.out' }, 1.05);
+        tl.to(pick('#03-capture-photo-tab'), { scale:0.95, duration:0.16, ease:'none' }, 1.8);
+        tl.to(pick('#03-capture-photo-tab'), { scale:1, backgroundColor:'rgba(22,124,112,0.15)', duration:0.45, ease:'back.out(1.4)' }, 1.96);
+        tl.fromTo(pick('#03-capture-photo-selected'), { opacity:0, y:10 }, { opacity:1, y:0, duration:0.4, ease:'power2.out' }, 2.2);
+        tl.fromTo(pick('#03-capture-manual-label'), { opacity:0, y:16 }, { opacity:1, y:0, duration:0.5, ease:'power2.out' }, 3.3);
+        tl.to(pick('#03-capture-manual-tab'), { scale:0.95, duration:0.16, ease:'none' }, 4.05);
+        tl.to(pick('#03-capture-manual-tab'), { scale:1, backgroundColor:'rgba(22,124,112,0.15)', duration:0.45, ease:'back.out(1.4)' }, 4.21);
+        tl.to(pick('#03-capture-photo-tab'), { backgroundColor:'rgba(22,124,112,0.04)', duration:0.3, ease:'none' }, 4.21);
+        tl.fromTo(pick('#03-capture-screens'), { xPercent:0 }, { xPercent:-50, duration:0.95, ease:'power3.out' }, 4.3);
+        tl.fromTo(root.querySelectorAll('.f03-capture-field'), { opacity:0, y:10 }, { opacity:1, y:0, stagger:0.18, duration:0.5, ease:'power2.out' }, 4.95);
+        tl.fromTo(pick('#03-capture-privacy'), { opacity:0, y:18 }, { opacity:1, y:0, duration:0.65, ease:'power3.out' }, 6.4);
+        tl.fromTo(pick('#03-capture-privacy-detail'), { opacity:0, y:8 }, { opacity:1, y:0, duration:0.5, ease:'power2.out' }, 7.55);
+        tl.fromTo(pick('#03-capture-review-note'), { opacity:0, y:12 }, { opacity:1, y:0, duration:0.6, ease:'power2.out' }, 9.05);
+        tl.fromTo(pick('#03-capture-review-button'), { opacity:0, y:10, scale:0.98 }, { opacity:1, y:0, scale:1, duration:0.6, ease:'power3.out' }, 10.15);
+        tl.fromTo(pick('#03-capture-progress-fill'), { scaleX:0.6 }, { scaleX:1, duration:12, ease:'none' }, 0);
+        window.__timelines['03-capture'] = tl;
+      })();
+    </script>
+  </div>
+</template>

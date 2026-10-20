@@ -1,0 +1,26 @@
+{
+  "provider": "heygen.audio.sounds",
+  "track_id": "7c7c9903947c472e9568a88fe44bc24a",
+  "description": "warm professional healthcare ambient, soft piano and light strings",
+  "selection_intent": "calm ambient piano warm optimistic minimal instrumental healthcare product demo no vocals",
+  "source_duration_s": 55,
+  "output": "assets/music/calm-piano-bed.mp3",
+  "output_duration_s": 90,
+  "processing": {
+    "repeat_count": 2,
+    "crossfade_s": 5,
+    "crossfade_curve": "tri",
+    "fade_in_s": 1.2,
+    "fade_out_start_s": 86,
+    "fade_out_s": 4,
+    "sample_rate": 48000,
+    "channels": 2,
+    "encoding": "MP3 192 kbps"
+  },
+  "mix": {
+    "base_gain": 0.28,
+    "carve_strength": 0.8,
+    "narration_group": "voiceover",
+    "narration_clips": 8
+  }
+}

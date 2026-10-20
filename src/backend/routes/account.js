@@ -36,6 +36,7 @@ export async function handleAccountRoute(ctx) {
       state.profiles = state.profiles.filter((item) => item.userId !== userId);
       state.medicines = state.medicines.filter((item) => item.userId !== userId);
       state.prescriptions = state.prescriptions.filter((item) => item.userId !== userId);
+      state.medicalRecords = state.medicalRecords.filter((item) => item.userId !== userId);
       state.reconciliations = state.reconciliations.filter((item) => item.userId !== userId);
       state.accessRequests = state.accessRequests.filter((item) => item.patientUserId !== userId && item.doctorUserId !== userId);
       state.indications = state.indications.filter((item) => item.patientUserId !== userId && item.doctorUserId !== userId);

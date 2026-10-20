@@ -5,7 +5,7 @@ message: "MediHuman turns medication information into a clearer, privacy-conscio
 arc: Hook → Problem → Product intro → Demo → Trust → CTA
 audience: buildathon judges and healthcare product reviewers
 mode: autonomous
-music: none
+music: calm instrumental piano and light strings, frozen local bed
 ---
 
 ## Video direction

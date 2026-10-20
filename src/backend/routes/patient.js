@@ -2,7 +2,8 @@ import { publicUser, requireRole } from '../auth.js';
 import { HttpError } from '../errors.js';
 import { readJson, sendJson } from '../http.js';
 import {
-  patientRecords, publicProfile, publicPrescription, publicReconciliation,
+  decodePathValue, findRecordByPublicId, patientRecords, publicProfile,
+  publicPrescription, publicReconciliation, publicRecord, sortedPatientRecords,
 } from '../records.js';
 import { addNotification, notifyApprovedDoctors, publicIndication, publicNotification } from '../notifications.js';
 import { newId } from '../security.js';
@@ -12,6 +13,7 @@ import {
 } from '../validation.js';
 import { compareMedicines } from '../../medication-logic.js';
 import { addAuditEvent } from '../audit.js';
+import { migratePrescriptionRecords, prescriptionToRecord, recordToPrescription } from '../medical-records.js';
 
 export async function handlePatientRoute(ctx) {
   const { pathname, method, request, response, dataStore, now, current } = ctx;
@@ -104,7 +106,7 @@ export async function handlePatientRoute(ctx) {
   if (pathname === '/api/patient/medicines' && method === 'POST') {
     requireRole(current, 'patient');
     const input = await readJson(request);
-    allowedKeys(input, ['name', 'strength', 'dose', 'route', 'timing', 'notes']);
+    allowedKeys(input, ['name', 'strength', 'dose', 'route', 'timing', 'notes', 'status', 'startedAt', 'stoppedAt', 'reason', 'prescriber']);
     const medicine = medicineValue(input);
     const record = { id: newId(), ...medicine, createdAt: new Date(now).toISOString(), updatedAt: new Date(now).toISOString() };
     await dataStore.transact((state) => {
@@ -135,7 +137,7 @@ export async function handlePatientRoute(ctx) {
     }
     if (method === 'PUT') {
       const input = await readJson(request);
-      allowedKeys(input, ['name', 'strength', 'dose', 'route', 'timing', 'notes']);
+      allowedKeys(input, ['name', 'strength', 'dose', 'route', 'timing', 'notes', 'status', 'startedAt', 'stoppedAt', 'reason', 'prescriber']);
       const medicine = medicineValue(input);
       await dataStore.transact((state) => {
         const rec = state.medicines.find((item) => item.userId === current.user.id);
@@ -162,7 +164,8 @@ export async function handlePatientRoute(ctx) {
 
   if (pathname === '/api/prescriptions' && method === 'GET') {
     requireRole(current, 'patient');
-    const prescriptions = await dataStore.read((state) => state.prescriptions.filter((item) => item.userId === current.user.id).map(publicPrescription));
+    const prescriptions = await dataStore.read((state) => sortedPatientRecords(state, current.user.id, 'prescription')
+      .map((record) => publicPrescription(recordToPrescription(publicRecord(record)))));
     sendJson(response, 200, { prescriptions });
     return true;
   }
@@ -171,7 +174,8 @@ export async function handlePatientRoute(ctx) {
     const prescription = prescriptionValue(await readJson(request));
     const record = { id: newId(), userId: current.user.id, ...prescription, createdAt: new Date(now).toISOString(), updatedAt: new Date(now).toISOString() };
       await dataStore.transact((state) => {
-        state.prescriptions.push(record);
+        state.medicalRecords.push(prescriptionToRecord(record));
+        migratePrescriptionRecords(state);
         notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Prescription record added', message: 'A patient prescription record was added.', entityType: 'prescription', entityId: record.id }, now);
         addAuditEvent(state, { actorUserId: current.user.id, action: 'record.prescription_create', entityType: 'prescription', entityId: record.id }, now);
       });
@@ -181,9 +185,10 @@ export async function handlePatientRoute(ctx) {
   const prescriptionMatch = pathname.match(/^\/api\/prescriptions\/([^/]+)$/);
   if (prescriptionMatch) {
     requireRole(current, 'patient');
-    const id = decodeURIComponent(prescriptionMatch[1]);
-    const existing = await dataStore.read((state) => state.prescriptions.find((item) => item.id === id && item.userId === current.user.id));
-    if (!existing) throw new HttpError(404, 'NOT_FOUND', 'Prescription not found.');
+    const id = decodePathValue(prescriptionMatch[1], 'prescriptionId');
+    const existingRecord = await dataStore.read((state) => findRecordByPublicId(state, id, current.user.id));
+    if (!existingRecord || existingRecord.type !== 'prescription') throw new HttpError(404, 'NOT_FOUND', 'Prescription not found.');
+    const existing = recordToPrescription(publicRecord(existingRecord));
     if (method === 'GET') {
       sendJson(response, 200, { prescription: publicPrescription(existing) });
       return true;
@@ -191,29 +196,31 @@ export async function handlePatientRoute(ctx) {
     if (method === 'PUT') {
       const input = await readJson(request);
       allowedKeys(input, ['medicationName', 'strength', 'dose', 'route', 'frequency', 'startDate', 'endDate', 'instructions', 'prescriber']);
-      const prescription = prescriptionValue({
-        medicationName: input.medicationName ?? existing.medicationName,
-        strength: input.strength ?? existing.strength,
-        dose: input.dose ?? existing.dose,
-        route: input.route ?? existing.route,
-        frequency: input.frequency ?? existing.frequency,
-        startDate: input.startDate ?? existing.startDate,
-        endDate: input.endDate ?? existing.endDate,
-        instructions: input.instructions ?? existing.instructions,
-        prescriber: input.prescriber ?? existing.prescriber,
-      });
-      const updated = { ...existing, ...prescription, updatedAt: new Date(now).toISOString() };
-      await dataStore.transact((state) => {
-        const item = state.prescriptions.find((entry) => entry.id === id && entry.userId === current.user.id);
-        Object.assign(item, updated);
+      const updated = await dataStore.transact((state) => {
+        const item = findRecordByPublicId(state, id, current.user.id);
+        if (!item || item.type !== 'prescription') throw new HttpError(404, 'NOT_FOUND', 'Prescription not found.');
+        const previous = recordToPrescription(publicRecord(item));
+        const fields = ['medicationName', 'strength', 'dose', 'route', 'frequency', 'startDate', 'endDate', 'instructions', 'prescriber'];
+        const prescription = prescriptionValue({ ...Object.fromEntries(fields.map((field) => [field, previous[field]])), ...input });
+        Object.assign(item, {
+          title: prescription.medicationName, description: prescription.instructions,
+          data: { ...item.data, ...prescription }, updatedAt: new Date(now).toISOString(),
+        });
+        migratePrescriptionRecords(state);
+        notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Prescription record updated', message: 'A patient prescription record was updated.', entityType: 'prescription', entityId: id }, now);
         addAuditEvent(state, { actorUserId: current.user.id, action: 'record.prescription_update', entityType: 'prescription', entityId: id }, now);
+        return recordToPrescription(publicRecord(item));
       });
       sendJson(response, 200, { prescription: publicPrescription(updated) });
       return true;
     }
     if (method === 'DELETE') {
       await dataStore.transact((state) => {
+        const item = findRecordByPublicId(state, id, current.user.id);
+        if (!item || item.type !== 'prescription') throw new HttpError(404, 'NOT_FOUND', 'Prescription not found.');
+        state.medicalRecords = state.medicalRecords.filter((record) => record.id !== id || record.userId !== current.user.id);
         state.prescriptions = state.prescriptions.filter((item) => item.id !== id || item.userId !== current.user.id);
+        notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Prescription record deleted', message: 'A patient prescription record was deleted.', entityType: 'prescription', entityId: id }, now);
         addAuditEvent(state, { actorUserId: current.user.id, action: 'record.prescription_delete', entityType: 'prescription', entityId: id }, now);
       });
       sendJson(response, 200, { ok: true });

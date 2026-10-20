@@ -7,6 +7,7 @@ const normalizedTables = [
   ['profiles', 'profiles'],
   ['medicines', 'medicines'],
   ['prescriptions', 'prescriptions'],
+  ['medicalRecords', 'medical_records'],
   ['reconciliations', 'reconciliations'],
   ['accessRequests', 'access_requests'],
   ['indications', 'indications'],
@@ -154,6 +155,8 @@ test('Supabase store hydrates route state from normalized rows and overlays cano
   assert.equal(store.state.profiles[0].custom, 'preserved');
   assert.deepEqual(store.state.medicines[0].items, [{ name: 'Canonical medicine' }]);
   assert.equal(store.state.prescriptions[0].medicationName, 'Canonical medicine');
+  assert.equal(store.state.medicalRecords[0].id, 'rx-1');
+  assert.equal(store.state.medicalRecords[0].data.medicationName, 'Canonical medicine');
   assert.equal(store.state.reconciliations[0].isExactMatch, true);
   assert.equal(store.state.accessRequests[0].doctorUserId, 'doctor-1');
   assert.equal(store.state.indications[0].title, 'Canonical indication');
@@ -188,4 +191,75 @@ test('Supabase store refreshes full normalized snapshot before serialized transa
   assert.equal(fake.calls.at(-1).path, '/rest/v1/rpc/medihuman_commit_normalized_state');
   assert.deepEqual(Object.keys(fake.commits[0]), ['next_state']);
   assert.equal(store.state.notifications[0].id, 'notification-1');
+});
+
+test('Supabase medical records overlay canonical columns, preserve nested data, and own the prescription mirror', async () => {
+  const fake = fakeSupabaseFetch({ rows: {
+    prescriptions: [{ data: { id: 'rx-1', userId: 'user-1', medicationName: 'Stale name' } }],
+    medical_records: [{
+      data: {
+        id: 'stale-id', userId: 'stale-user', type: 'other', title: 'Stale title',
+        data: { strength: '10 mg', dose: '1', custom: { retained: true } },
+        customEnvelope: ['preserved'],
+      },
+      id: 'rx-1', user_id: 'user-1', type: 'prescription', title: 'Canonical name',
+      date: '2026-10-20', description: 'Canonical instructions', file_ref: 'uploads/reference',
+      mime_type: 'application/pdf', size_bytes: 1234, tags: ['ongoing'], source: 'self',
+      created_at: '2026-10-20T10:00:00.000Z', updated_at: '2026-10-20T11:00:00.000Z',
+    }],
+  } });
+  const store = await storeWith(fake.fetchImpl).init();
+  const record = store.state.medicalRecords[0];
+  assert.deepEqual(record, {
+    id: 'rx-1', userId: 'user-1', type: 'prescription', title: 'Canonical name',
+    date: '2026-10-20', description: 'Canonical instructions', fileRef: 'uploads/reference',
+    mimeType: 'application/pdf', sizeBytes: 1234, tags: ['ongoing'], source: 'self',
+    createdAt: '2026-10-20T10:00:00.000Z', updatedAt: '2026-10-20T11:00:00.000Z',
+    data: { strength: '10 mg', dose: '1', custom: { retained: true } },
+    customEnvelope: ['preserved'],
+  });
+  assert.deepEqual(store.state.prescriptions, [{
+    strength: '10 mg', dose: '1', custom: { retained: true }, medicationName: 'Canonical name',
+    instructions: 'Canonical instructions', id: 'rx-1', userId: 'user-1',
+    createdAt: record.createdAt, updatedAt: record.updatedAt,
+  }]);
+});
+
+test('Supabase RPC roundtrip preserves all medical record fields and legacy mirror across refresh', async () => {
+  const fake = fakeSupabaseFetch();
+  const store = await storeWith(fake.fetchImpl).init();
+  const record = {
+    id: 'rx-1', userId: 'user-1', type: 'prescription', title: 'Medication', date: '2026-10-20',
+    description: 'Instructions', tags: ['current'], source: 'self', fileRef: '', mimeType: '', sizeBytes: 0,
+    createdAt: '2026-10-20T00:00:00.000Z', updatedAt: '2026-10-20T01:00:00.000Z',
+    data: { medicationName: 'Medication', instructions: 'Instructions', dose: '1', extension: { list: [1, 2] } },
+  };
+  const lab = { ...record, id: 'lab-1', type: 'lab', title: 'Lab report', data: { values: [4, 5] } };
+  await store.transact((state) => state.medicalRecords.push(record, lab));
+  assert.deepEqual(fake.commits[0].next_state.medicalRecords, [record, lab]);
+  assert.equal(fake.commits[0].next_state.prescriptions.length, 1);
+  assert.equal(Object.keys(fake.commits[0].next_state).filter((key) => key !== 'version').length, 12);
+  await store.refresh();
+  assert.deepEqual(store.state.medicalRecords, [record, lab]);
+  assert.deepEqual(store.state.prescriptions[0].extension, { list: [1, 2] });
+  await store.transact((state) => {
+    state.medicalRecords = state.medicalRecords.filter((item) => item.id !== 'rx-1');
+    state.prescriptions = state.prescriptions.filter((item) => item.id !== 'rx-1');
+  });
+  await store.refresh();
+  assert.deepEqual(store.state.medicalRecords, [lab]);
+  assert.deepEqual(store.state.prescriptions, []);
+});
+
+test('Supabase medical records migration retains prior snapshot when atomic RPC rejects commit', async () => {
+  const fake = fakeSupabaseFetch();
+  const store = await storeWith(async (url, options) => {
+    if (options?.method === 'POST') return new Response('false', { status: 200 });
+    return fake.fetchImpl(url, options);
+  }).init();
+  await assert.rejects(store.transact((state) => {
+    state.medicalRecords.push({ id: 'failed', type: 'prescription', title: 'Unsaved' });
+  }), /commit failed/);
+  assert.deepEqual(store.state.medicalRecords, []);
+  assert.deepEqual(store.state.prescriptions, []);
 });

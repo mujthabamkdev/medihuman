@@ -1,5 +1,11 @@
 {
-  "bgm": null,
+  "bgm": {
+    "path": "assets/music/calm-piano-bed.mp3",
+    "duration_s": 90,
+    "volume": 0.28,
+    "provider": "heygen.audio.sounds",
+    "track_id": "7c7c9903947c472e9568a88fe44bc24a"
+  },
   "bgm_pending": false,
   "voices": [
     {
