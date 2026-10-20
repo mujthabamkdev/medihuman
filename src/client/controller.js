@@ -748,13 +748,16 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     }
     if (event.key === 'Escape') {
       if (state.medicineDialog) { closeMedicineDialog(); return; }
+      if (state.viewingRecordId) { state.viewingRecordId = ''; render(); return; }
       if (state.localExitPrompt) { state.localExitPrompt = false; render(); return; }
       if (state.mobileMenuOpen || state.patientMenuOpen || state.profileMenuOpen || state.notificationsOpen) { state.mobileMenuOpen = false; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; render(); }
     }
     if (event.key === 'Tab') {
       const container = state.medicineDialog
         ? globalThis.document?.querySelector('.medicine-dialog')
-        : state.localExitPrompt
+        : state.viewingRecordId
+          ? globalThis.document?.querySelector('.record-dialog')
+          : state.localExitPrompt
           ? globalThis.document?.querySelector('.local-exit-dialog')
           : state.mobileMenuOpen ? globalThis.document?.querySelector('#sidebar') : null;
       if (!container) return;
