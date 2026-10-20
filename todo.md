@@ -7,23 +7,23 @@
 ## Phase 1 — Date-based record display (frontend)
 
 ### 1.1 Prescription sorting & grouping
-- [ ] Sort `state.prescriptions` by `createdAt` (newest first) in `renderScanWithPrescriptions`
+- [x] Sort `state.prescriptions` by `createdAt` (newest first) in `renderScanWithPrescriptions`
 - [ ] Group prescriptions by month/year in the prescription manager card
-- [ ] Add date badge to each prescription row (e.g., "Jan 2026")
+- [x] Add date badge to each prescription row (e.g., "Jan 2026")
 - [ ] Update `renderPrescriptionManager` to show empty state with "Add your first prescription"
 
 ### 1.2 Medicine list — active vs. historical
-- [ ] Add `status` field to `medicineObject` ('active' | 'discontinued' | 'completed')
-- [ ] Update `renderMedicines` to split list into "Currently taking" and "Previously taken" sections
+- [x] Add `status` field to `medicineObject` ('active' | 'discontinued' | 'completed')
+- [x] Update `renderMedicines` to split list into "Currently taking" and "Previously taken" sections
 - [ ] Add status badge (green for active, gray for discontinued) on each medicine card
 - [ ] Add "Mark as discontinued" action button on medicine cards
-- [ ] Add `startedAt`/`stoppedAt` date fields to medicine edit form
-- [ ] Update `updateMedicineField` to handle status changes
+- [x] Add `startedAt`/`stoppedAt` date fields to medicine edit form
+- [x] Update `updateMedicineField` to handle status changes
 
 ### 1.3 Reconciliation history
-- [ ] Sort `state.reconciliations` by `createdAt` (newest first)
+- [x] Sort `state.reconciliations` by `createdAt` (newest first)
 - [ ] Group reconciliations by date in `renderReconcileWithHistory`
-- [ ] Add date badge to each reconciliation row
+- [x] Add date badge to each reconciliation row
 - [ ] Link reconciliation to its source prescription (show prescription name/date)
 
 ### 1.4 Profile overview
@@ -90,30 +90,30 @@ Phase 2 verification (2026-10-20): `npm test` passes 128 tests (76 baseline + 52
 ## Phase 3 — Medicine timeline
 
 ### 3.1 Medicine status tracking
-- [ ] Add `status` field to `medicineValue` validation ('active' | 'discontinued' | 'completed')
-- [ ] Add `startedAt`, `stoppedAt`, `reason`, `prescriber` fields to `medicineValue`
-- [ ] Update `medicineValue` allowedKeys
-- [ ] Update `medicineObject` in `state.js` to include new fields
+- [x] Add `status` field to `medicineValue` validation ('active' | 'discontinued' | 'completed')
+- [x] Add `startedAt`, `stoppedAt`, `reason`, `prescriber` fields to `medicineValue`
+- [x] Update `medicineValue` allowedKeys
+- [x] Update `medicineObject` in `state.js` to include new fields
 
 ### 3.2 Backend
-- [ ] Update `GET /api/patient/medicines` to return medicines with status
-- [ ] Update `PUT /api/patient/medicines` to handle status changes
-- [ ] Add `startedAt`/`stoppedAt` to medicine update
+- [x] Update `GET /api/patient/medicines` to return medicines with status
+- [x] Update `PUT /api/patient/medicines` to handle status changes
+- [x] Add `startedAt`/`stoppedAt` to medicine update
 - [ ] Notify approved doctors on medicine status change
 
 ### 3.3 Frontend
-- [ ] Render "Currently taking" section (status='active')
-- [ ] Render "Previously taken" section (status='discontinued' | 'completed')
+- [x] Render "Currently taking" section (status='active')
+- [x] Render "Previously taken" section (status='discontinued' | 'completed')
 - [ ] Add "Mark as discontinued" / "Mark as completed" buttons
-- [ ] Add date pickers for started/stopped dates
-- [ ] Add "Reason" text field for discontinued medicines
-- [ ] Update `renderMedicines` with timeline layout
+- [x] Add date pickers for started/stopped dates
+- [x] Add "Reason" text field for discontinued medicines
+- [x] Update `renderMedicines` with timeline layout
 - [ ] Add medicine count badge (active count)
 
 ### 3.4 Doctor view
 - [ ] Show medicine timeline in doctor-patients view
-- [ ] Show active + historical medicines with dates
-- [ ] Highlight discontinued medicines with different styling
+- [x] Show active + historical medicines with dates
+- [x] Highlight discontinued medicines with different styling
 
 ### 3.5 Tests
 - [ ] Test medicine status transitions
@@ -125,14 +125,14 @@ Phase 2 verification (2026-10-20): `npm test` passes 128 tests (76 baseline + 52
 ## Phase 4 — Doctor visibility (approved access)
 
 ### 4.1 Unified records endpoint
-- [ ] `GET /api/doctor/patients/:id/records` — all medical records sorted by date
+- [x] `GET /api/doctor/patients/:id/records` — all medical records sorted by date
 - [ ] `GET /api/doctor/patients/:id/records?type=lab_report` — filter by type
-- [ ] `GET /api/doctor/patients/:id/records/:id` — single record
+- [x] `GET /api/doctor/patients/:id/records/:id` — single record
 - [ ] Doctor can read all record types with approved access
 
 ### 4.2 Doctor UI
 - [ ] Add "Records" tab to doctor-patients view
-- [ ] Show records grouped by type and date
+- [x] Show records grouped by type and date
 - [ ] Show record count by type in summary
 - [ ] Add "View record" link to open record detail
 - [ ] Add filter by record type
@@ -140,7 +140,7 @@ Phase 2 verification (2026-10-20): `npm test` passes 128 tests (76 baseline + 52
 ### 4.3 Notifications
 - [ ] Patient record upload → notify approved doctors (already wired via `notifyApprovedDoctors`)
 - [ ] Add notification type 'record' with entity reference
-- [ ] Doctor notification click → navigate to patient records
+- [x] Doctor notification click → navigate to patient records
 
 ### 4.4 Tests
 - [ ] Doctor can read approved patient's records
@@ -223,10 +223,10 @@ Phase 2 verification (2026-10-20): `npm test` passes 128 tests (76 baseline + 52
 - [ ] Test migration on local Supabase
 
 ### Security
-- [ ] RLS on `medical_records` (service_role only, same as other tables)
+- [x] RLS on `medical_records` (service_role only, same as other tables)
 - [ ] File upload validation (type, size)
 - [ ] Doctor access check before serving file references
-- [ ] Audit events for record CRUD
+- [x] Audit events for record CRUD
 
 ### Performance
 - [ ] Paginate records list (default 20, max 100)
@@ -241,13 +241,13 @@ Phase 2 verification (2026-10-20): `npm test` passes 128 tests (76 baseline + 52
 ---
 
 ## Verification checklist
-- [ ] All existing 76 tests pass
+- [x] All existing tests pass (128/128)
 - [ ] New tests for medical records CRUD (target: +30 tests)
 - [ ] E2E: patient uploads prescription → doctor (approved) sees it in records list
 - [ ] E2E: patient adds active + discontinued medicine → doctor sees timeline
 - [ ] E2E: patient uploads lab report → doctor can view
 - [ ] Supabase migration: existing prescriptions convert to medical_records
-- [ ] Build passes (`npm run build`)
+- [x] Build passes (`npm run build`)
 - [ ] No console errors in browser
 
 ---

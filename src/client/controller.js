@@ -493,6 +493,8 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'mfa-remove') { await api.mfaRemove(target.dataset.id); await loadMfaFactors(); render(); return; }
     if (action === 'edit-prescription') { state.editingPrescriptionId = target.dataset.id; render(); return; }
     if (action === 'cancel-prescription-edit') { state.editingPrescriptionId = ''; render(); return; }
+    if (action === 'view-prescription') { state.viewingPrescriptionId = target.dataset.id; render(); return; }
+    if (action === 'cancel-prescription-view') { state.viewingPrescriptionId = ''; render(); return; }
     if (action === 'delete-prescription') { if (!window.confirm('Remove this prescription record?')) return; if (state.localOnly) { state.prescriptions = state.prescriptions.filter((item) => item.id !== target.dataset.id); saveLocal(state); } else { await api.deletePrescription(target.dataset.id); state.prescriptions = state.prescriptions.filter((item) => item.id !== target.dataset.id); } render(); return; }
     if (action === 'edit-indication') { state.editingIndicationId = target.dataset.id; render(); return; }
     if (action === 'cancel-indication-edit') { state.editingIndicationId = ''; render(); return; }
@@ -574,6 +576,8 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'save-profile') { await saveProfile(); return; }
     if (action === 'add-medicine') { state.medicines.push(medicineObject('')); render(); return; }
     if (action === 'remove-medicine') { if (!window.confirm('Remove this medicine?')) return; const index = Number(target.dataset.index); const item = state.medicines[index]; if (!item) return; if (!state.localOnly && item.id) { try { await api.deleteMedicine(item.id); } catch (error) { state.saveStatus.medicines = `Not saved: ${error.message}`; render(); return; } } state.medicines.splice(index, 1); saveLocal(state); state.saveStatus.medicines = 'Saved to your account'; state.dirty = false; render(); return; }
+    if (action === 'discontinue-medicine') { const index = Number(target.dataset.index); const item = state.medicines[index]; if (!item) return; item.status = 'discontinued'; item.stoppedAt = new Date().toISOString().slice(0, 10); state.dirty = true; saveLocal(state); render(); return; }
+    if (action === 'reactivate-medicine') { const index = Number(target.dataset.index); const item = state.medicines[index]; if (!item) return; item.status = 'active'; item.stoppedAt = ''; state.dirty = true; saveLocal(state); render(); return; }
     if (action === 'save-medicines') { await saveMedicines(); return; }
     if (action === 'camera-start') { await startCamera(); return; }
     if (action === 'camera-stop') { stopCamera(); return; }

@@ -161,7 +161,13 @@
 /* Medicine, risk, questions, lifestyle, and privacy views. */
 .medicine-editor { width: 100%; max-width: none; margin-bottom: 17px; padding: 16px 20px; }
 .medicine-detail { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 12px; border-top: 1px solid var(--line); padding: 14px 0; align-items: start; }
-.medicine-number { font-family: var(--font-mono); color: var(--muted); font-size: .8125rem; padding-top: 10px; }
+.medicine-number { font-family: var(--font-mono); color: var(--muted); font-size: .8125rem; padding-top: 10px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.medicine-status-badge { font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 2px 6px; border-radius: 4px; }
+.medicine-status-badge.status-active { background: var(--mint); color: var(--teal-dark); }
+.medicine-status-badge.status-discontinued { background: var(--sage); color: var(--muted); }
+.medicine-status-badge.status-completed { background: var(--mint-2); color: var(--muted); }
+.medicine-row-actions { display: flex; align-items: center; gap: 8px; padding-top: 10px; }
+.medicine-row-actions .text-link { font-size: .72rem; }
 .medicine-fields { min-width: 0; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .7fr) minmax(0, 1fr); gap: 10px; }
 .medicine-fields label { min-width: 0; color: var(--muted); font-size: .75rem; display: grid; gap: 5px; }
 .medicine-fields input { font-size: .875rem; }
