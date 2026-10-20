@@ -476,7 +476,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     stopCamera();
     if (clear) clearLocalWorkspace();
     setLocalMode(false);
-    state.localExitPrompt = false; state.screen = 'auth'; state.localOnly = false; state.user = null; state.role = state.authRole; state.view = 'dashboard'; state.profileMenuOpen = false; state.notificationsOpen = false; state.patientMenuOpen = false; state.doctorPatientMenuOpen = false; state.mobileMenuOpen = false;
+    state.localExitPrompt = false; state.screen = 'auth'; state.localOnly = false; state.user = null; state.role = state.authRole; state.view = 'dashboard'; state.profileMenuOpen = false; state.notificationsOpen = false; state.patientMenuOpen = false; state.doctorPatientMenuOpen = false; state.medicineEditMode = false; state.mobileMenuOpen = false;
     render();
   }
 
@@ -557,7 +557,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       return;
     }
     if (action === 'nav') {
-      state.view = target.dataset.view; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; state.doctorPatientMenuOpen = false; state.mobileMenuOpen = false;
+      state.view = target.dataset.view; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; state.doctorPatientMenuOpen = false; state.medicineEditMode = false; state.mobileMenuOpen = false;
       if (state.view === 'doctor-patients' && state.role === 'doctor' && !state.selectedPatientId) {
         const firstApproved = state.doctorRequests.find((request) => request.status === 'approved');
         if (firstApproved) state.selectedPatientId = firstApproved.patientId;
@@ -574,7 +574,10 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'go-reconcile') { state.view = 'reconcile'; render(); return; }
     if (action === 'go-composition') { state.view = 'composition'; render(); return; }
     if (action === 'save-profile') { await saveProfile(); return; }
-    if (action === 'add-medicine') { state.medicines.push(medicineObject('')); render(); return; }
+    if (action === 'edit-medicines') { state.medicineEditMode = true; render(); return; }
+    if (action === 'view-medicines') { state.medicineEditMode = false; render(); return; }
+    if (action === 'edit-medicine') { state.medicineEditMode = true; render(); return; }
+    if (action === 'add-medicine') { state.medicines.push(medicineObject('')); state.medicineEditMode = true; render(); return; }
     if (action === 'remove-medicine') { if (!window.confirm('Remove this medicine?')) return; const index = Number(target.dataset.index); const item = state.medicines[index]; if (!item) return; if (!state.localOnly && item.id) { try { await api.deleteMedicine(item.id); } catch (error) { state.saveStatus.medicines = `Not saved: ${error.message}`; render(); return; } } state.medicines.splice(index, 1); saveLocal(state); state.saveStatus.medicines = 'Saved to your account'; state.dirty = false; render(); return; }
     if (action === 'discontinue-medicine') { const index = Number(target.dataset.index); const item = state.medicines[index]; if (!item) return; item.status = 'discontinued'; item.stoppedAt = new Date().toISOString().slice(0, 10); state.dirty = true; saveLocal(state); render(); return; }
     if (action === 'reactivate-medicine') { const index = Number(target.dataset.index); const item = state.medicines[index]; if (!item) return; item.status = 'active'; item.stoppedAt = ''; state.dirty = true; saveLocal(state); render(); return; }

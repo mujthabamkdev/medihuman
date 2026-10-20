@@ -193,6 +193,16 @@
 .medicine-detail[data-status="discontinued"] { opacity: .7; }
 .medicine-detail[data-status="completed"] { opacity: .6; }
 .medicine-editor .filter-label { margin-bottom: 12px; }
+.medicine-view-table { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--paper); }
+.medicine-view-head,
+.medicine-view-row { display: grid; grid-template-columns: minmax(160px, 1.4fr) minmax(150px, 1.1fr) 96px auto; gap: 16px; align-items: center; min-width: 0; }
+.medicine-view-head { padding: 10px 16px; background: var(--canvas); color: var(--muted); font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; }
+.medicine-view-head span:last-child { text-align: right; }
+.medicine-view-row { padding: 13px 16px; border-top: 1px solid var(--line); }
+.medicine-view-cell { min-width: 0; display: grid; gap: 3px; }
+.medicine-view-cell strong { font-size: .8125rem; }
+.medicine-view-cell span { color: var(--muted); font-size: .72rem; line-height: 1.4; overflow-wrap: anywhere; }
+.medicine-view-actions { flex: 0 0 auto; gap: 8px; justify-content: flex-end; }
 .risk-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 18px; }
 .risk-overview { background: #f7f0db; border-color: #e7dcc0; }
 .risk-score { display: flex; align-items: center; gap: 17px; margin-bottom: 20px; }

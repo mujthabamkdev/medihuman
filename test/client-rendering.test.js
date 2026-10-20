@@ -325,14 +325,15 @@ test('camera card exposes mobile-safe action controls', () => {
   assert.match(markup, /class="button button-secondary file-button"/);
 });
 
-test('medicine editor exposes clinical detail fields', () => {
+test('medicine view exposes medicine name and edit/remove controls', () => {
   const state = { ...createState(), screen: 'shell', localOnly: true, view: 'medicines' };
   state.medicines = [{ name: 'Warfarin', strength: '5 mg', dose: '1 tablet', route: 'oral', timing: 'evening', notes: 'Keep consistent' }];
   const markup = createViewRenderer({ state }).renderShell();
 
-  for (const field of ['name', 'strength', 'dose', 'route', 'timing', 'notes']) {
-    assert.match(markup, new RegExp(`data-med-key="${field}"`));
-  }
+  assert.match(markup, /Warfarin/);
+  assert.match(markup, /data-action="edit-medicine"/);
+  assert.match(markup, /data-action="remove-medicine"/);
+  assert.match(markup, /medicine-status-badge/);
 });
 
 test('safety card keeps icon and copy in aligned heading wrapper', () => {
@@ -482,4 +483,42 @@ test('structural regression check rejects extra page closing tags', () => {
   const state = { ...createState(), view: 'medicines' };
   const markup = createViewRenderer({ state }).renderShell();
   assert.throws(() => inspectMarkup(markup.replace('</main>', '</div></main>')), /Unexpected <\/div>/);
+});
+
+test('prescription records render newest first with date badge', () => {
+  const state = { ...createState(), screen: 'shell', view: 'scan', localOnly: true, prescriptions: [
+    { id: 'rx-old', medicationName: 'Old Med', createdAt: '2025-01-01T00:00:00Z', medicines: [{ medicationName: 'Old Med' }] },
+    { id: 'rx-new', medicationName: 'New Med', createdAt: '2026-01-01T00:00:00Z', medicines: [{ medicationName: 'New Med' }] },
+  ] };
+  const markup = createViewRenderer({ state }).renderShell();
+  assert.match(markup, /New Med/);
+  assert.match(markup, /Old Med/);
+  // newest should appear before oldest in markup
+  assert.ok(markup.indexOf('New Med') < markup.indexOf('Old Med'));
+});
+
+test('medicines show status badges and edit/remove controls', () => {
+  const state = { ...createState(), screen: 'shell', view: 'medicines', localOnly: true, medicines: [
+    { id: 'm1', name: 'Active Med', status: 'active' },
+    { id: 'm2', name: 'Stopped Med', status: 'discontinued' },
+  ] };
+  const markup = createViewRenderer({ state }).renderShell();
+  assert.match(markup, /Active Med/);
+  assert.match(markup, /Stopped Med/);
+  assert.match(markup, /medicine-status-badge/);
+  assert.match(markup, /status-active/);
+  assert.match(markup, /status-discontinued/);
+  assert.match(markup, /data-action="edit-medicine"/);
+  assert.match(markup, /data-action="remove-medicine"/);
+});
+
+test('reconciliations render with date and grouping', () => {
+  const state = { ...createState(), screen: 'shell', view: 'reconcile', localOnly: true, reconciliations: [
+    { id: 'r1', isExactMatch: true, missing: [], unexpected: [], createdAt: '2026-01-01T00:00:00Z', prescriptionMedicines: ['A'], dispensedMedicines: ['A'] },
+    { id: 'r2', isExactMatch: false, missing: [{ name: 'B' }], unexpected: [], createdAt: '2025-06-01T00:00:00Z', prescriptionMedicines: ['B'], dispensedMedicines: [] },
+  ] };
+  const markup = createViewRenderer({ state }).renderShell();
+  assert.match(markup, /Previous reconciliation checks/);
+  assert.match(markup, /Medicine names match/);
+  assert.match(markup, /Difference requires review/);
 });

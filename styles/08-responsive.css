@@ -126,6 +126,11 @@
   .list-input-grid { gap: 12px; }
   .medicine-detail { grid-template-columns: 24px minmax(0, 1fr) 25px; gap: 8px; }
   .medicine-fields { grid-template-columns: minmax(0, 1fr); }
+  .medicine-view-table { border: 0; border-radius: 0; overflow: visible; background: transparent; }
+  .medicine-view-head { display: none; }
+  .medicine-view-row { grid-template-columns: minmax(0, 1fr); gap: 7px; padding: 13px 0; }
+  .medicine-view-actions { flex-direction: row; width: auto; justify-content: flex-start; }
+  .medicine-view-actions .button { width: auto; }
   .medicine-actions,
   .reconcile-actions { align-items: stretch; flex-wrap: wrap; flex-direction: column; }
   .form-actions { align-items: stretch; flex-direction: column; flex-wrap: wrap; gap: 10px; }
