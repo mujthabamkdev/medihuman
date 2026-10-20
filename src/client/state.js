@@ -44,7 +44,7 @@ export function createState() {
 }
 
 export function medicineObject(name, extra = {}) {
-  return { id: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`, name, strength: '', dose: '', route: '', timing: '', notes: '', ...extra };
+  return { id: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`, name, strength: '', dose: '', route: '', timing: '', notes: '', status: 'active', startedAt: '', stoppedAt: '', ...extra };
 }
 
 export function saveLocal(state) {

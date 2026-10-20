@@ -1,3 +1,5 @@
+import { RECORD_TYPES } from './validation.js';
+
 export const RULE_BASED_SUMMARY_DISCLAIMER =
   'Rule-based record summary, not AI, diagnosis, medical advice, or a replacement for a clinician or pharmacist.';
 export const AI_SUMMARY_DISCLAIMER =
@@ -15,12 +17,28 @@ function latestReconciliation(reconciliations) {
  * Deliberately small, inspectable adapter seam. A future approved adapter can
  * be passed to buildSummary without changing the endpoint's input contract.
  */
-export function buildRuleBasedSummary({ profile = {}, medicines = [], prescriptions = [], reconciliations = [] } = {}) {
+export function buildRuleBasedSummary({ profile = {}, medicines = [], prescriptions = [], reconciliations = [], medicalRecords = [] } = {}) {
+  const recordCountsByType = Object.fromEntries(RECORD_TYPES.map((type) => [type, 0]));
+  for (const record of medicalRecords) {
+    if (RECORD_TYPES.includes(record.type)) recordCountsByType[record.type] += 1;
+  }
   const findings = [];
   if (profile.allergies) findings.push({ type: 'profile', severity: 'info', message: 'Allergy information is recorded in the patient profile.' });
   if (profile.conditions) findings.push({ type: 'profile', severity: 'info', message: 'Condition context is recorded in the patient profile for clinician review.' });
   findings.push({ type: 'medicines', severity: 'info', message: `${countLabel(medicines.length, 'medicine')} recorded.` });
   findings.push({ type: 'prescriptions', severity: 'info', message: `${countLabel(prescriptions.length, 'prescription')} recorded.` });
+  const recordLabels = {
+    prescription: ['prescription record', 'prescription records'],
+    lab_report: ['lab report', 'lab reports'],
+    imaging: ['imaging record', 'imaging records'],
+    clinical_note: ['clinical note', 'clinical notes'],
+    discharge_summary: ['discharge summary', 'discharge summaries'],
+    vaccination: ['vaccination record', 'vaccination records'],
+    other: ['other record', 'other records'],
+  };
+  for (const type of RECORD_TYPES) {
+    if (recordCountsByType[type]) findings.push({ type, severity: 'info', message: `${countLabel(recordCountsByType[type], ...recordLabels[type])} recorded for clinician review.` });
+  }
 
   const latest = latestReconciliation(reconciliations);
   if (!latest) {
@@ -44,7 +62,9 @@ export function buildRuleBasedSummary({ profile = {}, medicines = [], prescripti
       medicines: medicines.length,
       prescriptions: prescriptions.length,
       reconciliations: reconciliations.length,
+      records: medicalRecords.length,
     },
+    recordCountsByType,
     profileSignals: {
       hasName: Boolean(profile.fullName),
       hasDateOfBirth: Boolean(profile.dateOfBirth),
@@ -80,7 +100,9 @@ function parseProviderPayload(payload) {
 }
 
 export async function buildSummary(input, adapter = null) {
-  if (typeof adapter === 'function') return adapter(input);
+  const baseline = buildRuleBasedSummary(input);
+  const withSourceCounts = (summary) => ({ ...summary, sourceCounts: baseline.sourceCounts, recordCountsByType: baseline.recordCountsByType });
+  if (typeof adapter === 'function') return withSourceCounts(await adapter(input));
   const endpoint = process.env.MEDIHUMAN_SUMMARY_URL;
   const apiKey = process.env.MEDIHUMAN_SUMMARY_API_KEY;
   if (!endpoint || !apiKey) return buildRuleBasedSummary(input);
@@ -105,7 +127,8 @@ export async function buildSummary(input, adapter = null) {
       }),
     });
     if (!response.ok) return buildRuleBasedSummary(input);
-    return parseProviderPayload(await response.json()) || buildRuleBasedSummary(input);
+    const summary = parseProviderPayload(await response.json());
+    return summary ? withSourceCounts(summary) : baseline;
   } catch {
     return buildRuleBasedSummary(input);
   } finally {

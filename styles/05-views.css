@@ -168,6 +168,11 @@
 .remove-button { background: none; border: 0; color: #7c918b; font-size: 1.35rem; min-width: 44px; min-height: 44px; padding: 5px; border-radius: 8px; }
 .remove-button:hover { color: var(--rose-ink); background: var(--canvas); }
 .medicine-actions { display: flex; align-items: center; gap: 11px; padding-top: 18px; }
+.medicine-section { margin-top: 12px; }
+.medicine-section-title { font-size: .95rem; font-weight: 700; margin: 0 0 2px; color: var(--ink); }
+.medicine-section-meta { font-size: .72rem; color: var(--muted); margin: 0 0 8px; }
+.medicine-detail[data-status="discontinued"] { opacity: .7; }
+.medicine-detail[data-status="completed"] { opacity: .6; }
 .medicine-editor .filter-label { margin-bottom: 12px; }
 .risk-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 18px; }
 .risk-overview { background: #f7f0db; border-color: #e7dcc0; }

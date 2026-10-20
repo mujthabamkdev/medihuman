@@ -503,6 +503,8 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       const patientId = target.dataset.patientId;
       if (!patientId) return;
       state.doctorPatientMenuOpen = false;
+      if (target.dataset.view) state.view = target.dataset.view;
+      state.selectedPatientId = patientId;
       await loadDoctorPatient(patientId);
       document.querySelector('.patient-picker-trigger')?.focus();
       return;

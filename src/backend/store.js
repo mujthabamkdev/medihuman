@@ -1,6 +1,7 @@
 import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { basename, dirname, join } from 'node:path';
+import { migratePrescriptionRecords } from './medical-records.js';
 
 const CURRENT_VERSION = 2;
 const EMPTY_STATE = {
@@ -11,6 +12,7 @@ const EMPTY_STATE = {
   profiles: [],
   medicines: [],
   prescriptions: [],
+  medicalRecords: [],
   reconciliations: [],
   indications: [],
   notifications: [],
@@ -63,7 +65,7 @@ export function normalizeState(value) {
     }
     return normalized;
   });
-  return state;
+  return migratePrescriptionRecords(state);
 }
 
 const SUPABASE_RPC = 'medihuman_commit_normalized_state';
@@ -97,6 +99,15 @@ const NORMALIZED_TABLES = [
       id: 'id', user_id: 'userId', medication_name: 'medicationName', strength: 'strength', dose: 'dose',
       route: 'route', frequency: 'frequency', start_date: 'startDate', end_date: 'endDate',
       instructions: 'instructions', prescriber: 'prescriber', created_at: 'createdAt', updated_at: 'updatedAt',
+    },
+  },
+  {
+    key: 'medicalRecords',
+    table: 'medical_records',
+    fields: {
+      id: 'id', user_id: 'userId', type: 'type', title: 'title', date: 'date', description: 'description',
+      file_ref: 'fileRef', mime_type: 'mimeType', size_bytes: 'sizeBytes', tags: 'tags', source: 'source',
+      created_at: 'createdAt', updated_at: 'updatedAt',
     },
   },
   {

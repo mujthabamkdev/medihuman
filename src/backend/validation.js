@@ -106,3 +106,62 @@ export function listValue(value, field) {
   if (!Array.isArray(value) || value.length > MAX_LIST_ITEMS) throw new HttpError(400, 'INVALID_FIELD', `${field} must be an array of up to ${MAX_LIST_ITEMS} items.`);
   return value.map((item, index) => stringValue(item, `${field}[${index}]`, { required: true, max: 240 }));
 }
+
+export const RECORD_TYPES = Object.freeze([
+  'prescription', 'lab_report', 'imaging', 'clinical_note',
+  'discharge_summary', 'vaccination', 'other',
+]);
+
+export const RECORD_FIELDS = Object.freeze([
+  'type', 'title', 'date', 'description', 'tags', 'source',
+  'fileRef', 'mimeType', 'sizeBytes',
+]);
+
+export function recordType(value) {
+  const type = stringValue(value, 'type', { required: true, max: 40 });
+  if (!RECORD_TYPES.includes(type)) throw new HttpError(400, 'INVALID_FIELD', 'type must be a supported medical record type.');
+  return type;
+}
+
+export function fileRefValue(value) {
+  const fileRef = stringValue(value, 'fileRef', { max: 2_048 });
+  if (!fileRef) return '';
+  let url;
+  try { url = new URL(fileRef); } catch {
+    throw new HttpError(400, 'INVALID_FIELD', 'fileRef must be an HTTPS URL without credentials.');
+  }
+  if (url.protocol !== 'https:' || !/^https:\/\//i.test(fileRef) || !url.hostname || url.username || url.password || /[\s\u0000-\u001f\u007f]/.test(fileRef)) {
+    throw new HttpError(400, 'INVALID_FIELD', 'fileRef must be an HTTPS URL without credentials.');
+  }
+  return fileRef;
+}
+
+export function recordValue(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new HttpError(400, 'INVALID_FIELD', 'record must be an object.');
+  allowedKeys(input, RECORD_FIELDS);
+  const mimeType = stringValue(input.mimeType, 'mimeType', { max: 127 });
+  if (mimeType && !/^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/i.test(mimeType)) {
+    throw new HttpError(400, 'INVALID_FIELD', 'mimeType must be a valid MIME type.');
+  }
+  if (input.sizeBytes !== undefined && (!Number.isSafeInteger(input.sizeBytes) || input.sizeBytes < 0 || input.sizeBytes > 4_500_000)) {
+    throw new HttpError(400, 'INVALID_FIELD', 'sizeBytes must be a nonnegative safe integer up to 4500000 bytes.');
+  }
+  const source = stringValue(input.source === undefined ? 'self' : input.source, 'source', { required: true, max: 20 });
+  if (!['self', 'clinic', 'lab'].includes(source)) throw new HttpError(400, 'INVALID_FIELD', 'source must be self, clinic, or lab.');
+  return {
+    type: recordType(input.type),
+    title: stringValue(input.title, 'title', { required: true, max: 200 }),
+    date: dateValue(stringValue(input.date, 'date', { required: true, max: 10 }), 'date'),
+    description: stringValue(input.description, 'description', { max: 5_000 }),
+    tags: listValue(input.tags === undefined ? [] : input.tags, 'tags'),
+    source,
+    fileRef: fileRefValue(input.fileRef),
+    mimeType,
+    ...(input.sizeBytes === undefined ? {} : { sizeBytes: input.sizeBytes }),
+  };
+}
+
+export function recordListValue(value) {
+  if (!Array.isArray(value) || value.length > MAX_LIST_ITEMS) throw new HttpError(400, 'INVALID_FIELD', `records must be an array of up to ${MAX_LIST_ITEMS} items.`);
+  return value.map((item) => recordValue(item));
+}
