@@ -1,7 +1,7 @@
 import { compareMedicines, lifestyleGuidance } from '../medication-logic.js';
 import { analyzeMedicationSafety, medicationCompositionSummary } from '../clinical-logic.js';
 import { googleAuthUrl } from '../api-client.js';
-import { doctorNavItems, patientNavItems } from './state.js';
+import { doctorNavGroups, patientNavGroups } from './state.js';
 import { brandIcon, button, escapeHtml, googleIcon, initials, notice, svgIcon } from './ui.js';
 
 function findingSeverityLabel(severity) {
@@ -9,6 +9,10 @@ function findingSeverityLabel(severity) {
 }
 
 /** Render all screens from current state. No DOM writes or event wiring live here. */
+function nameInitials(name = '') {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+}
+
 export function createViewRenderer({ state }) {
   function profileLabel() {
     return state.role === 'doctor'
@@ -54,9 +58,10 @@ export function createViewRenderer({ state }) {
   }
 
   function renderSidebar() {
-    const navItems = state.role === 'doctor' ? doctorNavItems : patientNavItems;
+    const navGroups = state.role === 'doctor' ? doctorNavGroups : patientNavGroups;
     const label = profileLabel();
     const profileMeta = state.localOnly ? 'Local workspace' : (state.user?.email || 'Account');
+    const roleCaption = state.role === 'doctor' ? 'Clinician workspace' : 'Patient workspace';
     const unreadCount = state.notifications.filter((notification) => !notification.readAt).length;
     const notificationPanel = state.notificationsOpen ? `<div class="notification-panel" id="notification-panel" role="region" aria-label="Notifications"><div class="notification-panel-heading"><strong>Notifications</strong><span>${unreadCount ? `${unreadCount} unread` : 'All caught up'}</span></div>${state.notifications.length ? `<div class="notification-list">${state.notifications.slice(0, 20).map((notification) => `<button class="notification-item ${notification.readAt ? '' : 'unread'}" data-action="mark-notification-read" data-id="${escapeHtml(notification.id)}"><strong>${escapeHtml(notification.title)}</strong><span>${escapeHtml(notification.message)}</span><small>${escapeHtml(notification.createdAt ? new Date(notification.createdAt).toLocaleDateString() : 'Just now')}</small></button>`).join('')}</div>` : '<p class="notification-empty">No notifications yet.</p>'}</div>` : '';
      const profileMenu = state.profileMenuOpen ? `<div class="profile-menu" id="profile-menu" role="menu"><div class="profile-menu-identity"><strong>${escapeHtml(label)}</strong><small>${escapeHtml(profileMeta)}</small></div>${state.mobileMenuOpen ? '' : `<button class="profile-menu-item" data-action="logout" role="menuitem"><span class="nav-icon">${svgIcon('signout')}</span><span>${state.localOnly ? 'Exit local mode' : 'Sign out'}</span></button>`}</div>` : '';
@@ -64,8 +69,15 @@ export function createViewRenderer({ state }) {
     const patientSubmenuOpen = state.patientMenuOpen;
     const patientActive = state.view === 'patient' || state.view === 'lifestyle';
     const patientGroup = state.role === 'patient' ? `<div class="nav-group ${patientSubmenuOpen ? 'open' : ''}"><button class="nav-item nav-parent ${patientActive ? 'active' : ''}" data-action="toggle-patient-menu" aria-expanded="${patientSubmenuOpen}"><span class="nav-icon">${svgIcon('profile')}</span><span>Patient</span><span class="nav-chevron">${svgIcon('chevron-down')}</span></button>${patientSubmenuOpen ? `<div class="nav-submenu"><button class="nav-subitem ${state.view === 'patient' ? 'active' : ''}" data-action="nav" data-view="patient" data-submenu="patient" aria-current="${state.view === 'patient' ? 'page' : 'false'}">Profile</button><button class="nav-subitem ${state.view === 'lifestyle' ? 'active' : ''}" data-action="nav" data-view="lifestyle" data-submenu="patient" aria-current="${state.view === 'lifestyle' ? 'page' : 'false'}">Support</button></div>` : ''}</div>` : '';
-    const navMarkup = `${patientGroup}${navItems.map((item) => navItem(item)).join('')}`;
-    return `<header class="sidebar workspace-header workspace-nav${state.mobileMenuOpen ? ' open' : ''}" id="sidebar"><div class="sidebar-head workspace-brand"><a class="brand" href="/" aria-label="MediHuman home"><span class="brand-mark">${brandIcon()}</span>MediHuman</a><button class="close-menu" data-action="toggle-menu" aria-label="Close navigation">×</button></div><nav class="main-nav primary-nav section-nav" aria-label="Main navigation">${navMarkup}</nav><div class="sidebar-bottom workspace-controls"><div class="notification-menu-wrap"><button class="notification-trigger" data-action="toggle-notifications" aria-label="Open notifications" aria-expanded="${state.notificationsOpen}" aria-controls="notification-panel"><span class="nav-icon">${svgIcon('bell')}</span>${unreadCount ? `<span class="notification-count">${unreadCount > 99 ? '99+' : unreadCount}</span>` : ''}</button>${notificationPanel}</div><button class="nav-item" data-action="privacy"><span class="nav-icon">${svgIcon('privacy')}</span><span>Privacy and acknowledgments</span></button><button class="mobile-sidebar-logout nav-item" data-action="logout"><span class="nav-icon">${svgIcon('signout')}</span><span>${state.localOnly ? 'Exit local mode' : 'Sign out'}</span></button><div class="profile-menu-wrap"><button class="profile-trigger" data-action="toggle-profile-menu" aria-label="Open profile menu" aria-expanded="${state.profileMenuOpen}" aria-controls="profile-menu"><span class="avatar">${escapeHtml(initials(state))}</span></button>${profileMenu}</div></div></header>`;
+    const navSection = (group) => {
+      const body = group.disclosure === 'patient' ? patientGroup : group.items.map((item) => navItem(item)).join('');
+      if (!body) return '';
+      return `<div class="nav-section"><p class="nav-section-label">${escapeHtml(group.label)}</p>${body}</div>`;
+    };
+    const navMarkup = navGroups.map(navSection).join('');
+    const brandBlock = `<div class="sidebar-head workspace-brand"><a class="brand" href="/" aria-label="MediHuman home"><span class="brand-mark">${brandIcon()}</span>MediHuman</a><p class="workspace-brand-caption">${escapeHtml(roleCaption)}</p><button class="close-menu" data-action="toggle-menu" aria-label="Close navigation">×</button></div>`;
+    const controls = `<div class="sidebar-bottom workspace-controls"><div class="notification-menu-wrap"><button class="notification-trigger" data-action="toggle-notifications" aria-label="Open notifications" aria-expanded="${state.notificationsOpen}" aria-controls="notification-panel"><span class="nav-icon">${svgIcon('bell')}</span><span class="notification-label">Notifications</span>${unreadCount ? `<span class="notification-count">${unreadCount > 99 ? '99+' : unreadCount}</span>` : ''}</button>${notificationPanel}</div><button class="nav-item" data-action="privacy" aria-label="Privacy and acknowledgments"><span class="nav-icon">${svgIcon('privacy')}</span><span>Privacy</span></button><button class="mobile-sidebar-logout nav-item" data-action="logout"><span class="nav-icon">${svgIcon('signout')}</span><span>${state.localOnly ? 'Exit local mode' : 'Sign out'}</span></button><div class="profile-menu-wrap workspace-account"><button class="profile-trigger" data-action="toggle-profile-menu" aria-label="Open profile menu" aria-expanded="${state.profileMenuOpen}" aria-controls="profile-menu"><span class="avatar">${escapeHtml(initials(state))}</span><span class="workspace-account-copy"><strong>${escapeHtml(label)}</strong><small>${escapeHtml(profileMeta)}</small></span></button>${profileMenu}</div></div>`;
+    return `<header class="sidebar workspace-header workspace-nav${state.mobileMenuOpen ? ' open' : ''}" id="sidebar">${brandBlock}<nav class="main-nav primary-nav section-nav" aria-label="Main navigation">${navMarkup}</nav>${controls}</header>`;
   }
 
   function renderShell() {
@@ -236,7 +248,19 @@ export function createViewRenderer({ state }) {
   function requestStatusPill(status) { const labels = { approved: 'Approved', pending: 'Pending', rejected: 'Rejected', revoked: 'Revoked' }; return `<span class="status-pill ${status === 'approved' ? 'pill-green' : status === 'pending' ? 'pill-warn' : 'pill-neutral'}">${escapeHtml(labels[status] || status)}</span>`; }
   function requestRows(requests, perspective = 'patient') {
     if (!requests.length) return `<div class="empty-state compact"><span class="empty-icon">${svgIcon('care-team')}</span><p>No access requests yet.</p></div>`;
-    return `<div class="access-request-list">${requests.map((request) => `<article class="access-request"><div><strong>${escapeHtml(perspective === 'doctor' ? (request.patientId || 'Patient') : (request.doctor?.displayName || 'Doctor'))}</strong><span>${perspective === 'doctor' ? 'Private patient ID · ' : ''}${request.requestedAt ? new Date(request.requestedAt).toLocaleDateString() : 'Local request'}</span></div><div class="access-request-actions">${requestStatusPill(request.status)}${perspective === 'doctor' && request.status === 'pending' ? button('Cancel', 'cancel-request', 'button button-outline button-small', `data-id="${escapeHtml(request.id)}"`) : ''}${perspective === 'patient' && request.status === 'pending' ? `${button('Approve', 'care-request', 'button button-primary button-small', `data-id="${escapeHtml(request.id)}" data-status="approved"`)}${button('Reject', 'care-request', 'button button-outline button-small', `data-id="${escapeHtml(request.id)}" data-status="rejected"`)}` : ''}${perspective === 'patient' && request.status === 'approved' ? button('Revoke', 'care-request', 'button button-outline button-small', `data-id="${escapeHtml(request.id)}" data-status="revoked"`) : ''}</div></article>`).join('')}</div>`;
+    return `<div class="access-request-list">${requests.map((request) => {
+      const doctorView = perspective === 'doctor';
+      const patientName = doctorView ? (request.patientName || '') : '';
+      const label = doctorView ? (patientName || request.patientId || 'Patient') : (request.doctor?.displayName || 'Doctor');
+      const openable = doctorView && request.status === 'approved' && Boolean(request.patientId);
+      const title = openable
+        ? `<button type="button" class="access-request-link" data-action="doctor-open-patient" data-patient-id="${escapeHtml(request.patientId)}" data-view="doctor-patients">${escapeHtml(label)}</button>`
+        : `<strong>${escapeHtml(label)}</strong>`;
+      const detail = doctorView
+        ? `${escapeHtml(request.patientId || '')} · ${request.requestedAt ? new Date(request.requestedAt).toLocaleDateString() : 'Local request'}`
+        : (request.requestedAt ? new Date(request.requestedAt).toLocaleDateString() : 'Local request');
+      return `<article class="access-request ${openable ? 'is-openable' : ''}"><div class="access-request-identity">${openable ? `<span class="access-request-avatar" aria-hidden="true">${escapeHtml(nameInitials(patientName))}</span>` : ''}<div>${title}<span>${detail}</span></div></div><div class="access-request-actions">${requestStatusPill(request.status)}${perspective === 'doctor' && request.status === 'pending' ? button('Cancel', 'cancel-request', 'button button-outline button-small', `data-id="${escapeHtml(request.id)}"`) : ''}${perspective === 'patient' && request.status === 'pending' ? `${button('Approve', 'care-request', 'button button-primary button-small', `data-id="${escapeHtml(request.id)}" data-status="approved"`)}${button('Reject', 'care-request', 'button button-outline button-small', `data-id="${escapeHtml(request.id)}" data-status="rejected"`)}` : ''}${perspective === 'patient' && request.status === 'approved' ? button('Revoke', 'care-request', 'button button-outline button-small', `data-id="${escapeHtml(request.id)}" data-status="revoked"`) : ''}</div></article>`;
+    }).join('')}</div>`;
   }
 
   function renderCareTeam() {
@@ -277,10 +301,23 @@ export function createViewRenderer({ state }) {
 
   function renderDoctorPatientsLegacy() {
     const approved = state.doctorRequests.filter((request) => request.status === 'approved');
-    const selected = approved.find((request) => request.patientId === state.selectedPatientId) || approved[0];
-    if (selected && state.selectedPatientId !== selected.patientId) state.selectedPatientId = selected.patientId;
+    const query = (state.patientSearch || '').toLowerCase();
+    const filtered = approved.filter((request) => {
+      const record = state.doctorRecords[request.patientId];
+      const name = (request.patientName || record?.profile?.fullName || '').toLowerCase();
+      const id = request.patientId.toLowerCase();
+      return !query || name.includes(query) || id.includes(query);
+    });
+    const selected = state.selectedPatientId ? filtered.find((request) => request.patientId === state.selectedPatientId) : null;
     const records = selected ? state.doctorRecords[selected.patientId] : null;
-    return `<div class="section-intro"><p class="eyebrow">APPROVED RECORDS</p><h2 class="page-title">Patient ID records</h2><p>Only records approved by the patient are shown. Confirm each section with the patient before using it in clinical care.</p></div>${approved.length ? `<section class="card patient-selector"><label>Patient ID<select id="doctor-patient-select" data-action="doctor-select-patient">${approved.map((request) => `<option value="${escapeHtml(request.patientId)}" ${request.patientId === state.selectedPatientId ? 'selected' : ''}>${escapeHtml(request.patientId)}</option>`).join('')}</select></label>${button('Refresh patient record', 'doctor-refresh-patient', 'button button-outline')}</section>${records ? renderDoctorRecord(records, selected.patientId) : `<section class="card empty-state"><p>Choose a patient to load approved records.</p></section>`}` : `<section class="card empty-state"><span class="empty-icon">${svgIcon('care-team')}</span><h3>No approved patients</h3><p>Send an access request from your dashboard. Patient approval is required before records can be viewed.</p>${button('Back to dashboard', 'nav', 'button button-primary', 'data-view="dashboard"')}</section>`}`;
+    const patientRows = filtered.map((request) => {
+      const record = state.doctorRecords[request.patientId];
+      const name = request.patientName || record?.profile?.fullName || '';
+      const isSelected = request.patientId === selected?.patientId;
+      return `<button type="button" class="approved-patient ${isSelected ? 'active' : ''}" data-action="doctor-open-patient" data-patient-id="${escapeHtml(request.patientId)}" aria-current="${isSelected ? 'true' : 'false'}"><span class="approved-patient-avatar" aria-hidden="true">${name ? escapeHtml(nameInitials(name)) : svgIcon('profile')}</span><span class="approved-patient-copy"><strong>${name ? escapeHtml(name) : 'Approved patient record'}</strong><small>${escapeHtml(request.patientId)}</small></span><span class="approved-patient-go" aria-hidden="true">${svgIcon('arrow')}</span></button>`;
+    }).join('');
+    const selector = `<section class="card approved-patient-panel"><div class="card-heading"><div><p class="card-kicker">APPROVED ACCESS</p><h3>Patients with approved access</h3><p class="muted">Select a patient to open their approved record.</p></div><label class="filter-label"><span class="sr-only">Search patients</span><input id="patient-search" value="${escapeHtml(state.patientSearch || '')}" placeholder="Search by name or patient ID"></label></div><div class="approved-patient-list">${patientRows || '<div class="empty-state compact"><p>No patients match your search.</p></div>'}</div></section>`;
+    return `<div class="section-intro"><p class="eyebrow">APPROVED RECORDS</p><h2 class="page-title">Patient records</h2><p>Only records approved by the patient are shown. Confirm each section with the patient before using it in clinical care.</p></div>${filtered.length ? `${selector}${records ? renderDoctorRecord(records, selected.patientId) : `<section class="card empty-state"><p>Select a patient to load their approved record.</p></section>`}` : `<section class="card empty-state"><span class="empty-icon">${svgIcon('care-team')}</span><h3>No approved patients</h3><p>Send an access request from your dashboard. Patient approval is required before records can be viewed.</p>${button('Back to dashboard', 'nav', 'button button-primary', 'data-view="dashboard"')}</section>`}`;
   }
 
   function renderDoctorPatients() {

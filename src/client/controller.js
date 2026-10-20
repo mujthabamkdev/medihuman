@@ -489,7 +489,10 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       render();
       return;
     }
-    if (action === 'nav') { state.view = target.dataset.view; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; state.mobileMenuOpen = false; render(); return; }
+    if (action === 'nav') {
+      state.view = target.dataset.view; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; state.mobileMenuOpen = false; render();
+      return;
+    }
     if (action === 'privacy') { state.view = 'privacy'; state.profileMenuOpen = false; state.notificationsOpen = false; state.mobileMenuOpen = false; render(); return; }
     if (action === 'logout') { if (state.localOnly) { state.localExitPrompt = true; state.profileMenuOpen = false; state.notificationsOpen = false; state.mobileMenuOpen = false; render(); return; } stopCamera(); try { await api.logout(); } catch { /* clear UI regardless */ } setLocalMode(false); state.screen = 'auth'; state.user = null; state.localOnly = false; state.role = state.authRole; state.view = 'dashboard'; state.notificationsOpen = false; state.mobileMenuOpen = false; render(); return; }
     if (action === 'local-exit-preserve') { exitLocal(false); return; }
@@ -512,15 +515,23 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'delete-reconciliation') { if (!window.confirm('Remove this reconciliation record?')) return; if (state.localOnly) { state.reconciliations = state.reconciliations.filter((item) => item.id !== target.dataset.id); saveLocal(state); } else { await api.deleteReconciliation(target.dataset.id); state.reconciliations = state.reconciliations.filter((item) => item.id !== target.dataset.id); } render(); return; }
     if (action === 'care-request') { await updateCareRequest(target.dataset.id, target.dataset.status); return; }
     if (action === 'cancel-request') { await cancelRequest(target.dataset.id); return; }
-    if (action === 'doctor-refresh-patient') { await loadDoctorPatient(); return; }
+    if (action === 'cancel-request') { await cancelRequest(target.dataset.id); return; }
+    if (action === 'doctor-open-patient') {
+      const patientId = target.dataset.patientId;
+      if (!patientId) return;
+      if (target.dataset.view) state.view = target.dataset.view;
+      state.selectedPatientId = patientId;
+      await loadDoctorPatient(patientId);
+      return;
+    }
     if (action === 'remove-question') { if (!window.confirm('Remove this question?')) return; state.questions.splice(Number(target.dataset.index), 1); saveLocal(state); render(); return; }
     if (action === 'save-consent') { state.consent = Boolean(document.querySelector('#consent-toggle')?.checked); saveLocal(state); if (!state.localOnly) await api.saveConsent(state.consent); render(); return; }
     if (action === 'clear-data') { if (window.confirm('Clear this browser’s MediHuman workspace?')) { clearLocalWorkspace(); saveLocal(state); render(); } }
   });
 
    root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; try { if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'password-reset') await submitPasswordReset(form); if (form.dataset.form === 'mfa') await submitMfa(form); if (form.dataset.form === 'mfa-enrollment') await submitMfaEnrollment(form); if (form.dataset.form === 'prescription-edit') await submitPrescriptionEdit(form); if (form.dataset.form === 'indication-edit') await submitIndicationEdit(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); if (form.dataset.form === 'doctor-indication') await submitIndication(form); } catch (error) { state.authError = error.message; render(); } });
-  root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); if (event.target.id === 'medicine-filter') { state.medicineFilter = event.target.value; render(); } });
-  root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); if (event.target.id === 'doctor-patient-select') loadDoctorPatient(event.target.value); });
+  root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); if (event.target.id === 'medicine-filter') { state.medicineFilter = event.target.value; render(); } if (event.target.id === 'patient-search') { state.patientSearch = event.target.value; state.selectedPatientId = ''; render(); } });
+  root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); });
   root.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       if (state.localExitPrompt) { state.localExitPrompt = false; render(); return; }

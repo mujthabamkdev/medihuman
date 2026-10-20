@@ -19,6 +19,36 @@
 .access-request strong { font-size: .8rem; overflow-wrap: anywhere; }
 .access-request > div > span { color: var(--muted); font-size: .7rem; margin-top: 4px; }
 .access-request-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; flex-wrap: wrap; }
+.access-request-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.access-request-avatar { width: 36px; height: 36px; flex: none; border-radius: 11px; display: grid; place-items: center; background: var(--deep); color: #fff; font-size: .75rem; font-weight: 700; }
+.access-request-link {
+  border: 0; background: none; padding: 0; font: inherit; font-size: .8rem; font-weight: 700;
+  color: var(--ink); text-align: left; cursor: pointer; text-decoration: underline;
+  text-decoration-color: var(--line-strong); text-underline-offset: 3px; overflow-wrap: anywhere;
+}
+.access-request-link:hover,
+.access-request-link:focus-visible { color: var(--teal-dark); text-decoration-color: var(--teal); outline: none; }
+.access-request.is-openable:hover .access-request-avatar { background: var(--teal); }
+
+/* Approved patient picker in the clinician workspace. */
+.approved-patient-panel { margin-bottom: 20px; }
+.approved-patient-list { display: grid; gap: 2px; }
+.approved-patient {
+  width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer;
+  border: 0; background: none; border-radius: 12px; padding: 10px 12px; color: var(--ink-soft);
+}
+.approved-patient:hover { background: var(--canvas); }
+.approved-patient.active { background: var(--mint); }
+.approved-patient-avatar { width: 36px; height: 36px; flex: none; border-radius: 11px; display: grid; place-items: center; background: var(--deep); color: #fff; font-size: .75rem; font-weight: 700; }
+.approved-patient.active .approved-patient-avatar { background: var(--teal); }
+.approved-patient-avatar svg { width: 17px; height: 17px; }
+.approved-patient-copy { min-width: 0; flex: 1; display: grid; gap: 3px; }
+.approved-patient-copy strong { color: var(--ink); font-size: .875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.approved-patient-copy small { color: var(--muted); font-family: var(--font-mono); font-size: .6875rem; overflow-wrap: anywhere; }
+.approved-patient-go { flex: none; display: grid; place-items: center; color: var(--muted); }
+.approved-patient-go svg { width: 15px; height: 15px; }
+.approved-patient:hover .approved-patient-go,
+.approved-patient.active .approved-patient-go { color: var(--teal); }
 .patient-selector { display: flex; align-items: end; gap: 12px; max-width: 1200px; margin-bottom: 18px; }
 .patient-selector label { min-width: 0; display: grid; gap: 7px; flex: 1; color: var(--ink-soft); font-size: .76rem; font-weight: 700; }
 .patient-selector select { width: 100%; min-width: 0; padding: 11px; border: 1px solid #cbdcd6; border-radius: 9px; background: #fbfdfc; color: var(--ink); }

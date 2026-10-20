@@ -25,10 +25,13 @@ export function publicReconciliation(reconciliation) {
   return safeReconciliation;
 }
 
-export function publicAccessRequest(request, patient, doctor) {
+export function publicAccessRequest(request, patient, doctor, profile = null) {
   return {
     id: request.id,
     patientId: patient?.patientId,
+    // A patient is only named once access is approved. Pending and revoked
+    // requests stay anonymous and are handled through the opaque patient ID.
+    patientName: request.status === 'approved' ? (profile?.fullName || '') : '',
     doctor: doctor ? publicDoctor(doctor.doctorProfile) : undefined,
     doctorId: doctor?.id,
     status: request.status,

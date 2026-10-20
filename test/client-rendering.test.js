@@ -181,6 +181,7 @@ test('notification panel and doctor indication form expose stable hooks', () => 
   assert.match(patientMarkup, /Patient profile updated/);
 
   const doctorState = { ...populatedState(), role: 'doctor', screen: 'shell', view: 'doctor-patients', localOnly: true };
+  doctorState.selectedPatientId = 'fixture-patient-approved';
   const doctorMarkup = createViewRenderer({ state: doctorState }).renderShell();
   assert.match(doctorMarkup, /data-form="doctor-indication"/);
   assert.match(doctorMarkup, /Add an indication/);

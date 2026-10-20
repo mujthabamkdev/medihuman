@@ -37,7 +37,11 @@ export async function handleAccessRoute(ctx) {
     requireVerifiedDoctor(current);
     const requests = await dataStore.read((state) => state.accessRequests
       .filter((item) => item.doctorUserId === current.user.id)
-      .map((item) => publicAccessRequest(item, state.users.find((user) => user.id === item.patientUserId), current.user)));
+      .map((item) => {
+        const patient = state.users.find((user) => user.id === item.patientUserId);
+        const profile = state.profiles.find((entry) => entry.userId === item.patientUserId);
+        return publicAccessRequest(item, patient, current.user, profile);
+      }));
     sendJson(response, 200, { requests });
     return true;
   }
