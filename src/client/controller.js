@@ -14,12 +14,17 @@ import { escapeHtml, notice } from './ui.js';
 
 /** Orchestrate browser events, API calls, persistence, and camera/OCR lifecycle. */
 export function createController({ root, state, views, ocr = createOcrAdapter() }) {
+  let previousView = null;
   function render() {
     const focusedId = globalThis.document?.activeElement?.id;
+    const viewChanged = previousView !== null && previousView !== state.view;
+    previousView = state.view;
     root.innerHTML = state.screen === 'auth' ? views.renderAuth() : views.renderShell();
     bindCamera();
     if (state.localExitPrompt) {
       globalThis.document?.getElementById('local-exit-keep')?.focus();
+    } else if (viewChanged && state.screen !== 'auth') {
+      globalThis.document?.querySelector('#main-content h1')?.focus();
     } else if (focusedId) {
       globalThis.document?.getElementById(focusedId)?.focus();
     }
@@ -446,12 +451,14 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     stopCamera();
     if (clear) clearLocalWorkspace();
     setLocalMode(false);
-    state.localExitPrompt = false; state.screen = 'auth'; state.localOnly = false; state.user = null; state.role = state.authRole; state.view = 'dashboard'; state.profileMenuOpen = false; state.notificationsOpen = false; state.patientMenuOpen = false; state.mobileMenuOpen = false;
+    state.localExitPrompt = false; state.screen = 'auth'; state.localOnly = false; state.user = null; state.role = state.authRole; state.view = 'dashboard'; state.profileMenuOpen = false; state.notificationsOpen = false; state.patientMenuOpen = false; state.doctorPatientMenuOpen = false; state.mobileMenuOpen = false;
     render();
   }
 
   root.addEventListener('click', async (event) => {
-    const target = event.target.closest('[data-action]'); if (!target) return; const action = target.dataset.action;
+    const target = event.target.closest('[data-action]');
+    if (state.doctorPatientMenuOpen && !event.target.closest('.patient-picker')) { state.doctorPatientMenuOpen = false; render(); }
+    if (!target) return; const action = target.dataset.action;
     if (action === 'auth-login' || action === 'auth-register') { state.authMode = action === 'auth-register' ? 'register' : 'login'; render(); return; }
     if (action === 'clear-error') { clearError(); render(); return; }
     if (action === 'auth-recover') { state.authMode = 'recover'; state.authError = ''; render(); return; }
@@ -470,6 +477,23 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'toggle-menu') { state.mobileMenuOpen = !state.mobileMenuOpen; render(); return; }
     if (action === 'toggle-profile-menu') { state.profileMenuOpen = !state.profileMenuOpen; state.notificationsOpen = false; render(); return; }
     if (action === 'toggle-patient-menu') { state.patientMenuOpen = !state.patientMenuOpen; render(); return; }
+    if (action === 'toggle-doctor-patient-menu') {
+      state.doctorPatientMenuOpen = !state.doctorPatientMenuOpen;
+      render();
+      if (state.doctorPatientMenuOpen) {
+        const options = [...document.querySelectorAll('.patient-picker-option')];
+        (options.find((option) => option.getAttribute('aria-selected') === 'true') || options[0])?.focus();
+      } else document.querySelector('.patient-picker-trigger')?.focus();
+      return;
+    }
+    if (action === 'doctor-select-patient') {
+      const patientId = target.dataset.patientId;
+      if (!patientId) return;
+      state.doctorPatientMenuOpen = false;
+      await loadDoctorPatient(patientId);
+      document.querySelector('.patient-picker-trigger')?.focus();
+      return;
+    }
     if (action === 'toggle-notifications') {
       state.notificationsOpen = !state.notificationsOpen;
       state.profileMenuOpen = false;
@@ -489,11 +513,8 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       render();
       return;
     }
-    if (action === 'nav') {
-      state.view = target.dataset.view; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; state.mobileMenuOpen = false; render();
-      return;
-    }
-    if (action === 'privacy') { state.view = 'privacy'; state.profileMenuOpen = false; state.notificationsOpen = false; state.mobileMenuOpen = false; render(); return; }
+    if (action === 'nav') { state.view = target.dataset.view; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; state.doctorPatientMenuOpen = false; state.mobileMenuOpen = false; render(); return; }
+    if (action === 'privacy') { state.view = 'privacy'; state.profileMenuOpen = false; state.notificationsOpen = false; state.doctorPatientMenuOpen = false; state.mobileMenuOpen = false; render(); return; }
     if (action === 'logout') { if (state.localOnly) { state.localExitPrompt = true; state.profileMenuOpen = false; state.notificationsOpen = false; state.mobileMenuOpen = false; render(); return; } stopCamera(); try { await api.logout(); } catch { /* clear UI regardless */ } setLocalMode(false); state.screen = 'auth'; state.user = null; state.localOnly = false; state.role = state.authRole; state.view = 'dashboard'; state.notificationsOpen = false; state.mobileMenuOpen = false; render(); return; }
     if (action === 'local-exit-preserve') { exitLocal(false); return; }
     if (action === 'local-exit-clear') { exitLocal(true); return; }
@@ -515,27 +536,45 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'delete-reconciliation') { if (!window.confirm('Remove this reconciliation record?')) return; if (state.localOnly) { state.reconciliations = state.reconciliations.filter((item) => item.id !== target.dataset.id); saveLocal(state); } else { await api.deleteReconciliation(target.dataset.id); state.reconciliations = state.reconciliations.filter((item) => item.id !== target.dataset.id); } render(); return; }
     if (action === 'care-request') { await updateCareRequest(target.dataset.id, target.dataset.status); return; }
     if (action === 'cancel-request') { await cancelRequest(target.dataset.id); return; }
-    if (action === 'cancel-request') { await cancelRequest(target.dataset.id); return; }
-    if (action === 'doctor-open-patient') {
-      const patientId = target.dataset.patientId;
-      if (!patientId) return;
-      if (target.dataset.view) state.view = target.dataset.view;
-      state.selectedPatientId = patientId;
-      await loadDoctorPatient(patientId);
-      return;
-    }
+    if (action === 'doctor-refresh-patient') { await loadDoctorPatient(); return; }
     if (action === 'remove-question') { if (!window.confirm('Remove this question?')) return; state.questions.splice(Number(target.dataset.index), 1); saveLocal(state); render(); return; }
     if (action === 'save-consent') { state.consent = Boolean(document.querySelector('#consent-toggle')?.checked); saveLocal(state); if (!state.localOnly) await api.saveConsent(state.consent); render(); return; }
     if (action === 'clear-data') { if (window.confirm('Clear this browser’s MediHuman workspace?')) { clearLocalWorkspace(); saveLocal(state); render(); } }
   });
 
    root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; try { if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'password-reset') await submitPasswordReset(form); if (form.dataset.form === 'mfa') await submitMfa(form); if (form.dataset.form === 'mfa-enrollment') await submitMfaEnrollment(form); if (form.dataset.form === 'prescription-edit') await submitPrescriptionEdit(form); if (form.dataset.form === 'indication-edit') await submitIndicationEdit(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); if (form.dataset.form === 'doctor-indication') await submitIndication(form); } catch (error) { state.authError = error.message; render(); } });
-  root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); if (event.target.id === 'medicine-filter') { state.medicineFilter = event.target.value; render(); } if (event.target.id === 'patient-search') { state.patientSearch = event.target.value; state.selectedPatientId = ''; render(); } });
+  root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); if (event.target.id === 'medicine-filter') { state.medicineFilter = event.target.value; render(); } });
   root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); });
   root.addEventListener('keydown', (event) => {
+    if (state.doctorPatientMenuOpen && event.key === 'Escape') { state.doctorPatientMenuOpen = false; render(); globalThis.document?.querySelector('.patient-picker-trigger')?.focus(); return; }
+    if (state.doctorPatientMenuOpen && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      const options = [...globalThis.document?.querySelectorAll('.patient-picker-option') || []];
+      if (!options.length) return;
+      const current = options.indexOf(globalThis.document.activeElement);
+      const next = event.key === 'Home' ? 0
+        : event.key === 'End' ? options.length - 1
+          : event.key === 'ArrowDown' ? (current < 0 ? 0 : (current + 1) % options.length)
+            : (current <= 0 ? options.length - 1 : current - 1);
+      event.preventDefault();
+      options[next].focus();
+      return;
+    }
     if (event.key === 'Escape') {
       if (state.localExitPrompt) { state.localExitPrompt = false; render(); return; }
       if (state.mobileMenuOpen || state.patientMenuOpen || state.profileMenuOpen || state.notificationsOpen) { state.mobileMenuOpen = false; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; render(); }
+    }
+    if (event.key === 'Tab') {
+      const container = state.localExitPrompt
+        ? globalThis.document?.querySelector('.local-exit-dialog')
+        : state.mobileMenuOpen ? globalThis.document?.querySelector('#sidebar') : null;
+      if (!container) return;
+      const items = [...container.querySelectorAll('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+        .filter((element) => !element.disabled && element.getClientRects().length);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && globalThis.document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && globalThis.document.activeElement === last) { event.preventDefault(); first.focus(); }
     }
   });
 

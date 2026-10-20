@@ -15,6 +15,7 @@ const ICON_PATHS = {
   privacy: '<path d="M12 3.5 19 6v5.2c0 4.6-2.8 7.7-7 9.3-4.2-1.6-7-4.7-7-9.3V6z"/><path d="m8.8 12 2.1 2.1 4.3-4.3"/>',
   bell: '<path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"/><path d="M10 21h4"/>',
   'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   signout: '<path d="M10 5H5.5a1.5 1.5 0 0 0-1.5 1.5v11A1.5 1.5 0 0 0 5.5 19H10"/><path d="M14 8l4 4-4 4M9 12h9"/>',
   spark: '<path d="m12 3 1.5 6.5L20 12l-6.5 2.5L12 21l-1.5-6.5L4 12l6.5-2.5z"/>',
   document: '<path d="M7 3.5h7l4 4V20.5H7a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2Z"/><path d="M14 3.5v4h4M8.5 12h5M8.5 15h5"/>',

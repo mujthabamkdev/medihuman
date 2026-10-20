@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "preferences": {
+    "style_preset.product-launch-video": {
+      "value": "blue-professional",
+      "confirmed_in": [
+        "medihuman-buildathon"
+      ],
+      "updated_at": "2026-10-20T12:24:35.124Z"
+    }
+  },
+  "sightings": {}
+}

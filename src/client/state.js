@@ -2,29 +2,14 @@ export const LOCAL_KEY = 'medihuman.local-workspace.v3';
 export const LOCAL_MODE_KEY = 'medihuman.mode';
 export const LOCAL_TTL_MS = 30 * 60 * 1000;
 
-// Navigation is grouped so the desktop rail can present labelled sections
-// while the compact bar keeps the same items in one row.
-export const patientNavGroups = [
-  {
-    label: 'Workspace',
-    items: [['dashboard', 'home', 'Today'], ['medicines', 'medicines', 'Medicines'], ['scan', 'scan', 'Scan prescription']],
-  },
-  { label: 'My record', items: [], disclosure: 'patient' },
-  {
-    label: 'Care',
-    items: [['care-team', 'care-team', 'Clinician access'], ['doctors', 'questions', 'Doctor discussion']],
-  },
+export const patientNavItems = [
+  ['dashboard', 'home', 'Today'], ['medicines', 'medicines', 'Medicines'],
+  ['scan', 'scan', 'Scan prescription'], ['care-team', 'care-team', 'Clinician access'],
+  ['doctors', 'questions', 'Doctor discussion'],
 ];
-
-export const doctorNavGroups = [
-  {
-    label: 'Workspace',
-    items: [['dashboard', 'home', 'Doctor dashboard'], ['doctor-patients', 'care-team', 'Approved patients']],
-  },
+export const doctorNavItems = [
+  ['dashboard', 'home', 'Doctor dashboard'], ['doctor-patients', 'care-team', 'Approved patients'],
 ];
-
-export const patientNavItems = patientNavGroups.flatMap((group) => group.items);
-export const doctorNavItems = doctorNavGroups.flatMap((group) => group.items);
 
 export function emptyProfile() { return { fullName: '', dateOfBirth: '', allergies: '', conditions: '' }; }
 
@@ -34,7 +19,7 @@ export function createState() {
     profile: emptyProfile(), medicines: [], prescriptions: [], reconciliations: [], indications: [], notifications: [],
     prescriptionText: '', dispensedText: '', ocrText: '', scanSource: '', consent: false,
     doctorProfile: { displayName: '', specialty: '', registrationId: '', organization: '', verificationStatus: 'pending', verified: false },
-    patientRequests: [], doctorRequests: [], doctorRecords: {}, selectedPatientId: '', patientSearch: '', localExitPrompt: false, profileMenuOpen: false, notificationsOpen: false, patientMenuOpen: false, mobileMenuOpen: false, requesting: false,
+    patientRequests: [], doctorRequests: [], doctorRecords: {}, selectedPatientId: '', localExitPrompt: false, profileMenuOpen: false, notificationsOpen: false, patientMenuOpen: false, doctorPatientMenuOpen: false, mobileMenuOpen: false, requesting: false,
     cameraStream: null, cameraError: '', questions: [
       { title: 'What should I ask before my dose is changed?', meta: 'Starter question · not medical advice' },
       { title: 'How can I make my medication routine easier?', meta: 'Starter question · not medical advice' },

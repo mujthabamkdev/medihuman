@@ -10,7 +10,7 @@ audience: buildathon judges and healthcare product reviewers
 length: 90s
 angle: problem-to-proof product walkthrough
 voice: professional neutral
-style_preset: clean-corporate
+style_preset: blue-professional
 ---
 
 ## Intent

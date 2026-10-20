@@ -1,15 +1,16 @@
 /* Responsive corrections are last so breakpoint behavior always wins. */
-@media (max-width: 991px) {
+@media (max-width: 1119px) {
   .app-shell { flex-direction: row; }
   .auth-layout { grid-template-columns: 1fr; }
-  .auth-brand-panel { min-height: 330px; padding: 28px; }
-  .auth-intro { margin: 55px 0 28px; }
-  .auth-intro h1 { font-size: 3rem; }
+  .auth-brand-panel { min-height: 0; padding: 22px 28px 26px; }
+  .auth-intro { margin: 22px 0 4px; }
+  .auth-intro h1 { font-size: 2rem; margin-bottom: 0; max-width: 26ch; }
+  .auth-intro > p:not(.eyebrow), .auth-intro > .eyebrow { display: none; }
   .auth-quote { display: none; }
   .sidebar { width: 252px; min-height: 100vh; min-height: 100dvh; height: 100vh; height: 100dvh; position: fixed; inset: 0 auto 0 0; z-index: 20; display: flex; flex-direction: column; gap: 0; overflow-y: auto; padding: calc(25px + env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom)); transform: translateX(-105%); transition: transform .25s; box-shadow: 18px 0 40px rgba(18, 60, 58, .16); }
   .sidebar.workspace-nav { align-items: stretch; flex-wrap: nowrap; }
-  .mobile-nav-trigger { display: block; position: fixed; top: calc(12px + env(safe-area-inset-top)); left: calc(14px + env(safe-area-inset-left)); z-index: 40; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); color: var(--ink); padding: 7px 10px; box-shadow: 0 8px 20px rgba(18, 60, 58, .12); font-size: 1.1rem; line-height: 1; }
-  .mobile-nav-scrim { display: block; position: fixed; inset: 0; z-index: 15; background: rgba(18, 48, 42, .2); }
+  .mobile-nav-trigger { display: grid; place-items: center; width: 44px; height: 44px; position: fixed; top: calc(12px + env(safe-area-inset-top)); left: calc(14px + env(safe-area-inset-left)); z-index: 40; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); color: var(--ink); padding: 0; box-shadow: 0 8px 20px rgba(18, 60, 58, .12); font-size: 1.2rem; line-height: 1; }
+  .mobile-nav-scrim { display: block; position: fixed; inset: 0; z-index: 15; background: rgba(18, 48, 42, .35); }
   .sidebar-head { padding: 0 11px 30px; }
   .main-nav { display: grid; align-items: stretch; gap: 5px; }
   .sidebar-bottom { display: flex; flex-direction: column; align-items: stretch; gap: 5px; width: 100%; margin-top: auto; padding-top: 18px; border-top: 1px solid var(--line); }
@@ -32,7 +33,7 @@
   .shell-content { min-height: 100vh; }
   .sidebar > * { flex-shrink: 0; }
   .sidebar.open { transform: translateX(0); }
-  .close-menu { display: block; border: 0; background: none; color: var(--muted); font-size: 1.5rem; }
+  .close-menu { display: grid; place-items: center; width: 44px; height: 44px; border: 0; background: none; color: var(--muted); font-size: 1.5rem; }
   .sidebar .mobile-menu { display: none; }
   .topbar { gap: 12px; }
   .secure-label { display: none; }
@@ -55,7 +56,9 @@
   .access-request { align-items: flex-start; flex-direction: column; }
   .access-request-actions { justify-content: flex-start; }
   .patient-selector { align-items: stretch; flex-direction: column; }
+  .patient-picker { flex: none; width: 100%; }
   .workspace-hero { grid-template-columns: 1fr; gap: 36px; min-height: 0; }
+  .content-page[data-role="patient"][data-view="dashboard"] .workspace-hero-panel { display: none; }
   .workspace-hero-panel { min-height: 300px; }
   .workspace-feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .workspace-feature-grid > :first-child { grid-column: span 2; }
@@ -64,14 +67,30 @@
   .camera-stage { height: auto; aspect-ratio: 4 / 3; max-height: 290px; }
 }
 
+@media (min-width: 1120px) and (max-width: 1279px) {
+  .workspace-nav .primary-nav > .nav-item,
+  .workspace-nav .primary-nav > .nav-group { flex: none; }
+  .workspace-nav .primary-nav .nav-icon { display: none; }
+  .workspace-nav .nav-item { padding-right: 9px; padding-left: 9px; }
+}
+
 @media (max-width: 767px) {
-  .auth-card-wrap { padding: 26px 16px 35px; }
+  .auth-card-wrap { padding: 22px 16px 30px; }
   .auth-card { padding: 24px 19px; border-radius: 24px; }
-  .auth-brand-panel { min-height: 255px; }
-  .auth-intro { margin: 45px 0 0; }
-  .auth-intro h1 { font-size: 2.45rem; margin-bottom: 14px; }
-  .auth-intro p:not(.eyebrow) { font-size: .88rem; }
+  .auth-brand-panel { padding: 18px 20px 22px; }
+  .auth-intro { margin: 18px 0 0; }
+  .auth-intro h1 { font-size: 1.7rem; line-height: 1.15; margin-bottom: 0; max-width: 24ch; }
+  .auth-intro p { display: none; }
   .content-page { padding-right: 14px; padding-left: 14px; }
+  .content-page[data-role="patient"][data-view="dashboard"] { display: flex; flex-direction: column; gap: 16px; }
+  .content-page[data-role="patient"][data-view="dashboard"] > * { margin-top: 0; margin-bottom: 0; }
+  .content-page[data-role="patient"][data-view="dashboard"] > .welcome-row { order: 1; }
+  .content-page[data-role="patient"][data-view="dashboard"] > .workspace-hero { order: 2; }
+  .content-page[data-role="patient"][data-view="dashboard"] > .dashboard-grid { order: 3; }
+  .content-page[data-role="patient"][data-view="dashboard"] > .profile-overview { order: 4; }
+  .content-page[data-role="patient"][data-view="dashboard"] > .section-intro { order: 5; }
+  .content-page[data-role="patient"][data-view="dashboard"] .workspace-hero-panel { display: none; }
+  .content-page[data-role="patient"][data-view="dashboard"] .overview-category-card.is-empty { display: none; }
   .topbar { padding: 16px 14px; min-height: 75px; }
   .topbar h1 { font-size: 1.25rem; }
   .page-title { font-size: 2.25rem; }
@@ -112,6 +131,11 @@
   .form-actions { align-items: stretch; flex-direction: column; flex-wrap: wrap; gap: 10px; }
   .form-actions .button { width: 100%; }
   .form-actions .save-note { width: 100%; }
+  .overview-record-list > .overview-record { flex-wrap: wrap; }
+  .overview-record > .form-actions { flex-direction: row; margin-left: auto; }
+  .overview-record > .form-actions .button { width: auto; }
+  .indication-editor .form-actions { align-items: center; flex-direction: row; flex-wrap: wrap; }
+  .indication-editor .form-actions .button { width: auto; flex: 0 0 auto; }
   .reconcile-actions .button,
   .medicine-actions .button { width: 100%; }
   .add-question { display: block; align-items: stretch; flex-direction: column; }
@@ -154,28 +178,28 @@
 @media (max-width: 479px) {
   .workspace-nav { padding: 12px 14px; }
   .workspace-nav-links { gap: 0; margin-right: -14px; padding-right: 14px; }
-  .workspace-nav .nav-item { padding: 9px 10px; font-size: .72rem; }
+  .workspace-nav .nav-item { padding: 9px 10px; font-size: .8125rem; }
   .workspace-nav .nav-icon { display: none; }
   .workspace-hero { padding: 24px 19px; border-radius: 20px; }
   .workspace-hero h1,
-  .workspace-hero h2 { font-size: 2.25rem; }
+  .workspace-hero h2 { font-size: 2.125rem; }
   .workspace-hero-panel { padding: 18px; }
   .workspace-float-card { padding: 16px; margin-top: 50px; }
   .workspace-metric { padding-top: 19px; padding-bottom: 21px; }
   .workspace-metric strong { font-size: 1.35rem; }
-  .workspace-metric span { font-size: .58rem; }
+  .workspace-metric span { font-size: .6875rem; }
 }
 
-@media (min-width: 992px) {
-  .content-page > .section-intro { width: 100%; max-width: var(--content-max); }
-  .content-page > .section-intro .page-title { max-width: 900px; font-size: clamp(2.8rem, 4.6vw, 5.2rem); }
+@media (min-width: 1120px) {
+  .content-page > .section-intro { width: 100%; max-width: none; }
+  .content-page > .section-intro .page-title { max-width: 900px; font-size: clamp(2.25rem, 3.2vw, 3.25rem); }
   .content-page > .card,
   .content-page > .two-column,
   .content-page > .scan-grid,
   .content-page > .risk-grid,
   .content-page > .lifestyle-grid,
   .content-page > .result-board,
-  .content-page > .privacy-grid { width: 100%; max-width: var(--content-max); }
+  .content-page > .privacy-grid { width: 100%; max-width: none; }
   .content-page > .two-column,
   .content-page > .scan-grid,
   .content-page > .risk-grid,
@@ -185,5 +209,5 @@
   .question-card,
   .medicine-editor,
   .review-card,
-  .reconciliation-card { width: 100%; max-width: 1200px; }
+  .reconciliation-card { width: 100%; max-width: none; }
 }

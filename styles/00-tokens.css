@@ -1,10 +1,23 @@
 /* Oriel-inspired clinic system: Geist type, restrained neutrals, evergreen accents. */
-@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Geist:wght@400;500;600;700;800;900&display=swap');
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/geist-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/geist-mono-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
 
 :root {
   --ink: #151917;
   --ink-soft: #2f4744;
-  --muted: #68716c;
+  --muted: #5e6762;
   --line: #d8ddd8;
   --line-strong: #bfc5c0;
   --paper: #fff;
@@ -25,10 +38,10 @@
   --shadow-soft: 0 8px 24px rgba(21, 25, 23, .055);
   --radius-card: 16px;
   --radius-control: 8px;
-  --radius-button: 100px;
+  --radius-button: 10px;
   --content-max: 1300px;
-  --section-space: clamp(72px, 9vw, 144px);
-  --section-space-compact: clamp(40px, 6vw, 80px);
+  --section-space: clamp(44px, 5.5vw, 88px);
+  --section-space-compact: clamp(30px, 4vw, 56px);
   --radius-hero: 28px;
   --focus: #4f6f6a;
   --font-body: 'Geist', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

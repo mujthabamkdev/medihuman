@@ -181,7 +181,6 @@ test('notification panel and doctor indication form expose stable hooks', () => 
   assert.match(patientMarkup, /Patient profile updated/);
 
   const doctorState = { ...populatedState(), role: 'doctor', screen: 'shell', view: 'doctor-patients', localOnly: true };
-  doctorState.selectedPatientId = 'fixture-patient-approved';
   const doctorMarkup = createViewRenderer({ state: doctorState }).renderShell();
   assert.match(doctorMarkup, /data-form="doctor-indication"/);
   assert.match(doctorMarkup, /Add an indication/);
@@ -194,8 +193,8 @@ test('patient navigation nests Profile and Support under Patient', () => {
   assert.match(markup, /data-action="toggle-patient-menu"/);
   assert.match(markup, /data-view="patient" data-submenu="patient"/);
   assert.match(markup, /data-view="lifestyle" data-submenu="patient"/);
-  assert.match(markup, />Profile<\/button>/);
-  assert.match(markup, />Support<\/button>/);
+  assert.match(markup, />Profile<\/span>/);
+  assert.match(markup, />Support<\/span>/);
   assert.match(markup, /class="nav-chevron"><svg/);
   assert.doesNotMatch(markup, /class="nav-chevron">⌄/);
   assert.doesNotMatch(markup, />Daily support<\/span>/);

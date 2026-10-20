@@ -10,7 +10,7 @@ test('Supabase rate limiter sends compact atomic bucket request', async () => {
   });
   await limiter.check('127.0.0.1', true, Date.parse('2026-01-01T00:00:00Z'));
   assert.equal(call.url, 'https://example.supabase.co/rest/v1/rpc/medihuman_rate_limit_hit');
-  assert.equal(JSON.parse(call.options.body).max_count, 10);
+  assert.equal(JSON.parse(call.options.body).max_count, 30);
   assert.equal(JSON.parse(call.options.body).window_seconds, 900);
   assert.equal(call.options.headers.Authorization, 'Bearer service-role');
 });

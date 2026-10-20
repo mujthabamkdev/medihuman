@@ -1,7 +1,7 @@
 import { HttpError } from './errors.js';
 
 export class RateLimiter {
-  constructor({ windowMs = 60_000, max = 120, authWindowMs = 15 * 60_000, authMax = 10 } = {}) {
+  constructor({ windowMs = 60_000, max = 120, authWindowMs = 15 * 60_000, authMax = 30 } = {}) {
     this.windowMs = windowMs;
     this.max = max;
     this.authWindowMs = authWindowMs;
@@ -31,9 +31,13 @@ export class RateLimiter {
   }
 }
 
-/** Distributed limiter backed by a tiny Supabase counter row and atomic RPC. */
+/**
+ * Distributed limiter backed by a tiny Supabase counter row and atomic RPC.
+ * The auth bucket allows 30 sign-in attempts per 15 minutes per IP: enough for
+ * a demo room sharing one address, still bounded against password guessing.
+ */
 export class SupabaseRateLimiter {
-  constructor({ url = process.env.SUPABASE_URL, serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY, fetchImpl = globalThis.fetch, windowMs = 60_000, max = 120, authWindowMs = 15 * 60_000, authMax = 10 } = {}) {
+  constructor({ url = process.env.SUPABASE_URL, serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY, fetchImpl = globalThis.fetch, windowMs = 60_000, max = 120, authWindowMs = 15 * 60_000, authMax = 30 } = {}) {
     this.url = String(url || '').replace(/\/+$/, '');
     this.serviceRoleKey = serviceRoleKey || '';
     this.fetchImpl = fetchImpl;

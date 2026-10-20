@@ -1,0 +1,45 @@
+{
+  "provider": "kokoro",
+  "speed": "1.0",
+  "lines": [
+    {
+      "id": "01",
+      "text": "Medication information is rarely in one place — and that makes care conversations harder than they need to be."
+    },
+    {
+      "id": "02",
+      "text": "MediHuman brings those details together, so you can prepare clearer questions for a pharmacist or clinician."
+    },
+    {
+      "id": "03",
+      "text": "Start with a prescription photo, or enter the details manually. Images are processed in your browser, and you stay in control of what you record."
+    },
+    {
+      "id": "04",
+      "text": "Before anything is saved, review the capture against the original — including names, strength, and formulation. Uncertainty stays visible instead of becoming a silent assumption."
+    },
+    {
+      "id": "05",
+      "text": "Then compare prescribed and dispensed lists. MediHuman surfaces what matches and what needs follow-up — without pretending to judge clinical appropriateness."
+    },
+    {
+      "id": "06",
+      "text": "Your profile, medicines, prescriptions, comparisons, and questions stay organised in one workspace — ready for the next conversation."
+    },
+    {
+      "id": "07",
+      "text": "If you choose to involve a clinician, access starts with a private patient ID and your approval. You can revoke it when you decide."
+    },
+    {
+      "id": "08",
+      "text": "Underneath, the system is built for durable records, protected access, and clear boundaries. MediHuman: organise the information, then bring better questions to care."
+    }
+  ],
+  "bgm": {
+    "mode": "retrieve",
+    "query": "MediHuman turns medication information into a clearer, privacy-conscious care conversation.",
+    "blob": "MediHuman turns medication information into a clearer, privacy-conscious care conversation.",
+    "arc": "Hook → Problem → Product intro → Demo → Trust → CTA"
+  },
+  "voice": "am_michael"
+}

@@ -1,0 +1,19 @@
+MediHuman helps patients and caregivers organise medication information for clearer care conversations.
+
+Core flow:
+- Review medication information.
+- Capture a prescription using camera/photo or manual details.
+- Review captured text against the original.
+- Compare prescribed and dispensed medicines.
+- Organise profile, medicines, prescriptions, comparisons, and questions.
+- Choose clinician access using a private patient ID and explicit approval.
+
+Safety boundaries:
+- MediHuman does not diagnose, prescribe, validate handwriting, or replace clinician or pharmacist advice.
+- Do not start, stop, or change a dose based only on this app.
+- Images are processed in the browser and are not uploaded here.
+
+Implementation proof:
+- Normalized Supabase tables.
+- Service-role-only persistence with row-level security.
+- Distributed rate limiting.
