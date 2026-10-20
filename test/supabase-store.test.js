@@ -2,44 +2,57 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SupabaseDataStore } from '../src/backend/store.js';
 
-function fakeSupabaseFetch({ conflictOnce = false } = {}) {
-  let row = null;
+const normalizedTables = [
+  ['users', 'users'],
+  ['profiles', 'profiles'],
+  ['medicines', 'medicines'],
+  ['prescriptions', 'prescriptions'],
+  ['reconciliations', 'reconciliations'],
+  ['accessRequests', 'access_requests'],
+  ['indications', 'indications'],
+  ['notifications', 'notifications'],
+  ['auditLogs', 'audit_logs'],
+  ['sessions', 'sessions'],
+  ['oauthStates', 'oauth_states'],
+];
+
+function rowsFromState(state) {
+  return Object.fromEntries(normalizedTables.map(([key, table]) => [
+    table,
+    (state[key] || []).map((item) => ({ data: item })),
+  ]));
+}
+
+function fakeSupabaseFetch({ rows = {} } = {}) {
+  const rowsByTable = { ...rows };
   const calls = [];
-  let shouldConflict = conflictOnce;
+  const commits = [];
   const fetchImpl = async (url, options = {}) => {
     const parsed = new URL(url);
     const method = options.method || 'GET';
-    calls.push({ path: parsed.pathname, method, select: parsed.searchParams.get('select') || '' });
+    const table = parsed.pathname.split('/').at(-1);
+    calls.push({
+      path: parsed.pathname,
+      method,
+      table,
+      select: parsed.searchParams.get('select') || '',
+      body: options.body ? JSON.parse(options.body) : undefined,
+    });
 
-    if (parsed.pathname.endsWith('/medihuman_state') && method === 'GET') {
-      if (!row) return new Response('[]', { status: 200 });
-      const body = parsed.searchParams.get('select') === 'revision'
-        ? [{ revision: row.revision }]
-        : [{ id: row.id, revision: row.revision, state: row.state }];
-      return new Response(JSON.stringify(body), { status: 200 });
+    if (method === 'GET' && normalizedTables.some(([, name]) => name === table)) {
+      return new Response(JSON.stringify(rowsByTable[table] || []), { status: 200 });
     }
 
-    if (parsed.pathname.endsWith('/medihuman_state') && method === 'POST') {
-      if (!row) row = JSON.parse(options.body);
-      return new Response('', { status: 201 });
-    }
-
-    if (parsed.pathname.endsWith('/rpc/medihuman_commit_state') && method === 'POST') {
+    if (parsed.pathname.endsWith('/rpc/medihuman_commit_normalized_state') && method === 'POST') {
       const body = JSON.parse(options.body);
-      if (shouldConflict) {
-        shouldConflict = false;
-        row.revision += 1;
-        return new Response('false', { status: 200 });
-      }
-      if (body.expected_revision !== row.revision) return new Response('false', { status: 200 });
-      row.revision += 1;
-      row.state = body.next_state;
+      commits.push(body);
+      Object.assign(rowsByTable, rowsFromState(body.next_state));
       return new Response('true', { status: 200 });
     }
 
     return new Response('not found', { status: 404 });
   };
-  return { calls, fetchImpl };
+  return { calls, commits, fetchImpl };
 }
 
 function storeWith(fetchImpl) {
@@ -50,35 +63,129 @@ function storeWith(fetchImpl) {
   });
 }
 
-test('Supabase store creates singleton, refreshes revision only, and persists transactions', async () => {
+test('Supabase store hydrates route state from normalized rows and overlays canonical fields', async () => {
+  const fake = fakeSupabaseFetch({
+    rows: {
+      users: [{
+        data: { id: 'from-data', email: 'data@example.test', role: 'patient', custom: 'preserved' },
+        id: 'user-1',
+        email: 'canonical@example.test',
+        role: 'doctor',
+        doctor_profile: { displayName: 'Dr Canonical', verificationStatus: 'verified', verified: true },
+        created_at: '2026-01-01T00:00:00.000Z',
+      }],
+      profiles: [{
+        data: { userId: 'data-user', fullName: 'Data Name', custom: 'preserved' },
+        user_id: 'user-1',
+        full_name: 'Canonical Name',
+      }],
+      medicines: [{
+        data: { userId: 'user-1', items: [{ name: 'Data medicine' }] },
+        user_id: 'user-1',
+        items: [{ name: 'Canonical medicine' }],
+      }],
+      prescriptions: [{
+        data: { id: 'rx-1', userId: 'data-user', medicationName: 'Data medicine' },
+        id: 'rx-1',
+        user_id: 'user-1',
+        medication_name: 'Canonical medicine',
+      }],
+      reconciliations: [{
+        data: { id: 'recon-1' },
+        id: 'recon-1',
+        user_id: 'user-1',
+        is_exact_match: true,
+      }],
+      access_requests: [{
+        data: { id: 'request-1' },
+        id: 'request-1',
+        doctor_user_id: 'doctor-1',
+        patient_user_id: 'user-1',
+        status: 'approved',
+      }],
+      indications: [{
+        data: { id: 'indication-1' },
+        id: 'indication-1',
+        doctor_user_id: 'doctor-1',
+        patient_user_id: 'user-1',
+        title: 'Canonical indication',
+      }],
+      notifications: [{
+        data: { id: 'notification-1' },
+        id: 'notification-1',
+        recipient_user_id: 'user-1',
+        actor_user_id: 'doctor-1',
+        entity_type: 'prescription',
+        entity_id: 'rx-1',
+      }],
+      audit_logs: [{
+        data: { id: 'audit-1' },
+        id: 'audit-1',
+        actor_user_id: 'doctor-1',
+        action: 'reviewed',
+        entity_type: 'prescription',
+      }],
+      sessions: [{
+        data: { id: 'session-1' },
+        id: 'session-1',
+        user_id: 'user-1',
+        token_hash: 'token-hash',
+        csrf_token_hash: 'csrf-hash',
+        expires_at: '2026-01-02T00:00:00.000Z',
+        mfa_pending: true,
+      }],
+      oauth_states: [{
+        data: { stateHash: 'state-1' },
+        state_hash: 'state-1',
+        role: 'doctor',
+        expires_at: '2026-01-02T00:00:00.000Z',
+      }],
+    },
+  });
+  const store = storeWith(fake.fetchImpl);
+
+  await store.init();
+
+  assert.equal(store.state.users[0].id, 'user-1');
+  assert.equal(store.state.users[0].email, 'canonical@example.test');
+  assert.equal(store.state.users[0].custom, 'preserved');
+  assert.equal(store.state.users[0].doctorProfile.displayName, 'Dr Canonical');
+  assert.equal(store.state.profiles[0].fullName, 'Canonical Name');
+  assert.equal(store.state.profiles[0].custom, 'preserved');
+  assert.deepEqual(store.state.medicines[0].items, [{ name: 'Canonical medicine' }]);
+  assert.equal(store.state.prescriptions[0].medicationName, 'Canonical medicine');
+  assert.equal(store.state.reconciliations[0].isExactMatch, true);
+  assert.equal(store.state.accessRequests[0].doctorUserId, 'doctor-1');
+  assert.equal(store.state.indications[0].title, 'Canonical indication');
+  assert.equal(store.state.notifications[0].entityId, 'rx-1');
+  assert.equal(store.state.auditLogs[0].entityType, 'prescription');
+  assert.equal(store.state.sessions[0].mfaPending, true);
+  assert.equal(store.state.oauthStates[0].stateHash, 'state-1');
+  assert.deepEqual(
+    fake.calls.filter((call) => call.method === 'GET').map((call) => call.table).sort(),
+    normalizedTables.map(([, table]) => table).sort(),
+  );
+  assert.ok(fake.calls.filter((call) => call.method === 'GET').every((call) => call.select === '*'));
+});
+
+test('Supabase store refreshes full normalized snapshot before serialized transaction and persists full state through RPC', async () => {
   const fake = fakeSupabaseFetch();
   const store = storeWith(fake.fetchImpl);
   await store.init();
-  const fullReadsAfterInit = fake.calls.filter((call) => call.method === 'GET' && call.select === 'id,revision,state').length;
-
-  await store.refresh();
-  assert.equal(fake.calls.at(-1).select, 'revision');
-  assert.equal(fake.calls.filter((call) => call.method === 'GET' && call.select === 'id,revision,state').length, fullReadsAfterInit);
+  fake.calls.length = 0;
 
   const result = await store.transact((state) => {
-    state.notifications.push({ id: 'notification-1' });
+    state.notifications.push({ id: 'notification-1', recipientUserId: 'patient-1', message: 'Saved' });
     return 'saved';
   });
+
   assert.equal(result, 'saved');
-  assert.equal(store.revision, 2);
+  assert.equal(fake.calls.filter((call) => call.method === 'GET').length, normalizedTables.length);
+  assert.equal(fake.commits.length, 1);
+  assert.deepEqual(fake.commits[0].next_state.notifications, [
+    { id: 'notification-1', recipientUserId: 'patient-1', message: 'Saved' },
+  ]);
+  assert.equal(fake.calls.at(-1).path, '/rest/v1/rpc/medihuman_commit_normalized_state');
+  assert.deepEqual(Object.keys(fake.commits[0]), ['next_state']);
   assert.equal(store.state.notifications[0].id, 'notification-1');
-});
-
-test('Supabase store retries one revision conflict without falling back to JSON', async () => {
-  const fake = fakeSupabaseFetch({ conflictOnce: true });
-  const store = storeWith(fake.fetchImpl);
-  await store.init();
-
-  await store.transact((state) => {
-    state.profiles.push({ userId: 'patient-1', fullName: 'Patient' });
-  });
-
-  assert.equal(store.state.profiles[0].userId, 'patient-1');
-  assert.equal(store.revision, 3);
-  assert.equal(fake.calls.filter((call) => call.path.endsWith('/rpc/medihuman_commit_state')).length, 2);
 });

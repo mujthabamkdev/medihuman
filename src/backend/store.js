@@ -66,47 +66,133 @@ export function normalizeState(value) {
   return state;
 }
 
-const SUPABASE_STATE_ID = 'singleton';
-const SUPABASE_TABLE = 'medihuman_state';
-const SUPABASE_RPC = 'medihuman_commit_state';
+const SUPABASE_RPC = 'medihuman_commit_normalized_state';
+const NORMALIZED_TABLES = [
+  {
+    key: 'users',
+    table: 'users',
+    fields: {
+      id: 'id', email: 'email', role: 'role', patient_id: 'patientId', password_hash: 'passwordHash',
+      supabase_user_id: 'supabaseUserId', google_sub: 'googleSub', doctor_profile: 'doctorProfile',
+      email_confirmed_at: 'emailConfirmedAt', created_at: 'createdAt', updated_at: 'updatedAt',
+    },
+  },
+  {
+    key: 'profiles',
+    table: 'profiles',
+    fields: {
+      user_id: 'userId', full_name: 'fullName', date_of_birth: 'dateOfBirth', allergies: 'allergies',
+      conditions: 'conditions', consent: 'consent', updated_at: 'updatedAt',
+    },
+  },
+  {
+    key: 'medicines',
+    table: 'medicines',
+    fields: { user_id: 'userId', items: 'items', updated_at: 'updatedAt' },
+  },
+  {
+    key: 'prescriptions',
+    table: 'prescriptions',
+    fields: {
+      id: 'id', user_id: 'userId', medication_name: 'medicationName', strength: 'strength', dose: 'dose',
+      route: 'route', frequency: 'frequency', start_date: 'startDate', end_date: 'endDate',
+      instructions: 'instructions', prescriber: 'prescriber', created_at: 'createdAt', updated_at: 'updatedAt',
+    },
+  },
+  {
+    key: 'reconciliations',
+    table: 'reconciliations',
+    fields: {
+      id: 'id', user_id: 'userId', prescription_medicines: 'prescriptionMedicines',
+      dispensed_medicines: 'dispensedMedicines', matched: 'matched', missing: 'missing', unexpected: 'unexpected',
+      is_exact_match: 'isExactMatch', notes: 'notes', created_at: 'createdAt', updated_at: 'updatedAt',
+    },
+  },
+  {
+    key: 'accessRequests',
+    table: 'access_requests',
+    fields: {
+      id: 'id', doctor_user_id: 'doctorUserId', patient_user_id: 'patientUserId', status: 'status',
+      requested_at: 'requestedAt', responded_at: 'respondedAt', revoked_at: 'revokedAt',
+    },
+  },
+  {
+    key: 'indications',
+    table: 'indications',
+    fields: {
+      id: 'id', doctor_user_id: 'doctorUserId', patient_user_id: 'patientUserId', title: 'title',
+      detail: 'detail', severity: 'severity', created_at: 'createdAt', updated_at: 'updatedAt',
+    },
+  },
+  {
+    key: 'notifications',
+    table: 'notifications',
+    fields: {
+      id: 'id', recipient_user_id: 'recipientUserId', actor_user_id: 'actorUserId', type: 'type', title: 'title',
+      message: 'message', entity_type: 'entityType', entity_id: 'entityId', read_at: 'readAt', created_at: 'createdAt',
+    },
+  },
+  {
+    key: 'auditLogs',
+    table: 'audit_logs',
+    fields: {
+      id: 'id', actor_user_id: 'actorUserId', action: 'action', entity_type: 'entityType', entity_id: 'entityId',
+      outcome: 'outcome', created_at: 'createdAt',
+    },
+  },
+  {
+    key: 'sessions',
+    table: 'sessions',
+    fields: {
+      id: 'id', user_id: 'userId', token_hash: 'tokenHash', csrf_token_hash: 'csrfTokenHash', created_at: 'createdAt',
+      expires_at: 'expiresAt', recovery_only: 'recoveryOnly', mfa_pending: 'mfaPending',
+      mfa_pending_factor_id: 'mfaPendingFactorId', mfa_factor_id: 'mfaFactorId', mfa_challenge_id: 'mfaChallengeId',
+      upstream_tokens: 'upstreamTokens',
+    },
+  },
+  {
+    key: 'oauthStates',
+    table: 'oauth_states',
+    fields: { state_hash: 'stateHash', role: 'role', created_at: 'createdAt', expires_at: 'expiresAt' },
+  },
+];
 
-function isSupabaseConflict(value) {
-  return value instanceof Error && value.code === 'SUPABASE_REVISION_CONFLICT';
+function hydrateRow(row, fields) {
+  const data = row?.data && typeof row.data === 'object' && !Array.isArray(row.data) ? clone(row.data) : {};
+  for (const [column, property] of Object.entries(fields)) {
+    if (row[column] !== null && row[column] !== undefined) data[property] = clone(row[column]);
+  }
+  return data;
 }
 
 /**
- * Supabase PostgREST store. One JSONB row preserves current route contracts
- * while revision checks prevent whole-state lost updates across instances.
- * Revision-only refreshes keep egress low; full state loads happen on cold
- * start or after another instance commits a change.
+ * Supabase PostgREST store backed by normalized tables. The full JSON object
+ * remains in each row's data column so route contracts survive schema changes;
+ * canonical columns overlay that JSON when available. Writes are serialized
+ * locally and replace the normalized snapshot through one transaction-safe RPC.
  */
 export class SupabaseDataStore {
   constructor({
     url = process.env.SUPABASE_URL,
     serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY,
     fetchImpl = globalThis.fetch,
-    table = process.env.SUPABASE_STATE_TABLE || SUPABASE_TABLE,
-    rpc = process.env.SUPABASE_STATE_RPC || SUPABASE_RPC,
-    maxConflictRetries = 2,
+    rpc = process.env.SUPABASE_NORMALIZED_STATE_RPC || SUPABASE_RPC,
   } = {}) {
     this.url = String(url || '').replace(/\/+$/, '');
     this.serviceRoleKey = serviceRoleKey || '';
     this.fetchImpl = fetchImpl;
-    this.table = table;
     this.rpc = rpc;
-    this.maxConflictRetries = maxConflictRetries;
     this.state = null;
-    this.revision = 0;
     this.writeChain = Promise.resolve();
   }
 
   assertConfigured() {
     if (!this.url || !this.serviceRoleKey) throw new Error('Supabase persistence requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
     if (!/^https:\/\/[^/]+$/.test(this.url)) throw new Error('SUPABASE_URL must be an HTTPS project URL.');
-    if (!/^[a-z][a-z0-9_]*$/.test(this.table) || !/^[a-z][a-z0-9_]*$/.test(this.rpc)) throw new Error('Supabase state identifiers are invalid.');
+    if (!/^[a-z][a-z0-9_]*$/.test(this.rpc)) throw new Error('Supabase state identifiers are invalid.');
   }
 
-  tableUrl(query = '') { return `${this.url}/rest/v1/${this.table}${query}`; }
+  tableUrl(table, query = '') { return `${this.url}/rest/v1/${table}${query}`; }
 
   async request(url, options = {}) {
     this.assertConfigured();
@@ -128,28 +214,21 @@ export class SupabaseDataStore {
     return response;
   }
 
-  async readRows(select) {
-    const query = `?select=${encodeURIComponent(select)}&id=eq.${SUPABASE_STATE_ID}&limit=1`;
-    const response = await this.request(this.tableUrl(query));
+  async readRows(table) {
+    const response = await this.request(this.tableUrl(table, '?select=*'));
     const rows = await response.json();
-    if (!Array.isArray(rows)) throw new Error('Supabase persistence returned an invalid state response.');
+    if (!Array.isArray(rows)) throw new Error(`Supabase persistence returned an invalid ${table} response.`);
     return rows;
   }
 
   async loadSnapshot() {
-    let rows = await this.readRows('id,revision,state');
-    if (!rows.length) {
-      await this.request(this.tableUrl(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Prefer: 'resolution=ignore-duplicates,return=minimal' },
-        body: JSON.stringify({ id: SUPABASE_STATE_ID, revision: 1, state: clone(EMPTY_STATE) }),
-      });
-      rows = await this.readRows('id,revision,state');
-    }
-    const row = rows[0];
-    if (!row || !Number.isInteger(Number(row.revision))) throw new Error('Supabase persistence returned an invalid revision.');
-    this.state = normalizeState(row.state);
-    this.revision = Number(row.revision);
+    const rowsByTable = await Promise.all(NORMALIZED_TABLES.map(async ({ key, table, fields }) => [
+      key,
+      (await this.readRows(table)).map((row) => hydrateRow(row, fields)),
+    ]));
+    const snapshot = clone(EMPTY_STATE);
+    for (const [key, rows] of rowsByTable) snapshot[key] = rows;
+    this.state = normalizeState(snapshot);
     return this;
   }
 
@@ -166,43 +245,29 @@ export class SupabaseDataStore {
   }
 
   async refreshSnapshot() {
-    if (!this.state) return this.loadSnapshot();
-    const rows = await this.readRows('revision');
-    if (!rows.length || Number(rows[0].revision) !== this.revision) await this.loadSnapshot();
-    return this;
+    return this.loadSnapshot();
   }
 
-  async commit(nextState, expectedRevision) {
+  async commit(nextState) {
+    const normalizedState = normalizeState(nextState);
     const response = await this.request(`${this.url}/rest/v1/rpc/${this.rpc}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expected_revision: expectedRevision, next_state: nextState }),
+      body: JSON.stringify({ next_state: normalizedState }),
     });
     const result = await response.json();
     const committed = result === true || (Array.isArray(result) && result[0] === true) || result?.committed === true;
-    if (!committed) {
-      const error = new Error('Supabase state revision conflict.');
-      error.code = 'SUPABASE_REVISION_CONFLICT';
-      throw error;
-    }
-    this.state = nextState;
-    this.revision = expectedRevision + 1;
+    if (!committed) throw new Error('Supabase normalized state commit failed.');
+    this.state = normalizedState;
   }
 
   async transact(mutator) {
     const operation = this.writeChain.catch(() => undefined).then(async () => {
-      for (let attempt = 0; attempt <= this.maxConflictRetries; attempt += 1) {
-        await this.refreshSnapshot();
-        const workingState = clone(this.state);
-        const result = await mutator(workingState);
-        try {
-          await this.commit(workingState, this.revision);
-          return result;
-        } catch (error) {
-          if (!isSupabaseConflict(error) || attempt === this.maxConflictRetries) throw error;
-        }
-      }
-      throw new Error('Supabase persistence failed after conflict retries.');
+      await this.refreshSnapshot();
+      const workingState = clone(this.state);
+      const result = await mutator(workingState);
+      await this.commit(workingState);
+      return result;
     });
     this.writeChain = operation.catch(() => undefined);
     return operation;
@@ -216,10 +281,14 @@ export class SupabaseDataStore {
 
   async importState(value, { overwrite = false } = {}) {
     const nextState = normalizeState(value);
-    await this.refreshSnapshot();
-    const hasRecords = Object.entries(this.state).some(([key, collection]) => key !== 'version' && Array.isArray(collection) && collection.length > 0);
-    if (hasRecords && !overwrite) throw new Error('Supabase state already contains records. Set SUPABASE_MIGRATE_OVERWRITE=1 to replace it.');
-    await this.commit(nextState, this.revision);
+    const operation = this.writeChain.catch(() => undefined).then(async () => {
+      await this.refreshSnapshot();
+      const hasRecords = Object.entries(this.state).some(([key, collection]) => key !== 'version' && Array.isArray(collection) && collection.length > 0);
+      if (hasRecords && !overwrite) throw new Error('Supabase state already contains records. Set SUPABASE_MIGRATE_OVERWRITE=1 to replace it.');
+      await this.commit(nextState);
+    });
+    this.writeChain = operation.catch(() => undefined);
+    return operation;
   }
 }
 
