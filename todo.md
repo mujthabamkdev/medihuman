@@ -15,8 +15,8 @@
 ### 1.2 Medicine list — active vs. historical
 - [x] Add `status` field to `medicineObject` ('active' | 'discontinued' | 'completed')
 - [x] Update `renderMedicines` to split list into "Currently taking" and "Previously taken" sections
-- [ ] Add status badge (green for active, gray for discontinued) on each medicine card
-- [ ] Add "Mark as discontinued" action button on medicine cards
+- [x] Add status badge (green for active, gray for discontinued) on each medicine card
+- [x] Add "Mark as discontinued" action button on medicine cards
 - [x] Add `startedAt`/`stoppedAt` date fields to medicine edit form
 - [x] Update `updateMedicineField` to handle status changes
 

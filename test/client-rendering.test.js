@@ -64,7 +64,7 @@ test('client UI primitives render accessible SVG markup', () => {
   assert.match(svgIcon('home'), /aria-hidden="true"/);
   assert.doesNotMatch(svgIcon('home'), /ui-[a-z-]+/);
   assert.match(brandIcon(), /class="brand-svg"/);
-  assert.match(brandIcon(), /stroke="#9fdcd0"/);
+  assert.match(brandIcon(), /var\(--brand-accent, #9fdcd0\)/);
   assert.doesNotMatch(brandIcon(), /M16 8v16M8 16h16/);
   assert.match(googleIcon(), /class="auth-google-icon"/);
   assert.match(googleIcon(), /fill="#4285F4"/);

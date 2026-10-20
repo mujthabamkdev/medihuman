@@ -12,10 +12,10 @@
 /* Consistent medical-product icon system. */
 svg:not(.brand-svg) { display: block; width: 1.15em; height: 1.15em; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .brand-mark { display: grid; place-items: center; width: 32px; height: 32px; background: transparent; font-size: 0; }
-.brand-mark .brand-svg { width: 32px; height: 32px; color: var(--teal); }
-.brand-light .brand-mark .brand-svg { color: #8eb9a2; }
+.brand-mark .brand-svg { width: 32px; height: 32px; color: var(--teal); --brand-badge: currentColor; --brand-glyph: #ffffff; --brand-accent: #9fdcd0; }
+.brand-light .brand-mark .brand-svg { color: #8eb9a2; --brand-glyph: #123c3a; --brand-accent: #2f4744; }
 .mini-mark { width: 31px; height: 31px; border-radius: 10px; display: grid; place-items: center; background: var(--mint); color: var(--teal-dark); font-weight: 700; font-size: 0; }
-.mini-mark .brand-svg { width: 25px; height: 25px; color: var(--teal); }
+.mini-mark .brand-svg { width: 25px; height: 25px; color: var(--teal); --brand-badge: currentColor; --brand-glyph: #ffffff; --brand-accent: #9fdcd0; }
 .nav-icon { display: grid; place-items: center; }
 .nav-icon svg { width: 18px; height: 18px; }
 .icon-button svg { width: 16px; height: 16px; margin: auto; }

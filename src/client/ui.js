@@ -33,7 +33,10 @@ export function svgIcon(name) {
 }
 
 export function brandIcon() {
-  return '<svg class="brand-svg" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect x="1.5" y="1.5" width="29" height="29" rx="9" fill="currentColor"/><circle cx="16" cy="8.4" r="2.25" fill="#fff"/><path d="M8.4 22.5v-8l7.6 5.8 7.6-5.8v8" fill="none" stroke="#fff" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 11.3c1.55-1.25 3.42-1.9 5.5-1.9s3.95.65 5.5 1.9" fill="none" stroke="#9fdcd0" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  // MediHuman mark: a rounded badge holding a single "M" stroke whose middle
+  // peak reads as a pulse, with a single mint dose accent. Colours come from
+  // CSS custom properties so the mark flips on the dark auth panel.
+  return '<svg class="brand-svg" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect x="1" y="1" width="30" height="30" rx="10" fill="var(--brand-badge, currentColor)"/><path d="M7.6 22.6V11.6l4.3 6.6L16 10.2l4.1 8 4.3-6.6v11" fill="none" stroke="var(--brand-glyph, #fff)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="25.2" cy="7.3" r="2.3" fill="var(--brand-accent, #9fdcd0)"/></svg>';
 }
 
 export function googleIcon() {
