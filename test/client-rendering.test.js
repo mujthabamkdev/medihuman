@@ -405,7 +405,7 @@ test('auth templates have balanced markup for both roles and account modes', () 
 test('auth templates offer Google sign-in for selected role', () => {
   for (const authRole of ['patient', 'doctor']) {
     for (const authMode of ['login', 'register']) {
-      const state = { ...createState(), authRole, authMode };
+      const state = { ...createState(), authRole, authMode, googleConfigured: true };
       const markup = createViewRenderer({ state }).renderAuth();
       assert.match(markup, new RegExp(`href="/api/auth/google\\?role=${authRole}"`));
       assert.match(markup, /class="auth-google-icon"/);

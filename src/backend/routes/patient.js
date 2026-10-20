@@ -83,6 +83,8 @@ export async function handlePatientRoute(ctx) {
     sendJson(response, 200, { medicines });
     return true;
   }
+  // Medicines are replaced as a whole list (no per-item POST/PUT/DELETE yet).
+  // Concurrent edits by the same client are last-write-wins via the client PUT.
   if ((pathname === '/api/patient/medicines' || pathname === '/api/medicines') && method === 'PUT') {
     requireRole(current, 'patient');
     const body = await readJson(request);

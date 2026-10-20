@@ -55,6 +55,8 @@
 .notice-info { color: var(--ink-soft); background: var(--mint-2); border: 1px solid #d3dfd5; }
 .notice-warning { color: #705a24; background: #f8f1d9; border: 1px solid #e8dcae; }
 .notice-warning .notice-icon { background: #ead38e; color: #705a24; }
+.notice-error { color: #8b2a2a; background: #fdecec; border: 1px solid #e2b9b9; }
+.notice-error .notice-icon { background: #e8a8a8; color: #8b2a2a; }
 .status-pill { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 8px 11px; font-size: .68rem; font-weight: 800; white-space: nowrap; }
 .pill-green { background: var(--mint); color: var(--teal-dark); }
 .pill-warn { background: var(--yellow); color: var(--yellow-ink); }

@@ -32,7 +32,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
 
 
 
-  function enterLocal() { const requestedRole = state.authRoleExplicit ? state.authRole : ''; state.authError = ''; state.localOnly = true; state.screen = 'shell'; loadLocal(state); state.role = requestedRole || state.role || 'patient'; state.authRole = state.role; state.authRoleExplicit = false; ensureLocalIdentity(state); setLocalMode(true); saveLocal(state); render(); }
+  function enterLocal() { const requestedRole = state.authRoleExplicit ? state.authRole : ''; state.authError = ''; state.localOnly = true; state.googleConfigured = false; state.screen = 'shell'; loadLocal(state); state.role = requestedRole || state.role || 'patient'; state.authRole = state.role; state.authRoleExplicit = false; ensureLocalIdentity(state); setLocalMode(true); saveLocal(state); render(); }
 
   async function loadRoleData() {
     if (state.localOnly) return;
@@ -80,11 +80,13 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       state.user = data.user; state.role = data.user.role || 'patient'; state.authRole = state.role; state.profile = data.profile || state.profile; state.medicines = data.medicines || [];
       state.doctorProfile = data.user.doctorProfile || data.user.doctor || state.doctorProfile;
       state.localOnly = false; state.screen = 'shell';
+      try { state.googleConfigured = (await api.googleConfigured()).googleConfigured === true; } catch { state.googleConfigured = false; }
       await loadRoleData();
       await loadMfaFactors();
       render();
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 401) state.authError = error.message;
+      try { state.googleConfigured = (await api.googleConfigured()).googleConfigured === true; } catch { state.googleConfigured = false; }
       render();
     }
   }
@@ -191,6 +193,10 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
 
   function formValues(form) { return Object.fromEntries(new FormData(form).entries()); }
 
+  function showError(message) { state.errorMessage = escapeHtml(message); render(); }
+
+  function clearError() { state.errorMessage = ''; }
+
   async function saveProfile() {
     const form = document.querySelector('[data-form="profile"]'); state.profile = formValues(form); state.saveStatus.profile = 'Saving…'; saveLocal(state); render();
     if (!state.localOnly) {
@@ -200,18 +206,18 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     render();
   }
 
-  function updateMedicineField(target) { const item = state.medicines[Number(target.dataset.medIndex)]; if (item) { item[target.dataset.medKey] = target.value; saveLocal(state); } }
+  function updateMedicineField(target) { const item = state.medicines[Number(target.dataset.medIndex)]; if (item) { item[target.dataset.medKey] = target.value; state.dirty = true; saveLocal(state); } }
 
   async function saveMedicines() {
     state.medicines = state.medicines.filter((item) => item.name.trim()); state.saveStatus.medicines = 'Saving…'; saveLocal(state); render();
     if (!state.localOnly) {
-      try { const response = await api.saveMedicines(state.medicines); state.medicines = response.medicines || state.medicines; state.saveStatus.medicines = 'Saved to your account'; }
+      try { const response = await api.saveMedicines(state.medicines); state.medicines = response.medicines || state.medicines; state.saveStatus.medicines = 'Saved to your account'; state.dirty = false; }
       catch (error) { state.saveStatus.medicines = `Not saved: ${error.message}`; }
-    } else state.saveStatus.medicines = 'Saved on this device';
+    } else { state.saveStatus.medicines = 'Saved on this device'; state.dirty = false; }
     render();
   }
 
-  function goReconcile() { const fields = { prescribed: document.querySelector('#prescribed-list'), dispensed: document.querySelector('#dispensed-list') }; if (fields.prescribed) { state.prescriptionText = fields.prescribed.value; state.dispensedText = fields.dispensed.value; saveLocal(state); } }
+  function goReconcile() { const fields = { prescribed: document.querySelector('#prescribed-list'), dispensed: document.querySelector('#dispensed-list') }; if (fields.prescribed) { state.prescriptionText = fields.prescribed.value; state.dispensedText = fields.dispensed.value; state.dirty = true; saveLocal(state); } }
 
   async function persistPrescriptionReview() {
     const lines = state.prescriptionText.split(/[\n,]+/).map((line) => line.trim()).filter(Boolean);
@@ -219,14 +225,22 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (state.localOnly) {
       state.prescriptions.push(...records);
       saveLocal(state);
+      state.saveStatus.prescription = 'Saved on this device';
+      state.dirty = false;
       return;
     }
+    state.saveStatus.prescription = 'Saving…';
+    let failureCount = 0;
     for (const medicationName of lines.slice(0, 100)) {
       try {
         const response = await api.savePrescription({ medicationName, instructions: 'Captured and reviewed by patient.' });
         if (response.prescription) state.prescriptions.push(response.prescription);
-      } catch { break; }
+      } catch {
+        failureCount += 1;
+      }
     }
+    if (failureCount > 0) state.saveStatus.prescription = `Not saved: ${failureCount} item(s) failed`;
+    else { state.saveStatus.prescription = 'Saved to your account'; state.dirty = false; }
   }
 
   async function saveReconciliation() {
@@ -299,6 +313,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     try {
       const result = await ocr.recognize(canvas); state.ocrText = result.text || ''; state.view = 'review';
     } catch {
+      state.ocrText = '';
       state.cameraError = 'OCR could not read this frame. Review the prescription manually or capture a clearer image.';
       state.view = 'scan';
     }
@@ -337,7 +352,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
         state.doctorRequests = [response.request, ...state.doctorRequests];
       }
       render();
-    } catch (error) { alert(error.message); }
+    } catch (error) { showError(error.message); }
   }
 
   async function submitIndication(form) {
@@ -361,7 +376,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
         if (response.indication) state.doctorRecords[patientId].indications.push(response.indication);
       }
       render();
-    } catch (error) { alert(error.message); }
+    } catch (error) { showError(error.message); }
   }
 
   async function updateCareRequest(requestId, status) {
@@ -380,7 +395,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
         state.patientRequests = state.patientRequests.map((request) => request.id === requestId ? response.request : request);
       }
       render();
-    } catch (error) { alert(error.message); }
+    } catch (error) { showError(error.message); }
   }
 
   function localPatientRecords() {
@@ -396,7 +411,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
         try { const summary = await api.doctorPatient(patientId, 'summary'); state.doctorRecords[patientId].summary = summary.summary; } catch { /* record remains useful without summary endpoint */ }
       }
       render();
-    } catch (error) { alert(error.message); }
+    } catch (error) { showError(error.message); }
   }
 
   function clearLocalWorkspace() {
@@ -416,6 +431,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
   root.addEventListener('click', async (event) => {
     const target = event.target.closest('[data-action]'); if (!target) return; const action = target.dataset.action;
     if (action === 'auth-login' || action === 'auth-register') { state.authMode = action === 'auth-register' ? 'register' : 'login'; render(); return; }
+    if (action === 'clear-error') { clearError(); render(); return; }
     if (action === 'auth-recover') { state.authMode = 'recover'; state.authError = ''; render(); return; }
     if (action === 'mfa-enroll') { await startMfaEnrollment(); return; }
     if (action === 'export-account') { await exportAccount(); return; }
@@ -423,10 +439,10 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'mfa-remove') { await api.mfaRemove(target.dataset.id); await loadMfaFactors(); render(); return; }
     if (action === 'edit-prescription') { state.editingPrescriptionId = target.dataset.id; render(); return; }
     if (action === 'cancel-prescription-edit') { state.editingPrescriptionId = ''; render(); return; }
-    if (action === 'delete-prescription') { await api.deletePrescription(target.dataset.id); state.prescriptions = state.prescriptions.filter((item) => item.id !== target.dataset.id); render(); return; }
+    if (action === 'delete-prescription') { if (!window.confirm('Remove this prescription record?')) return; if (state.localOnly) { state.prescriptions = state.prescriptions.filter((item) => item.id !== target.dataset.id); saveLocal(state); } else { await api.deletePrescription(target.dataset.id); state.prescriptions = state.prescriptions.filter((item) => item.id !== target.dataset.id); } render(); return; }
     if (action === 'edit-indication') { state.editingIndicationId = target.dataset.id; render(); return; }
     if (action === 'cancel-indication-edit') { state.editingIndicationId = ''; render(); return; }
-    if (action === 'delete-indication') { const patientId = target.dataset.patientId; await api.deleteIndication(patientId, target.dataset.id); state.doctorRecords[patientId].indications = state.doctorRecords[patientId].indications.filter((item) => item.id !== target.dataset.id); render(); return; }
+    if (action === 'delete-indication') { if (!window.confirm('Remove this clinician indication?')) return; const patientId = target.dataset.patientId; await api.deleteIndication(patientId, target.dataset.id); state.doctorRecords[patientId].indications = state.doctorRecords[patientId].indications.filter((item) => item.id !== target.dataset.id); render(); return; }
     if (action === 'auth-role') { state.authRole = target.dataset.role === 'doctor' ? 'doctor' : 'patient'; state.authRoleExplicit = true; render(); return; }
     if (action === 'local-mode') { enterLocal(); return; }
     if (action === 'toggle-menu') { state.mobileMenuOpen = !state.mobileMenuOpen; render(); return; }
@@ -462,19 +478,19 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'go-composition') { state.view = 'composition'; render(); return; }
     if (action === 'save-profile') { await saveProfile(); return; }
     if (action === 'add-medicine') { state.medicines.push(medicineObject('')); render(); return; }
-    if (action === 'remove-medicine') { state.medicines.splice(Number(target.dataset.index), 1); saveLocal(state); render(); return; }
+    if (action === 'remove-medicine') { if (!window.confirm('Remove this medicine?')) return; state.medicines.splice(Number(target.dataset.index), 1); saveLocal(state); render(); return; }
     if (action === 'save-medicines') { await saveMedicines(); return; }
     if (action === 'camera-start') { await startCamera(); return; }
     if (action === 'camera-stop') { stopCamera(); return; }
     if (action === 'camera-capture') { await captureCamera(); return; }
-    if (action === 'manual-review') { state.prescriptionText = document.querySelector('#manual-prescription')?.value || ''; state.ocrText = state.prescriptionText; state.scanSource = 'Manual entry'; state.view = 'review'; saveLocal(state); render(); return; }
-     if (action === 'save-review') { state.prescriptionText = document.querySelector('#review-text')?.value || ''; state.view = 'reconcile'; saveLocal(state); await persistPrescriptionReview(); render(); return; }
+    if (action === 'manual-review') { state.prescriptionText = document.querySelector('#manual-prescription')?.value || ''; state.ocrText = state.prescriptionText; state.scanSource = 'Manual entry'; state.view = 'review'; state.dirty = true; saveLocal(state); render(); return; }
+     if (action === 'save-review') { state.prescriptionText = document.querySelector('#review-text')?.value || ''; state.dirty = true; state.view = 'reconcile'; saveLocal(state); await persistPrescriptionReview(); render(); return; }
     if (action === 'run-reconcile') { await saveReconciliation(); return; }
     if (action === 'reopen-reconciliation') { const record = state.reconciliations.find((item) => item.id === target.dataset.id); if (record) { state.prescriptionText = (record.prescriptionMedicines || []).join('\n'); state.dispensedText = (record.dispensedMedicines || []).join('\n'); state.view = 'reconcile'; render(); } return; }
-    if (action === 'delete-reconciliation') { await api.deleteReconciliation(target.dataset.id); state.reconciliations = state.reconciliations.filter((item) => item.id !== target.dataset.id); render(); return; }
+    if (action === 'delete-reconciliation') { if (!window.confirm('Remove this reconciliation record?')) return; if (state.localOnly) { state.reconciliations = state.reconciliations.filter((item) => item.id !== target.dataset.id); saveLocal(state); } else { await api.deleteReconciliation(target.dataset.id); state.reconciliations = state.reconciliations.filter((item) => item.id !== target.dataset.id); } render(); return; }
     if (action === 'care-request') { await updateCareRequest(target.dataset.id, target.dataset.status); return; }
     if (action === 'doctor-refresh-patient') { await loadDoctorPatient(); return; }
-    if (action === 'remove-question') { state.questions.splice(Number(target.dataset.index), 1); saveLocal(state); render(); return; }
+    if (action === 'remove-question') { if (!window.confirm('Remove this question?')) return; state.questions.splice(Number(target.dataset.index), 1); saveLocal(state); render(); return; }
     if (action === 'save-consent') { state.consent = Boolean(document.querySelector('#consent-toggle')?.checked); saveLocal(state); if (!state.localOnly) await api.saveConsent(state.consent); render(); return; }
     if (action === 'clear-data') { if (window.confirm('Clear this browser’s MediHuman workspace?')) { clearLocalWorkspace(); saveLocal(state); render(); } }
   });
@@ -488,5 +504,15 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       if (state.mobileMenuOpen || state.patientMenuOpen || state.profileMenuOpen || state.notificationsOpen) { state.mobileMenuOpen = false; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; render(); }
     }
   });
+
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('beforeunload', (event) => {
+      if (state.dirty) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    });
+  }
+
   return { enterLocal, hydrateRemote, render };
 }

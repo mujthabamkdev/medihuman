@@ -1,4 +1,4 @@
-import { requireVerifiedDoctor } from '../auth.js';
+import { requireRole, requireVerifiedDoctor } from '../auth.js';
 import { addAuditEvent } from '../audit.js';
 import { HttpError } from '../errors.js';
 import { readJson, sendJson } from '../http.js';
@@ -9,6 +9,7 @@ import { addNotification, publicIndication } from '../notifications.js';
 import { newId } from '../security.js';
 import { buildSummary } from '../summary.js';
 import { allowedKeys, stringValue } from '../validation.js';
+import { publicDoctor } from '../auth.js';
 
 export async function handleDoctorRoute(ctx) {
   const { pathname, method, response, dataStore, current } = ctx;
@@ -68,6 +69,30 @@ export async function handleDoctorRoute(ctx) {
     } else {
       sendJson(response, 200, records);
     }
+    return true;
+  }
+  if (pathname === '/api/doctor/profile' && method === 'PUT') {
+    requireRole(current, 'doctor');
+    const input = await readJson(ctx.request);
+    allowedKeys(input, ['displayName', 'specialty', 'registrationId', 'organization']);
+    const existing = current.user.doctorProfile || {};
+    const doctorProfile = {
+      displayName: stringValue(input.displayName ?? existing.displayName, 'displayName', { required: true, max: 160 }),
+      specialty: stringValue(input.specialty ?? existing.specialty, 'specialty', { max: 160 }),
+      registrationId: stringValue(input.registrationId ?? existing.registrationId, 'registrationId', { max: 200 }),
+      organization: stringValue(input.organization ?? existing.organization, 'organization', { max: 200 }),
+      verificationStatus: existing.verificationStatus || 'pending',
+      verified: existing.verified === true,
+      ...(typeof existing.updatedAt === 'string' ? { updatedAt: existing.updatedAt } : {}),
+    };
+    await dataStore.transact((state) => {
+      const user = state.users.find((item) => item.id === current.user.id && item.role === 'doctor');
+      if (!user) throw new HttpError(404, 'CLINICIAN_NOT_FOUND', 'Clinician not found.');
+      user.doctorProfile = doctorProfile;
+      user.doctorProfile.updatedAt = new Date(ctx.now).toISOString();
+      addAuditEvent(state, { actorUserId: current.user.id, action: 'record.doctor_profile_update', entityType: 'doctor_profile', entityId: current.user.id }, ctx.now);
+    });
+    sendJson(response, 200, { doctor: publicDoctor(doctorProfile) });
     return true;
   }
   return false;

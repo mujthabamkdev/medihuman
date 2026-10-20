@@ -67,6 +67,7 @@ function json(method, path, body) { return request(path, { method, body: JSON.st
 
 export const api = {
   me: () => request('/me'),
+  googleConfigured: () => request('/config'),
   login: (body) => json('POST', '/auth/login', body),
   register: (body) => json('POST', '/auth/register', body),
   recover: (email) => json('POST', '/auth/recover', { email }),
