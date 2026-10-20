@@ -195,15 +195,20 @@ export async function handlePatientRoute(ctx) {
     }
     if (method === 'PUT') {
       const input = await readJson(request);
-      allowedKeys(input, ['medicationName', 'strength', 'dose', 'route', 'frequency', 'startDate', 'endDate', 'instructions', 'prescriber']);
+      // Accept both legacy single-medicine fields and new grouped fields
+      const legacyKeys = ['medicationName', 'strength', 'dose', 'route', 'frequency', 'startDate', 'endDate', 'prescriber'];
+      const newKeys = ['condition', 'date', 'doctor', 'medicines', 'tests', 'fileRef', 'instructions', 'notes'];
+      const allKeys = [...newKeys, ...legacyKeys];
+      allowedKeys(input, allKeys);
       const updated = await dataStore.transact((state) => {
         const item = findRecordByPublicId(state, id, current.user.id);
         if (!item || item.type !== 'prescription') throw new HttpError(404, 'NOT_FOUND', 'Prescription not found.');
         const previous = recordToPrescription(publicRecord(item));
-        const fields = ['medicationName', 'strength', 'dose', 'route', 'frequency', 'startDate', 'endDate', 'instructions', 'prescriber'];
-        const prescription = prescriptionValue({ ...Object.fromEntries(fields.map((field) => [field, previous[field]])), ...input });
+        const prescription = prescriptionValue({ ...previous, ...input });
         Object.assign(item, {
-          title: prescription.medicationName, description: prescription.instructions,
+          title: prescription.condition || (Array.isArray(prescription.medicines) && prescription.medicines[0]?.medicationName) || previous.medicationName || '',
+          description: prescription.instructions,
+          date: prescription.date || item.date,
           data: { ...item.data, ...prescription }, updatedAt: new Date(now).toISOString(),
         });
         migratePrescriptionRecords(state);

@@ -95,17 +95,64 @@ export function medicineListValue(value) {
 }
 
 export function prescriptionValue(input) {
-  allowedKeys(input, ['medicationName', 'strength', 'dose', 'route', 'frequency', 'startDate', 'endDate', 'instructions', 'prescriber']);
+  // Support both legacy single-medicine format and new grouped format
+  const isLegacy = input.medicationName !== undefined || input.strength !== undefined ||
+    input.dose !== undefined || input.route !== undefined || input.frequency !== undefined ||
+    input.startDate !== undefined || input.endDate !== undefined || input.prescriber !== undefined;
+  let normalizedInput = { ...input };
+  if (isLegacy) {
+    // Convert legacy single-medicine fields to new grouped format
+    const legacyMedicine = {
+      medicationName: input.medicationName,
+      strength: input.strength,
+      dose: input.dose,
+      route: input.route,
+      frequency: input.frequency,
+      instructions: input.instructions,
+    };
+    normalizedInput = {
+      condition: input.condition,
+      date: input.date || input.startDate,
+      doctor: input.doctor || input.prescriber,
+      medicines: [legacyMedicine],
+      tests: input.tests,
+      fileRef: input.fileRef,
+      instructions: input.instructions,
+      notes: input.notes,
+    };
+  }
+  allowedKeys(normalizedInput, ['condition', 'date', 'doctor', 'medicines', 'tests', 'fileRef', 'instructions', 'notes']);
+  const medicines = Array.isArray(normalizedInput.medicines) ? normalizedInput.medicines.map((medicine, index) => {
+    if (!medicine || typeof medicine !== 'object' || Array.isArray(medicine)) throw new HttpError(400, 'INVALID_FIELD', `medicines[${index}] must be an object.`);
+    allowedKeys(medicine, ['medicationName', 'strength', 'dose', 'route', 'frequency', 'instructions']);
+    return {
+      medicationName: stringValue(medicine.medicationName, `medicines[${index}].medicationName`, { required: true, max: 160 }),
+      strength: stringValue(medicine.strength, `medicines[${index}].strength`, { max: 80 }),
+      dose: stringValue(medicine.dose, `medicines[${index}].dose`, { max: 120 }),
+      route: stringValue(medicine.route, `medicines[${index}].route`, { max: 80 }),
+      frequency: stringValue(medicine.frequency, `medicines[${index}].frequency`, { max: 120 }),
+      instructions: stringValue(medicine.instructions, `medicines[${index}].instructions`, { max: 1_000 }),
+    };
+  }) : [];
+  const tests = Array.isArray(normalizedInput.tests) ? normalizedInput.tests.map((test, index) => {
+    if (!test || typeof test !== 'object' || Array.isArray(test)) throw new HttpError(400, 'INVALID_FIELD', `tests[${index}] must be an object.`);
+    allowedKeys(test, ['name', 'result', 'date', 'fileRef']);
+    return {
+      name: stringValue(test.name, `tests[${index}].name`, { required: true, max: 160 }),
+      result: stringValue(test.result, `tests[${index}].result`, { max: 500 }),
+      date: dateValue(test.date, `tests[${index}].date`),
+      fileRef: stringValue(test.fileRef, `tests[${index}].fileRef`, { max: 500 }),
+    };
+  }) : [];
   return {
-    medicationName: stringValue(input.medicationName, 'medicationName', { required: true, max: 160 }),
-    strength: stringValue(input.strength, 'strength', { max: 80 }),
-    dose: stringValue(input.dose, 'dose', { max: 120 }),
-    route: stringValue(input.route, 'route', { max: 80 }),
-    frequency: stringValue(input.frequency, 'frequency', { max: 120 }),
-    startDate: dateValue(input.startDate, 'startDate'),
-    endDate: dateValue(input.endDate, 'endDate'),
-    instructions: stringValue(input.instructions, 'instructions', { max: 1_000 }),
-    prescriber: stringValue(input.prescriber, 'prescriber', { max: 160 }),
+    condition: stringValue(normalizedInput.condition, 'condition', { max: 200 }),
+    date: dateValue(normalizedInput.date, 'date'),
+    doctor: stringValue(normalizedInput.doctor, 'doctor', { max: 160 }),
+    medicines,
+    tests,
+    fileRef: stringValue(normalizedInput.fileRef, 'fileRef', { max: 500 }),
+    instructions: stringValue(normalizedInput.instructions, 'instructions', { max: 1_000 }),
+    notes: stringValue(normalizedInput.notes, 'notes', { max: 1_000 }),
   };
 }
 

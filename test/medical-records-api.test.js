@@ -130,7 +130,7 @@ test('medical record CRUD, isolation, persistence and prescription aliases', asy
     assert.equal(created.status, 201);
     const id = created.body.prescription.id;
     const canonical = (await request(`/api/patient/records/${id}`, patient)).body.record;
-    assert.equal(canonical.data.strength, '10 mg');
+    assert.equal(canonical.data.medicines[0].strength, '10 mg');
     assert.equal(canonical.date, canonical.createdAt.slice(0, 10));
     await request(`/api/patient/records/${id}`, patient, 'PUT', { tags: ['retain'], source: 'clinic', title: 'Renamed medication', description: 'Revised instructions' });
     const updated = await request(`/api/prescriptions/${id}`, patient, 'PUT', { dose: 'Two tablets' });
@@ -138,7 +138,7 @@ test('medical record CRUD, isolation, persistence and prescription aliases', asy
     assert.equal(updated.body.prescription.medicationName, 'Renamed medication');
     assert.equal(updated.body.prescription.instructions, 'Revised instructions');
     const record = (await request(`/api/patient/records/${id}`, patient)).body.record;
-    assert.equal(record.data.dose, 'Two tablets');
+    assert.equal(record.data.medicines[0].dose, 'Two tablets');
     assert.deepEqual(record.tags, ['retain']);
     assert.equal(record.source, 'clinic');
     assert.equal((await request(`/api/prescriptions/${id}`, other)).status, 404);

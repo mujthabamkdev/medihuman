@@ -242,26 +242,36 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
 
   async function persistPrescriptionReview() {
     const lines = state.prescriptionText.split(/[\n,]+/).map((line) => line.trim()).filter(Boolean);
-    const records = lines.slice(0, 100).map((medicationName, index) => ({ id: `local-prescription-${Date.now()}-${index}`, medicationName, instructions: 'Captured and reviewed by patient.', createdAt: new Date().toISOString() }));
+    const medicines = lines.slice(0, 100).map((medicationName) => ({ medicationName, instructions: 'Captured and reviewed by patient.' }));
+    const record = {
+      id: `local-prescription-${Date.now()}`,
+      condition: '',
+      date: new Date().toISOString().slice(0, 10),
+      doctor: '',
+      medicines,
+      tests: [],
+      fileRef: '',
+      instructions: 'Captured and reviewed by patient.',
+      notes: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
     if (state.localOnly) {
-      state.prescriptions.push(...records);
+      state.prescriptions.push(record);
       saveLocal(state);
       state.saveStatus.prescription = 'Saved on this device';
       state.dirty = false;
       return;
     }
     state.saveStatus.prescription = 'Saving…';
-    let failureCount = 0;
-    for (const medicationName of lines.slice(0, 100)) {
-      try {
-        const response = await api.savePrescription({ medicationName, instructions: 'Captured and reviewed by patient.' });
-        if (response.prescription) state.prescriptions.push(response.prescription);
-      } catch {
-        failureCount += 1;
-      }
+    try {
+      const response = await api.savePrescription({ condition: '', medicines, tests: [], instructions: 'Captured and reviewed by patient.', notes: '' });
+      if (response.prescription) state.prescriptions.push(response.prescription);
+      state.saveStatus.prescription = 'Saved to your account';
+      state.dirty = false;
+    } catch (error) {
+      state.saveStatus.prescription = `Not saved: ${error.message}`;
     }
-    if (failureCount > 0) state.saveStatus.prescription = `Not saved: ${failureCount} item(s) failed`;
-    else { state.saveStatus.prescription = 'Saved to your account'; state.dirty = false; }
   }
 
   async function saveReconciliation() {
@@ -446,10 +456,12 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     try {
       state.selectedPatientId = patientId;
       state.doctorRecords[patientId] = state.localOnly ? localPatientRecords() : await api.doctorPatient(patientId);
-      if (!state.localOnly) {
-        try { const summary = await api.doctorPatient(patientId, 'summary'); state.doctorRecords[patientId].summary = summary.summary; } catch { /* record remains useful without summary endpoint */ }
-      }
+      // Paint the record first. The rule-based summary is a second round trip
+      // and must not delay the clinician from seeing the approved record.
       render();
+      if (!state.localOnly) {
+        try { const summary = await api.doctorPatient(patientId, 'summary'); state.doctorRecords[patientId].summary = summary.summary; render(); } catch { /* record remains useful without summary endpoint */ }
+      }
     } catch (error) { showError(error.message); }
   }
 

@@ -11,6 +11,7 @@ const PUBLIC_RECORD_FIELDS = [
 const PRESCRIPTION_DATA_FIELDS = [
   'medicationName', 'strength', 'dose', 'route', 'frequency',
   'startDate', 'endDate', 'instructions', 'prescriber',
+  'condition', 'date', 'doctor', 'medicines', 'tests', 'fileRef', 'notes',
 ];
 
 export function publicRecord(record) {
@@ -26,7 +27,9 @@ export function publicRecord(record) {
   if (record.type === 'prescription' && record.data && typeof record.data === 'object' && !Array.isArray(record.data)) {
     result.data = {};
     for (const field of PRESCRIPTION_DATA_FIELDS) {
-      if (typeof record.data[field] === 'string') result.data[field] = record.data[field];
+      const value = record.data[field];
+      if (Array.isArray(value)) result.data[field] = structuredClone(value);
+      else if (typeof value === 'string') result.data[field] = value;
     }
   }
   return result;
