@@ -6,5 +6,8 @@ node_modules/
 *.log
 .vercel
 public/
-videos/
+videos/*
+!videos/
+!videos/medihuman-buildathon/
+!videos/medihuman-buildathon/**
 fonts/
