@@ -41,47 +41,49 @@
 ## Phase 2 — Generic medical records backend
 
 ### 2.1 Database schema
-- [ ] Create `supabase/migrations/YYYYMMDD_create_medical_records.sql`
-- [ ] Table: `medical_records` (id, user_id, type, title, date, description, file_ref, mime_type, size_bytes, tags, source, created_at, updated_at, data)
-- [ ] RLS: enable on table, revoke all from public/anon/authenticated, grant to service_role
-- [ ] Index: `medical_records_user_id_idx`, `medical_records_type_idx`, `medical_records_date_idx`
-- [ ] Update `medihuman_commit_normalized_state` RPC to handle `medical_records` collection
-- [ ] Add `medical_records` to `NORMALIZED_TABLES` in `store.js`
+- [x] Create `supabase/migrations/20261021000002_create_medical_records.sql`
+- [x] Table: `medical_records` (id, user_id, type, title, date, description, file_ref, mime_type, size_bytes, tags, source, created_at, updated_at, data)
+- [x] RLS: enable on table, revoke all from public/anon/authenticated, grant to service_role
+- [x] Index: `medical_records_user_id_idx`, `medical_records_type_idx`, `medical_records_date_idx`
+- [x] Update `medihuman_commit_normalized_state` RPC to handle `medical_records` collection
+- [x] Add `medical_records` to `NORMALIZED_TABLES` in `store.js`
 
 ### 2.2 Validation
-- [ ] Add `recordType` enum validation in `validation.js`
-- [ ] Add `recordValue(input)` function (allowedKeys: type, title, date, description, tags, source)
-- [ ] Add `recordListValue(value)` function
-- [ ] Add `fileRef` validation (max length, URL format)
+- [x] Add `recordType` enum validation in `validation.js`
+- [x] Add `recordValue(input)` function (allowedKeys: type, title, date, description, tags, source, fileRef, mimeType, sizeBytes)
+- [x] Add `recordListValue(value)` function
+- [x] Add `fileRef` validation (max length, URL format)
 
 ### 2.3 API routes
-- [ ] `GET /api/patient/records` — list all records for patient (with optional `?type=` filter)
-- [ ] `GET /api/patient/records/:id` — single record
-- [ ] `POST /api/patient/records` — create record
-- [ ] `PUT /api/patient/records/:id` — update record
-- [ ] `DELETE /api/patient/records/:id` — delete record
-- [ ] `GET /api/doctor/patients/:id/records` — doctor reads approved patient's records
-- [ ] `GET /api/doctor/patients/:id/records/:id` — doctor reads single record
-- [ ] `GET /api/patient/records?type=prescription` — filter by type
+- [x] `GET /api/patient/records` — list all records for patient (with optional `?type=` filter)
+- [x] `GET /api/patient/records/:id` — single record
+- [x] `POST /api/patient/records` — create record
+- [x] `PUT /api/patient/records/:id` — update record
+- [x] `DELETE /api/patient/records/:id` — delete record
+- [x] `GET /api/doctor/patients/:id/records` — doctor reads approved patient's records
+- [x] `GET /api/doctor/patients/:id/records/:id` — doctor reads single record
+- [x] `GET /api/patient/records?type=prescription` — filter by type
 
 ### 2.4 Records module
-- [ ] Add `publicRecord(record)` to `records.js`
-- [ ] Add `patientRecords` to include `medicalRecords` in doctor view
-- [ ] Add `findRecordByPublicId` helper
+- [x] Add `publicRecord(record)` to `records.js`
+- [x] Add `patientRecords` to include `medicalRecords` in doctor view
+- [x] Add `findRecordByPublicId` helper
 
 ### 2.5 Migration
-- [ ] Script to convert existing `prescriptions` → `medical_records` type='prescription'
-- [ ] Backfill `date` from `createdAt` for existing prescriptions
-- [ ] Keep prescriptions endpoint as alias for backward compat (query records type='prescription')
+- [x] Script to convert existing `prescriptions` → `medical_records` type='prescription'
+- [x] Backfill `date` from `createdAt` for existing prescriptions
+- [x] Keep prescriptions endpoint as alias for backward compat (query records type='prescription')
 
 ### 2.6 Summary
-- [ ] Update `buildRuleBasedSummary` to include medical records by type
-- [ ] Add `sourceCounts.records` to summary
+- [x] Update `buildRuleBasedSummary` to include medical records by type
+- [x] Add `sourceCounts.records` to summary
 
 ### 2.7 Tests
-- [ ] API contract tests for all record CRUD endpoints
-- [ ] Supabase store test: medical_records round-trip through RPC
-- [ ] Migration test: prescriptions → medical_records
+- [x] API contract tests for all record CRUD endpoints
+- [x] Supabase store test: medical_records round-trip through RPC
+- [x] Migration test: prescriptions → medical_records
+
+Phase 2 verification (2026-10-20): `npm test` passes 128 tests (76 baseline + 52); `npm run build` passes; Docker build runs the same suite on Linux and runtime smoke checks pass. `POSTGRES_CONTAINER=supabase_db_medihuman npm run check:records-db` verifies real PostgreSQL backfill, idempotence, grants/RLS, RPC writes and rollback in a disposable database. Existing local `supabase db lint --local` reports an unrelated installed `medihuman_rate_limit_hit` ambiguity (`bucket_key`); no existing/remote database was migrated. Apply the new SQL migration before deploying to Supabase. Upload/storage integration remains Phase 5.
 
 ---
 

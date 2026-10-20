@@ -12,41 +12,46 @@ MediHuman is a mobile-first progressive web app for organizing prescription capt
 
 ## Requirements
 
-- Node.js 22 (see `.nvmrc`)
+- Node.js 22.11.0 (pinned in `.nvmrc` and `Dockerfile`)
+- No application npm dependencies or extra system packages are required.
 
 ## Setup and run
 
 ```sh
+npm ci --offline --no-audit --no-fund
 npm test
-npm start
+npm run build
+PUBLIC_ROOT=public npm start
 ```
 
 Open <http://localhost:4173>. Set `PORT` to use another port:
 
 ```sh
-PORT=8080 npm start
+PORT=8080 PUBLIC_ROOT=public npm start
 ```
 
-Copy `.env.example` for the optional port reference. The server does not read `.env` automatically; export `PORT` in your shell or use a compatible environment loader.
+Copy `.env.example` for environment variable names. The server does not read `.env` automatically; export variables in your shell or use a compatible environment loader. `PUBLIC_ROOT=public` serves only generated browser assets; do not expose the source directory as a production document root. Re-run `npm run build` after frontend changes.
 
 ## Docker
 
 ```sh
 docker build -t medihuman .
-docker run --rm -p 4173:4173 medihuman
+docker run --rm -p 4173:4173 -v medihuman-data:/app/.data medihuman
 ```
 
 Then open <http://localhost:4173>.
+
+The image pins Node/Alpine, installs the lockfile offline, runs `npm test`, and builds browser assets before starting. It sets `PUBLIC_ROOT=public`; backend sources, migrations and private files are not web-accessible. Local data persists in the named volume. Supply production credentials with environment injection, never image layers. Once the base image is available, dependency installation, tests and the static build need no external network; live Supabase, Google sign-in and CDN OCR still require their services.
 
 ## Supabase persistence
 
 Supabase is an optional server-side persistence backend. The app uses direct Node `fetch` against PostgREST; no Supabase SDK is bundled into the browser. This keeps dependencies and client egress small, and the service-role key never reaches the frontend.
 
-The checked-in migration stores the application state in 11 normalized tables: `users`, `profiles`, `medicines`, `prescriptions`, `reconciliations`, `access_requests`, `indications`, `notifications`, `audit_logs`, `sessions`, and `oauth_states`. Each table has canonical columns for queryable fields plus a `data` JSONB column that preserves the backend record contract. There is no legacy singleton JSON state table or incremental read path.
+The checked-in migrations store the application state in 12 normalized tables: `users`, `profiles`, `medicines`, `prescriptions`, `medical_records`, `reconciliations`, `access_requests`, `indications`, `notifications`, `audit_logs`, `sessions`, and `oauth_states`. Each table has canonical columns for queryable fields plus a `data` JSONB column that preserves the backend record contract. `medical_records` is canonical for documents; `prescriptions` remains a synchronized legacy mirror. There is no legacy singleton JSON state table or incremental read path.
 
-Writes use the transaction-safe `medihuman_commit_normalized_state(next_state jsonb)` RPC. The RPC takes the complete normalized application state, serializes concurrent commits with a PostgreSQL advisory transaction lock, replaces rows in all 11 tables in one transaction, and returns `true`. The application refreshes all normalized tables before each write and sends the complete state to this RPC.
+Writes use the transaction-safe `medihuman_commit_normalized_state(next_state jsonb)` RPC. The RPC takes the complete normalized application state, serializes concurrent commits with a PostgreSQL advisory transaction lock, replaces rows in all 12 tables in one transaction, and returns `true`. The application refreshes all normalized tables before each write and sends the complete state to this RPC.
 
-Persistence is service-role-only. Row-level security is enabled on all 11 tables; `public`, `anon`, and `authenticated` receive no table or RPC privileges. Only `service_role` can read or write normalized tables or execute `medihuman_commit_normalized_state`. Keep `SUPABASE_SERVICE_ROLE_KEY` exclusively in the server/runtime environment; it must never reach browser assets or client-side environment variables.
+Persistence is service-role-only. Row-level security is enabled on all 12 tables; `public`, `anon`, and `authenticated` receive no table or RPC privileges. Only `service_role` can read or write normalized tables or execute `medihuman_commit_normalized_state`. Keep `SUPABASE_SERVICE_ROLE_KEY` exclusively in the server/runtime environment; it must never reach browser assets or client-side environment variables.
 
 Apply schema to linked project:
 
@@ -84,7 +89,7 @@ STORE_BACKEND=supabase npm run migrate:supabase
 
 Migration refuses to overwrite a non-empty Supabase state. Set `SUPABASE_MIGRATE_OVERWRITE=1` only after an explicit backup and review.
 
-Create a private JSON backup before migrations or maintenance. `backup:supabase` reads the complete normalized snapshot from all 11 tables and writes one JSON file outside Git-tracked paths with mode `0600`:
+Create a private JSON backup before migrations or maintenance. `backup:supabase` reads the complete normalized snapshot from all 12 tables and writes one JSON file outside Git-tracked paths with mode `0600`:
 
 ```sh
 STORE_BACKEND=supabase npm run backup:supabase
@@ -97,7 +102,7 @@ DATA_FILE=.supabase-backups/medihuman-YYYY-MM-DDTHH-MM-SS-sssZ.json \
 STORE_BACKEND=supabase SUPABASE_MIGRATE_OVERWRITE=1 npm run migrate:supabase
 ```
 
-Restore is an explicit full-state replacement: the migration command normalizes the reviewed JSON backup and commits it through `medihuman_commit_normalized_state`, replacing rows across all 11 tables in one database transaction. `SUPABASE_MIGRATE_OVERWRITE=1` is required when the destination already contains records; review the backup and target before using it.
+Restore is an explicit full-state replacement: the migration command normalizes the reviewed JSON backup and commits it through `medihuman_commit_normalized_state`, replacing rows across all 12 tables in one database transaction. `SUPABASE_MIGRATE_OVERWRITE=1` is required when the destination already contains records; review the backup and target before using it.
 
 Concurrent writes are serialized by the normalized commit RPC's database transaction lock. Conflicting writes do not fall back to `/tmp` or local JSON. Vercel now defaults to `STORE_BACKEND=supabase`; set `STORE_BACKEND=json` only for intentional local/preview runs.
 
@@ -198,13 +203,58 @@ Keep these boundaries strict: views render; controllers coordinate effects; stat
 - `GET /api/patient/summary` and `GET /api/summary`
 - `GET|PUT /api/patient/profile`
 - `GET|PUT /api/patient/medicines`
+- `GET|POST /api/patient/records`, `GET|PUT|DELETE /api/patient/records/:id`
+- `GET /api/doctor/patients/:patientId/records`, `GET /api/doctor/patients/:patientId/records/:id`
 - `GET|POST /api/prescriptions`, `GET|PUT|DELETE /api/prescriptions/:id`
 - `GET|POST /api/reconciliations`, `GET /api/reconciliations/:id`
 
 Send JSON with `Content-Type: application/json`. Send `X-CSRF-Token` matching the `mh_csrf` cookie for every state-changing request.
 
+### Generic medical records (Phase 2)
+
+`POST /api/patient/records` requires `type`, `title` and a valid `date` (`YYYY-MM-DD`). Supported types: `prescription`, `lab_report`, `imaging`, `clinical_note`, `discharge_summary`, `vaccination`, `other`.
+
+```json
+{
+  "type": "lab_report",
+  "title": "Annual blood panel",
+  "date": "2026-10-20",
+  "description": "Document for clinician review",
+  "tags": ["annual"],
+  "source": "lab"
+}
+```
+
+Optional fields: `description` (up to 5,000 characters), `tags` (up to 100 nonempty strings), `source` (`self`, `clinic`, `lab`; defaults to `self`), `fileRef` (absolute HTTPS URL, at most 2,048 characters, no credentials), `mimeType`, `sizeBytes` (integer 0–4,500,000). Title is limited to 200 characters. Identity, ownership, timestamps and structured `data` are server-owned; unknown fields are rejected. File metadata is a reference only: this API does not fetch URLs or upload, validate or serve document bytes. Private storage authorization and uploads remain Phase 5 work; never assume a public URL becomes private merely by recording it here.
+
+Responses use `{ "record": ... }` for create/read/update and `{ "records": [...] }` for lists. `PUT` accepts a partial update and preserves omitted metadata. `DELETE` returns `{ "ok": true }`. Lists are newest clinical date first, then creation time, with stable ID tie-breaking. Both patient and doctor lists accept `?type=lab_report`; invalid, empty or repeated type filters return 400. Pagination remains a separate task.
+
+Patients can access only their own records. Verified doctors require active patient approval for list/detail access, including file references. Missing or another patient's record returns 404. Creates, updates and deletes generate audit events and notify approved doctors without including document text. Account export includes `records.medicalRecords`; account deletion removes these records too. Summaries expose `sourceCounts.records` and `recordCountsByType` without double-counting the legacy prescription projection.
+
+Existing `/api/prescriptions` endpoints retain their request/response contract but query canonical records with `type=prescription`. Structured medication fields live inside the record's `data`; IDs survive migration. Edits and deletions synchronize both collections. The SQL migration `supabase/migrations/20261021000002_create_medical_records.sql` must be applied before deploying this backend to Supabase. It backfills prescription dates from creation time and retains original payloads.
+
+Local stores and imported backups normalize prescriptions automatically. For an explicit, repeatable conversion after taking a private backup:
+
+```sh
+DATA_FILE=.data/medihuman.json npm run migrate:records
+# Or, after applying schema and exporting server-only Supabase variables:
+STORE_BACKEND=supabase npm run migrate:records
+```
+
+The JSON command requires an existing explicit `DATA_FILE` and rewrites it with private permissions. Re-running is idempotent; existing canonical records win. Legacy prescriptions without a valid creation date retain an empty date rather than inventing one. Pause writers during migration/restore. No production migration is performed by `npm test`.
+
 ## Checks
 
-`npm test` covers comparison logic, the limited composition/risk rules, API authentication, password storage, cookie/CSRF enforcement, validation errors, patient data, prescriptions, and reconciliation persistence. Before production deployment, add HTTPS termination, secret management, email verification, password reset, MFA, distributed rate limiting, durable database migrations/backups, audit logging, monitoring, privacy/legal review, and an authoritative clinical interaction data source.
+`npm test` is the single offline check command. It covers comparison logic, the limited composition/risk rules, API authentication, password storage, cookie/CSRF enforcement, validation errors, patient data, generic record CRUD, patient isolation, doctor approval/revocation, prescription compatibility, summaries, JSON migration and mocked Supabase RPC round-trips. `npm run build` verifies the static deployment output. No standalone lint/typecheck command is configured.
+
+Optional real PostgreSQL check, with a running local Supabase stack and Docker:
+
+```sh
+POSTGRES_CONTAINER=supabase_db_medihuman npm run check:records-db
+```
+
+This creates and drops only a uniquely named disposable database in the selected container. It checks prescription backfill, repeatability, RLS/grants, service-role RPC writes and transaction rollback using synthetic fixtures; it never resets or migrates the existing app database. `supabase db lint --local` separately inspects the installed local schema, which may lag checked-in migrations.
+
+Before production deployment, review HTTPS termination, secret management, email verification, password reset, MFA, distributed rate limiting, durable database migrations/backups, audit logging, monitoring, privacy/legal review, and an authoritative clinical interaction data source.
 
 Operational readiness procedures live in [`OPERATIONS.md`](./OPERATIONS.md). They cover monitoring, backup/restore drills, incident response, and privacy/legal gates.

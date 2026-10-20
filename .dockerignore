@@ -2,3 +2,16 @@ node_modules
 npm-debug.log
 .git
 .DS_Store
+.data
+.env
+.env.*
+!.env.example
+.supabase-backups
+.vercel
+.cursor
+.omnirush
+.opencode
+public
+videos
+supabase/.temp
+supabase/.branches

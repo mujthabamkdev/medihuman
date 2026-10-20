@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createServer } from 'node:net';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -114,4 +115,43 @@ test('Vercel explicitly builds static output rather than detecting a server fram
   ]);
   assert.deepEqual(config.functions['api/index.js'], { maxDuration: 10 });
   assert.equal(config.functions['api/[...path].js'], undefined);
+});
+
+test('standalone server honors PUBLIC_ROOT and never serves backend or migration sources', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'medihuman-runtime-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const output = await buildStatic(join(directory, 'public'));
+  const reservation = createServer();
+  await new Promise((resolve) => reservation.listen(0, '127.0.0.1', resolve));
+  const port = reservation.address().port;
+  await new Promise((resolve) => reservation.close(resolve));
+  const script = `
+    import assert from 'node:assert/strict';
+    import { spawn } from 'node:child_process';
+    const child = spawn(process.execPath, ['server.js'], { stdio: 'ignore' });
+    const origin = 'http://127.0.0.1:' + process.env.PORT;
+    const get = (path) => fetch(origin + path, { headers: { connection: 'close' } });
+    try {
+      let ready = false;
+      for (let attempt = 0; attempt < 40; attempt++) {
+        try { const response = await get('/api/health'); await response.text(); ready = response.ok; } catch {}
+        if (ready) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      assert.ok(ready, 'Standalone server did not start');
+      for (const [path, status] of [['/',200],['/manifest.webmanifest',200],['/service-worker.js',200],['/api/patient/records',401],['/src/backend/store.js',404],['/scripts/migrate-medical-records.js',404],['/.env',404]]) {
+        const response = await get(path);
+        assert.equal(response.status, status, path);
+        await response.text();
+      }
+    } finally {
+      if (child.exitCode === null) { child.kill(); await new Promise((resolve) => child.once('exit', resolve)); }
+    }
+  `;
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+    cwd: new URL('../', import.meta.url), encoding: 'utf8', timeout: 15_000,
+    env: { ...process.env, VERCEL: '0', STORE_BACKEND: 'json', PUBLIC_ROOT: output, DATA_FILE: join(directory, 'private', 'data.json'), PORT: String(port) },
+  });
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
 });

@@ -9,6 +9,8 @@
     "start": "node server.js",
     "backup:supabase": "node scripts/backup-supabase.js",
     "migrate:supabase": "node scripts/migrate-to-supabase.js",
+    "migrate:records": "node scripts/migrate-medical-records.js",
+    "check:records-db": "node scripts/check-medical-records-db.js",
     "seed:demo": "node scripts/seed-demo-data.js",
     "test": "node --test"
   },
