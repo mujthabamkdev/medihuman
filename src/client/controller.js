@@ -74,13 +74,13 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (state.localOnly) return;
     try {
       if (state.role === 'patient') {
-        const [access, prescriptions, reconciliations, indications, notifications] = await Promise.all([api.patientAccessRequests(), api.prescriptions(), api.reconciliations(), api.indications(), api.notifications()]);
+        const [access, prescriptions, reconciliations, indications, notifications, records] = await Promise.all([api.patientAccessRequests(), api.prescriptions(), api.reconciliations(), api.indications(), api.notifications(), api.records()]);
         state.patientRequests = access.requests || [];
         state.prescriptions = prescriptions.prescriptions || [];
         state.reconciliations = reconciliations.reconciliations || [];
         state.indications = indications.indications || [];
         state.notifications = notifications.notifications || [];
-      } else {
+        state.records = records.records || [];      } else {
         const [access, notifications] = await Promise.all([api.doctorAccessRequests(), api.notifications()]);
         state.doctorRequests = access.requests || [];
         state.notifications = notifications.notifications || [];
@@ -243,6 +243,43 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
   }
 
   function updateMedicineField(target) { const item = state.medicines[Number(target.dataset.medIndex)]; if (item) { item[target.dataset.medKey] = target.value; state.dirty = true; saveLocal(state); } }
+
+  function openMedicineDialog(mode, index = -1) {
+    const item = mode === 'edit' ? state.medicines[index] : null;
+    if (mode === 'edit' && !item) return;
+    state.medicineDialog = { mode, index, draft: mode === 'edit' ? { ...item } : medicineObject('') };
+    render();
+    globalThis.document?.querySelector('.medicine-dialog input[name="name"]')?.focus();
+  }
+
+  function closeMedicineDialog() {
+    const dialog = state.medicineDialog;
+    state.medicineDialog = null;
+    render();
+    const trigger = dialog?.mode === 'edit'
+      ? globalThis.document?.getElementById(`medicine-edit-${dialog.index}`)
+      : globalThis.document?.getElementById('medicine-add-button');
+    trigger?.focus();
+  }
+
+  async function submitMedicineDialog(form) {
+    const dialog = state.medicineDialog;
+    if (!dialog) return;
+    const values = formValues(form);
+    const draft = { ...(dialog.draft || {}), ...values };
+    const name = String(draft.name || '').trim();
+    if (!name) { showError('Medicine name is required.'); return; }
+    const item = { ...draft, name, status: draft.status || 'active', id: draft.id || globalThis.crypto?.randomUUID?.() || `local-medicine-${Date.now()}` };
+    if (dialog.mode === 'new') state.medicines.push(item);
+    else if (state.medicines[dialog.index]) state.medicines[dialog.index] = item;
+    state.medicineDialog = null;
+    state.saveStatus.medicines = 'Saving…';
+    saveLocal(state);
+    render();
+    const rowIndex = dialog.mode === 'new' ? state.medicines.length - 1 : dialog.index;
+    globalThis.document?.getElementById(`medicine-edit-${rowIndex}`)?.focus();
+    await saveMedicines();
+  }
 
   async function saveMedicines() {
     state.medicines = state.medicines.filter((item) => item.name.trim()); state.saveStatus.medicines = 'Saving…'; saveLocal(state); render();
@@ -491,11 +528,12 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     stopCamera();
     if (clear) clearLocalWorkspace();
     setLocalMode(false);
-    state.localExitPrompt = false; state.screen = 'auth'; state.localOnly = false; state.user = null; state.role = state.authRole; state.view = 'dashboard'; state.profileMenuOpen = false; state.notificationsOpen = false; state.patientMenuOpen = false; state.doctorPatientMenuOpen = false; state.medicineEditMode = false; state.mobileMenuOpen = false;
+    state.localExitPrompt = false; state.screen = 'auth'; state.localOnly = false; state.user = null; state.role = state.authRole; state.view = 'dashboard'; state.profileMenuOpen = false; state.notificationsOpen = false; state.patientMenuOpen = false; state.doctorPatientMenuOpen = false; state.medicineDialog = null; state.mobileMenuOpen = false;
     render();
   }
 
   root.addEventListener('click', async (event) => {
+    if (state.medicineDialog && event.target.classList?.contains('modal-backdrop')) { closeMedicineDialog(); return; }
     const target = event.target.closest('[data-action]');
     if (state.doctorPatientMenuOpen && !event.target.closest('.patient-picker')) { state.doctorPatientMenuOpen = false; render(); }
     if (!target) return; const action = target.dataset.action;
@@ -511,6 +549,25 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'view-prescription') { state.viewingPrescriptionId = target.dataset.id; render(); return; }
     if (action === 'cancel-prescription-view') { state.viewingPrescriptionId = ''; render(); return; }
     if (action === 'delete-prescription') { if (!window.confirm('Remove this prescription record?')) return; if (state.localOnly) { state.prescriptions = state.prescriptions.filter((item) => item.id !== target.dataset.id); saveLocal(state); } else { await api.deletePrescription(target.dataset.id); state.prescriptions = state.prescriptions.filter((item) => item.id !== target.dataset.id); } render(); return; }
+    if (action === 'delete-record') { if (!window.confirm('Remove this record?')) return; if (state.localOnly) { state.records = state.records.filter((item) => item.id !== target.dataset.id); saveLocal(state); } else { await api.deleteRecord(target.dataset.id); state.records = state.records.filter((item) => item.id !== target.dataset.id); } render(); return; }
+    if (action === 'add-record') {
+      const title = window.prompt('Record title:');
+      if (!title) return;
+      const type = window.prompt('Record type (prescription, lab_report, imaging, clinical_note, vaccination, other):', 'other') || 'other';
+      const description = window.prompt('Description (optional):') || '';
+      const date = new Date().toISOString().slice(0, 10);
+      try {
+        if (state.localOnly) {
+          state.records.push({ id: `local-record-${Date.now()}`, type, title, date, description, fileRef: '', tags: [], source: 'self', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+          saveLocal(state);
+        } else {
+          const response = await api.saveRecord({ type, title, date, description, tags: [], source: 'self' });
+          if (response.record) state.records.push(response.record);
+        }
+        render();
+      } catch (error) { showError(error.message); }
+      return;
+    }
     if (action === 'edit-indication') { state.editingIndicationId = target.dataset.id; render(); return; }
     if (action === 'cancel-indication-edit') { state.editingIndicationId = ''; render(); return; }
     if (action === 'delete-indication') { if (!window.confirm('Remove this clinician indication?')) return; const patientId = target.dataset.patientId; await api.deleteIndication(patientId, target.dataset.id); state.doctorRecords[patientId].indications = state.doctorRecords[patientId].indications.filter((item) => item.id !== target.dataset.id); render(); return; }
@@ -572,7 +629,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       return;
     }
     if (action === 'nav') {
-      state.view = target.dataset.view; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; state.doctorPatientMenuOpen = false; state.medicineEditMode = false; state.mobileMenuOpen = false;
+      state.view = target.dataset.view; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; state.doctorPatientMenuOpen = false; state.medicineDialog = null; state.mobileMenuOpen = false;
       if (state.view === 'doctor-patients' && state.role === 'doctor' && !state.selectedPatientId) {
         const firstApproved = state.doctorRequests.find((request) => request.status === 'approved');
         if (firstApproved) state.selectedPatientId = firstApproved.patientId;
@@ -589,10 +646,9 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'go-reconcile') { state.view = 'reconcile'; render(); return; }
     if (action === 'go-composition') { state.view = 'composition'; render(); return; }
     if (action === 'save-profile') { await saveProfile(); return; }
-    if (action === 'edit-medicines') { state.medicineEditMode = true; render(); return; }
-    if (action === 'view-medicines') { state.medicineEditMode = false; render(); return; }
-    if (action === 'edit-medicine') { state.medicineEditMode = true; render(); return; }
-    if (action === 'add-medicine') { state.medicines.push(medicineObject('')); state.medicineEditMode = true; render(); return; }
+    if (action === 'add-medicine') { openMedicineDialog('new'); return; }
+    if (action === 'edit-medicine') { openMedicineDialog('edit', Number(target.dataset.index)); return; }
+    if (action === 'close-medicine-dialog') { closeMedicineDialog(); return; }
     if (action === 'remove-medicine') { if (!window.confirm('Remove this medicine?')) return; const index = Number(target.dataset.index); const item = state.medicines[index]; if (!item) return; if (!state.localOnly && item.id) { try { await api.deleteMedicine(item.id); } catch (error) { state.saveStatus.medicines = `Not saved: ${error.message}`; render(); return; } } state.medicines.splice(index, 1); saveLocal(state); state.saveStatus.medicines = 'Saved to your account'; state.dirty = false; render(); return; }
     if (action === 'discontinue-medicine') { const index = Number(target.dataset.index); const item = state.medicines[index]; if (!item) return; item.status = 'discontinued'; item.stoppedAt = new Date().toISOString().slice(0, 10); state.dirty = true; saveLocal(state); render(); return; }
     if (action === 'complete-medicine') { const index = Number(target.dataset.index); const item = state.medicines[index]; if (!item) return; item.status = 'completed'; item.stoppedAt = new Date().toISOString().slice(0, 10); state.dirty = true; saveLocal(state); render(); return; }
@@ -614,9 +670,9 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'clear-data') { if (window.confirm('Clear this browser’s MediHuman workspace?')) { clearLocalWorkspace(); saveLocal(state); render(); } }
   });
 
-   root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; try { if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'password-reset') await submitPasswordReset(form); if (form.dataset.form === 'mfa') await submitMfa(form); if (form.dataset.form === 'mfa-enrollment') await submitMfaEnrollment(form); if (form.dataset.form === 'prescription-edit') await submitPrescriptionEdit(form); if (form.dataset.form === 'indication-edit') await submitIndicationEdit(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); if (form.dataset.form === 'doctor-indication') await submitIndication(form); } catch (error) { state.authError = error.message; render(); } });
-  root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); if (event.target.id === 'medicine-filter') { state.medicineFilter = event.target.value; render(); } if (event.target.id === 'patient-search') { state.patientSearch = event.target.value; state.selectedPatientId = ''; render(); } });
-  root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); if (event.target.id === 'record-type-filter') { state.recordTypeFilter = event.target.value; render(); } });
+   root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; try { if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'password-reset') await submitPasswordReset(form); if (form.dataset.form === 'mfa') await submitMfa(form); if (form.dataset.form === 'mfa-enrollment') await submitMfaEnrollment(form); if (form.dataset.form === 'prescription-edit') await submitPrescriptionEdit(form); if (form.dataset.form === 'indication-edit') await submitIndicationEdit(form); if (form.dataset.form === 'medicine-dialog') await submitMedicineDialog(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); if (form.dataset.form === 'doctor-indication') await submitIndication(form); } catch (error) { state.authError = error.message; render(); } });
+  root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); if (event.target.id === 'medicine-filter') { state.medicineFilter = event.target.value; render(); } if (event.target.id === 'patient-search') { state.patientSearch = event.target.value; state.selectedPatientId = ''; render(); } if (event.target.id === 'records-search') { state.recordsFilter = event.target.value; render(); } });
+  root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); if (event.target.id === 'record-type-filter') { state.recordTypeFilter = event.target.value; render(); } if (event.target.id === 'records-type-filter') { state.recordsTypeFilter = event.target.value; render(); } });
   root.addEventListener('keydown', (event) => {
     if (state.doctorPatientMenuOpen && event.key === 'Escape') { state.doctorPatientMenuOpen = false; render(); globalThis.document?.querySelector('.patient-picker-trigger')?.focus(); return; }
     if (state.doctorPatientMenuOpen && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
@@ -632,13 +688,16 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       return;
     }
     if (event.key === 'Escape') {
+      if (state.medicineDialog) { closeMedicineDialog(); return; }
       if (state.localExitPrompt) { state.localExitPrompt = false; render(); return; }
       if (state.mobileMenuOpen || state.patientMenuOpen || state.profileMenuOpen || state.notificationsOpen) { state.mobileMenuOpen = false; state.patientMenuOpen = false; state.profileMenuOpen = false; state.notificationsOpen = false; render(); }
     }
     if (event.key === 'Tab') {
-      const container = state.localExitPrompt
-        ? globalThis.document?.querySelector('.local-exit-dialog')
-        : state.mobileMenuOpen ? globalThis.document?.querySelector('#sidebar') : null;
+      const container = state.medicineDialog
+        ? globalThis.document?.querySelector('.medicine-dialog')
+        : state.localExitPrompt
+          ? globalThis.document?.querySelector('.local-exit-dialog')
+          : state.mobileMenuOpen ? globalThis.document?.querySelector('#sidebar') : null;
       if (!container) return;
       const items = [...container.querySelectorAll('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
         .filter((element) => !element.disabled && element.getClientRects().length);

@@ -522,3 +522,55 @@ test('reconciliations render with date and grouping', () => {
   assert.match(markup, /Medicine names match/);
   assert.match(markup, /Difference requires review/);
 });
+
+test('prescription records sorted newest first', () => {
+  const state = { ...createState(), screen: 'shell', view: 'scan', localOnly: true, prescriptions: [
+    { id: 'rx-1', medicationName: 'Old', createdAt: '2025-01-01T00:00:00Z', medicines: [{ medicationName: 'Old' }] },
+    { id: 'rx-2', medicationName: 'New', createdAt: '2026-06-01T00:00:00Z', medicines: [{ medicationName: 'New' }] },
+  ] };
+  const markup = createViewRenderer({ state }).renderShell();
+  assert.ok(markup.indexOf('New') < markup.indexOf('Old'));
+});
+
+test('medicine status filtering shows active and discontinued', () => {
+  const state = { ...createState(), screen: 'shell', view: 'medicines', localOnly: true, medicines: [
+    { id: 'm1', name: 'Active Med', status: 'active' },
+    { id: 'm2', name: 'Stopped Med', status: 'discontinued' },
+  ] };
+  const markup = createViewRenderer({ state }).renderShell();
+  assert.match(markup, /Active Med/);
+  assert.match(markup, /Stopped Med/);
+  assert.match(markup, /status-active/);
+  assert.match(markup, /status-discontinued/);
+});
+
+test('reconciliations render with date grouping', () => {
+  const state = { ...createState(), screen: 'shell', view: 'reconcile', localOnly: true, reconciliations: [
+    { id: 'r1', isExactMatch: true, missing: [], unexpected: [], createdAt: '2026-01-01T00:00:00Z', prescriptionMedicines: ['A'], dispensedMedicines: ['A'] },
+  ] };
+  const markup = createViewRenderer({ state }).renderShell();
+  assert.match(markup, /Previous reconciliation checks/);
+  assert.match(markup, /Medicine names match/);
+});
+
+test('medicine status badge renders for active and discontinued', () => {
+  const state = { ...createState(), screen: 'shell', view: 'medicines', localOnly: true, medicines: [
+    { id: 'm1', name: 'Active Med', status: 'active' },
+    { id: 'm2', name: 'Stopped Med', status: 'discontinued' },
+  ] };
+  const markup = createViewRenderer({ state }).renderShell();
+  assert.match(markup, /medicine-status-badge/);
+  assert.match(markup, /status-active/);
+  assert.match(markup, /status-discontinued/);
+  assert.match(markup, /Active Med/);
+  assert.match(markup, /Stopped Med/);
+});
+
+test('medicine view exposes edit and remove controls', () => {
+  const state = { ...createState(), screen: 'shell', view: 'medicines', localOnly: true, medicines: [
+    { id: 'm1', name: 'Test Med', status: 'active' },
+  ] };
+  const markup = createViewRenderer({ state }).renderShell();
+  assert.match(markup, /data-action="edit-medicine"/);
+  assert.match(markup, /data-action="remove-medicine"/);
+});
