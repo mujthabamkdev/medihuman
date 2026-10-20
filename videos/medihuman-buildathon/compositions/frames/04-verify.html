@@ -132,7 +132,7 @@
       tl.to(select('cursor'), { x: 1047, y: 417, duration: 0.9, ease: 'power2.inOut' }, 1.35);
       tl.to(select('cursor'), { scale: 0.86, duration: 0.1, ease: 'power2.in' }, 2.25);
       tl.to(select('cursor'), { scale: 1, duration: 0.22, ease: 'back.out(1.5)' }, 2.35);
-      tl.fromTo(select('ripple-name'), { opacity: 0.8, scale: 0.4 }, { opacity: 0, scale: 1.6, duration: 0.48, ease: 'power2.out' }, 2.3);
+      tl.fromTo(select('ripple-name'), { opacity: 0.8, scale: 0.4 }, { opacity: 0, scale: 1.6, duration: 0.48, ease: 'power2.out', immediateRender: false }, 2.3);
       tl.fromTo(select('focus-name'), { opacity: 0 }, { opacity: 1, duration: 0.25 }, 2.3);
       tl.fromTo(select('mark-name'), { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.25, ease: 'back.out(1.5)' }, 2.4);
 
@@ -140,7 +140,7 @@
       tl.to(select('cursor'), { x: 1047, y: 522, duration: 0.8, ease: 'power2.inOut' }, 4.0);
       tl.to(select('cursor'), { scale: 0.86, duration: 0.1, ease: 'power2.in' }, 4.8);
       tl.to(select('cursor'), { scale: 1, duration: 0.22, ease: 'back.out(1.5)' }, 4.9);
-      tl.fromTo(select('ripple-strength'), { opacity: 0.8, scale: 0.4 }, { opacity: 0, scale: 1.6, duration: 0.48, ease: 'power2.out' }, 4.85);
+      tl.fromTo(select('ripple-strength'), { opacity: 0.8, scale: 0.4 }, { opacity: 0, scale: 1.6, duration: 0.48, ease: 'power2.out', immediateRender: false }, 4.85);
       tl.fromTo(select('focus-strength'), { opacity: 0 }, { opacity: 1, duration: 0.25 }, 4.85);
       tl.fromTo(select('mark-strength'), { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.25, ease: 'back.out(1.5)' }, 4.95);
 
@@ -148,7 +148,7 @@
       tl.to(select('cursor'), { x: 1047, y: 627, duration: 0.85, ease: 'power2.inOut' }, 6.5);
       tl.to(select('cursor'), { scale: 0.86, duration: 0.1, ease: 'power2.in' }, 7.35);
       tl.to(select('cursor'), { scale: 1, duration: 0.22, ease: 'back.out(1.5)' }, 7.45);
-      tl.fromTo(select('ripple-form'), { opacity: 0.8, scale: 0.4 }, { opacity: 0, scale: 1.6, duration: 0.48, ease: 'power2.out' }, 7.4);
+      tl.fromTo(select('ripple-form'), { opacity: 0.8, scale: 0.4 }, { opacity: 0, scale: 1.6, duration: 0.48, ease: 'power2.out', immediateRender: false }, 7.4);
       tl.fromTo(select('focus-form'), { opacity: 0 }, { opacity: 1, duration: 0.25 }, 7.4);
       tl.fromTo(select('open-mark'), { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.25, ease: 'back.out(1.5)' }, 7.5);
       tl.fromTo(select('form-state'), { opacity: 0, x: 8 }, { opacity: 1, x: 0, duration: 0.3, ease: 'power2.out' }, 8.1);
