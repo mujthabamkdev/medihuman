@@ -252,18 +252,30 @@ export function createViewRenderer({ state }) {
   }
 
   function renderRecords() {
-    const records = (state.records || []).slice().sort((a, b) => String(b.date || b.createdAt || '').localeCompare(String(a.date || a.createdAt || '')));
+    const sortDir = state.recordsSort || 'desc';
+    const fromDate = state.recordsFromDate || '';
+    const toDate = state.recordsToDate || '';
+    let records = (state.records || []).slice();
+    if (fromDate) records = records.filter((r) => String(r.date || r.createdAt || '') >= fromDate);
+    if (toDate) records = records.filter((r) => String(r.date || r.createdAt || '').slice(0, 10) <= toDate);
+    records.sort((a, b) => {
+      const cmp = String(b.date || b.createdAt || '').localeCompare(String(a.date || a.createdAt || ''));
+      return sortDir === 'asc' ? -cmp : cmp;
+    });
     const query = (state.recordsFilter || '').toLowerCase();
     const filtered = records.filter((r) => !query || (r.title || '').toLowerCase().includes(query) || (r.type || '').toLowerCase().includes(query) || (r.description || '').toLowerCase().includes(query));
     const typeFilter = state.recordsTypeFilter || '';
     const typeFiltered = typeFilter ? filtered.filter((r) => r.type === typeFilter) : filtered;
-    const types = [...new Set(records.map((r) => r.type).filter(Boolean))];
+    const types = [...new Set((state.records || []).map((r) => r.type).filter(Boolean))];
     const recordRows = typeFiltered.map((record) => `<div class="overview-record"><div><strong>${escapeHtml(record.title || record.type || 'Record')}</strong><span>${escapeHtml(record.type || '')}${record.date ? ` · ${escapeHtml(record.date)}` : ''}${record.description ? ` · ${escapeHtml(record.description.slice(0, 80))}` : ''}</span></div><div class="form-actions">${record.fileRef ? `<a class="button button-outline button-small" href="${escapeHtml(record.fileRef)}" target="_blank" rel="noopener">View</a>` : ''}${button('Remove', 'delete-record', 'button button-outline button-small', `data-id="${escapeHtml(record.id)}"`)}</div></div>`).join('');
     return `<div class="section-intro"><p class="eyebrow">MEDICAL RECORDS</p><h2 class="page-title">Your medical records.</h2><p>Upload and manage all your medical records — prescriptions, lab reports, imaging, notes, and more. Doctors with approved access can view these records.</p></div>
       <section class="card records-editor"><div class="card-heading"><div><h3>Records</h3><p class="muted">${records.length} record${records.length === 1 ? '' : 's'}</p></div><span class="soft-icon">${svgIcon('document')}</span></div>
       <div class="records-toolbar">
         <label class="filter-label"><span class="sr-only">Search records</span><input id="records-search" value="${escapeHtml(state.recordsFilter || '')}" placeholder="Search records…"></label>
         <label class="filter-label"><span class="sr-only">Filter by type</span><select id="records-type-filter"><option value="">All types</option>${types.map((t) => `<option value="${escapeHtml(t)}" ${state.recordsTypeFilter === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}</select></label>
+        <label class="filter-label"><span class="sr-only">From date</span><input id="records-from" type="date" value="${escapeHtml(fromDate)}" placeholder="From"></label>
+        <label class="filter-label"><span class="sr-only">To date</span><input id="records-to" type="date" value="${escapeHtml(toDate)}" placeholder="To"></label>
+        <button type="button" class="button button-outline button-small" data-action="toggle-records-sort">${sortDir === 'asc' ? 'Oldest first' : 'Newest first'}</button>
       </div>
       <div class="overview-record-list">${typeFiltered.length ? recordRows : '<div class="empty-state"><span class="empty-icon">${svgIcon("document")}</span><h3>No records found</h3><p>Upload a record or adjust your search.</p></div>'}</div>
       <div class="medicine-actions">${button('＋ Add record', 'add-record', 'button button-secondary')}</div>

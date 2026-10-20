@@ -39,7 +39,7 @@ export function createState() {
       { title: 'What should I ask before my dose is changed?', meta: 'Starter question · not medical advice' },
       { title: 'How can I make my medication routine easier?', meta: 'Starter question · not medical advice' },
     ],
-    mfaFactors: [], mfaEnrollment: null, editingPrescriptionId: '', viewingPrescriptionId: '', editingIndicationId: '', saveStatus: { profile: '', medicines: '', prescription: '', reconciliation: '' }, errorMessage: '', dirty: false, scanSeen: false, medicineFilter: '', medicineDialog: null, patientSearch: '', recordTypeFilter: '', records: [], recordsFilter: '', recordsTypeFilter: '', requesting: false,  };
+    mfaFactors: [], mfaEnrollment: null, editingPrescriptionId: '', viewingPrescriptionId: '', editingIndicationId: '', saveStatus: { profile: '', medicines: '', prescription: '', reconciliation: '' }, errorMessage: '', dirty: false, scanSeen: false, medicineFilter: '', medicineDialog: null, patientSearch: '', recordTypeFilter: '', records: [], recordsFilter: '', recordsTypeFilter: '', recordsSort: 'desc', recordsFromDate: '', recordsToDate: '', requesting: false,  };
 }
 
 export function medicineObject(name, extra = {}) {
@@ -50,7 +50,7 @@ export function saveLocal(state) {
   if (!state.localOnly) return;
   const copy = {
     role: state.role, profile: state.profile, patientId: state.profile.patientId || state.user?.patientId || '', medicines: state.medicines,
-    prescriptions: state.prescriptions, medicalRecords: state.records, reconciliations: state.reconciliations, indications: state.indications, notifications: state.notifications, prescriptionText: state.prescriptionText, dispensedText: state.dispensedText, ocrText: state.ocrText, scanSource: state.scanSource, questions: state.questions, consent: state.consent,
+    prescriptions: state.prescriptions, medicalRecords: state.records, reconciliations: state.reconciliations, indications: state.indications, notifications: state.notifications, prescriptionText: state.prescriptionText, dispensedText: state.dispensedText, ocrText: state.ocrText, scanSource: state.scanSource, questions: state.questions, consent: state.consent, recordsFilter: state.recordsFilter, recordsTypeFilter: state.recordsTypeFilter, recordsSort: state.recordsSort, recordsFromDate: state.recordsFromDate, recordsToDate: state.recordsToDate,
     doctorProfile: state.doctorProfile, accessRequests: state.patientRequests,
   };
     sessionStorage.setItem(LOCAL_KEY, JSON.stringify({ ...copy, expiresAt: Date.now() + LOCAL_TTL_MS }));
@@ -66,6 +66,11 @@ export function loadLocal(state) {
     if (Array.isArray(saved.prescriptions)) state.prescriptions = saved.prescriptions;
     if (Array.isArray(saved.reconciliations)) state.reconciliations = saved.reconciliations;
     if (Array.isArray(saved.medicalRecords)) state.records = saved.medicalRecords;
+    if (typeof saved.recordsFilter === 'string') state.recordsFilter = saved.recordsFilter;
+    if (typeof saved.recordsTypeFilter === 'string') state.recordsTypeFilter = saved.recordsTypeFilter;
+    if (saved.recordsSort === 'asc' || saved.recordsSort === 'desc') state.recordsSort = saved.recordsSort;
+    if (typeof saved.recordsFromDate === 'string') state.recordsFromDate = saved.recordsFromDate;
+    if (typeof saved.recordsToDate === 'string') state.recordsToDate = saved.recordsToDate;
     if (Array.isArray(saved.indications)) state.indications = saved.indications;
     if (Array.isArray(saved.notifications)) state.notifications = saved.notifications;
     if (typeof saved.prescriptionText === 'string') state.prescriptionText = saved.prescriptionText;
