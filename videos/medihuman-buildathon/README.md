@@ -68,6 +68,10 @@ the pinned Chrome distribution supports Linux x64. Docker installs every system
 dependency and the pinned browser during the build. No credentials enter the image.
 Pixel/encoder identity across macOS and Linux is not claimed.
 
+Verification here: native macOS render completed and output was decoded/inspected.
+The Linux AMD64 image build reached `npm ci` but exceeded the five-minute command
+limit, so the container build and Linux render are **not verified** here.
+
 ## Submit / deploy
 
 Upload **only `renders/video.mp4`** to the buildathon's video submission surface, or
