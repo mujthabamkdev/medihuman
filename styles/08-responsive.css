@@ -28,7 +28,7 @@
   .nav-submenu { top: calc(100% + 4px); left: 27px; min-width: 170px; }
   .workspace-controls .notification-menu-wrap,
   .workspace-controls .profile-menu-wrap { align-self: flex-end; }
-  .mobile-sidebar-logout { display: flex; }
+  .sidebar .mobile-sidebar-logout { display: flex; }
   .shell-content { min-height: 100vh; }
   .sidebar > * { flex-shrink: 0; }
   .sidebar.open { transform: translateX(0); }

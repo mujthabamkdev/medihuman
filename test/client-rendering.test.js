@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createState } from '../src/client/state.js';
 import { brandIcon, googleIcon, svgIcon } from '../src/client/ui.js';
 import { createViewRenderer } from '../src/client/views.js';
@@ -272,6 +273,14 @@ test('open mobile drawer hides hamburger trigger while keeping mobile exit outsi
   assert.match(markup, /class="mobile-sidebar-logout nav-item" data-action="logout"/);
   assert.match(markup, /class="profile-menu"/);
   assert.doesNotMatch(markup, /class="profile-menu"[\s\S]*data-action="logout"/);
+});
+
+test('mobile sidebar exit is hidden on desktop and restored at mobile breakpoint', () => {
+  const layoutCss = readFileSync(new URL('../styles/03-layout.css', import.meta.url), 'utf8');
+  const responsiveCss = readFileSync(new URL('../styles/08-responsive.css', import.meta.url), 'utf8');
+
+  assert.match(layoutCss, /\.sidebar \.mobile-sidebar-logout\s*\{\s*display:\s*none;/);
+  assert.match(responsiveCss, /\.sidebar \.mobile-sidebar-logout\s*\{\s*display:\s*flex;/);
 });
 
 test('pending doctor workspace blocks patient access request controls', () => {

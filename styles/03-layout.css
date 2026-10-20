@@ -35,7 +35,7 @@
 .close-menu,
 .mobile-menu,
 .mobile-nav-trigger { display: none; }
-.mobile-sidebar-logout { display: none; }
+.sidebar .mobile-sidebar-logout { display: none; }
 .mobile-nav-scrim { display: none; }
 .avatar { width: 31px; height: 31px; border-radius: 11px; background: var(--deep); color: #fff; display: grid; place-items: center; font-size: .68rem; font-weight: 700; flex: none; }
 .main-nav,
