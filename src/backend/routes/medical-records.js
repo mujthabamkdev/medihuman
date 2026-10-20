@@ -69,6 +69,16 @@ function matchesRecord(record, query, { from, to }) {
   return haystack.includes(query);
 }
 
+function pagination(url) {
+  const limitRaw = url.searchParams.get('limit');
+  const offsetRaw = url.searchParams.get('offset');
+  const limit = limitRaw === null ? 20 : Number(limitRaw);
+  const offset = offsetRaw === null ? 0 : Number(offsetRaw);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new HttpError(400, 'INVALID_FIELD', 'limit must be between 1 and 100.');
+  if (!Number.isInteger(offset) || offset < 0) throw new HttpError(400, 'INVALID_FIELD', 'offset must be zero or greater.');
+  return { limit, offset };
+}
+
 function ownedRecord(state, id, userId) {
   const record = findRecordByPublicId(state, id, userId);
   if (!record) throw new HttpError(404, 'NOT_FOUND', 'Medical record not found.');
@@ -95,6 +105,7 @@ export async function handleMedicalRecordsRoute(ctx) {
     const type = typeFilter(url);
     const query = searchFilter(url);
     const range = dateRangeFilter(url);
+    const range2 = pagination(url);
     // Check approval and obtain the payload in the same store operation.
     const payload = await dataStore.transact((state) => {
       const patient = findPatientByPublicId(state, patientId);
@@ -104,7 +115,10 @@ export async function handleMedicalRecordsRoute(ctx) {
       }
       const result = id
         ? { record: publicRecord(ownedRecord(state, id, patient.id)) }
-        : { records: sortedPatientRecords(state, patient.id, type).filter((record) => matchesRecord(record, query, range)).map(publicRecord) };
+        : (() => {
+          const matched = sortedPatientRecords(state, patient.id, type).filter((record) => matchesRecord(record, query, range));
+          return { records: matched.slice(range2.offset, range2.offset + range2.limit).map(publicRecord), total: matched.length, limit: range2.limit, offset: range2.offset };
+        })();
       addAuditEvent(state, {
         actorUserId: current.user.id, action: 'record.medical_read',
         entityType: id ? 'medical-record' : 'patient', entityId: id || patient.id,
@@ -155,9 +169,12 @@ export async function handleMedicalRecordsRoute(ctx) {
     const type = typeFilter(url);
     const query = searchFilter(url);
     const range = dateRangeFilter(url);
-    const payload = await dataStore.read((state) => id
-      ? { record: publicRecord(ownedRecord(state, id, userId)) }
-      : { records: sortedPatientRecords(state, userId, type).filter((record) => matchesRecord(record, query, range)).map(publicRecord) });
+    const { limit, offset } = pagination(url);
+    const payload = await dataStore.read((state) => {
+      if (id) return { record: publicRecord(ownedRecord(state, id, userId)) };
+      const matched = sortedPatientRecords(state, userId, type).filter((record) => matchesRecord(record, query, range));
+      return { records: matched.slice(offset, offset + limit).map(publicRecord), total: matched.length, limit, offset };
+    });
     sendJson(response, 200, payload);
     return true;
   }

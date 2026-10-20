@@ -48,7 +48,9 @@ test('medical record CRUD, isolation, persistence and prescription aliases', asy
     assert.equal((await request('/api/patient/records')).status, 401);
   });
   await t.test('empty records list is explicit', async () => {
-    assert.deepEqual((await request('/api/patient/records', patient)).body, { records: [] });
+    const empty = await request('/api/patient/records', patient);
+    assert.deepEqual(empty.body.records, []);
+    assert.equal(empty.body.total, 0);
   });
   await t.test('creation requires CSRF and leaves no record on failure', async () => {
     assert.equal((await request('/api/patient/records', patient, 'POST', sample, '')).status, 403);

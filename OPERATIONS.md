@@ -17,6 +17,14 @@ Production data contains health information. Deployment owner must complete this
 4. Test restore into an isolated Supabase project before relying on backup.
 5. Run restore drill at least quarterly and after schema changes.
 
+### Medical records and uploaded files
+
+- `backup:supabase` covers the `medical_records` table, so record metadata, tags, and file references are included in the JSON snapshot.
+- Uploaded document bytes live in Vercel Blob, not in the database. The snapshot only holds the `fileRef` URL.
+- Back up the Blob store separately, using the container name configured for the project. A database restore without the matching Blob objects leaves records pointing at missing files.
+- Treat restored file references as unusable until the Blob restore is confirmed.
+- When a record is deleted, the stored blob is not removed automatically. Review the Blob store and apply a retention policy that matches the clinical record retention decision.
+
 ### Medical records rollout and recovery
 
 - `medical_records` is the canonical document collection; `prescriptions` is a synchronized compatibility mirror. Back up all 12 normalized tables, not only the old prescription table. Before applying the new schema, take a database-native snapshot or use the previous backend release's backup tool; the new backup tool expects `medical_records` to exist.

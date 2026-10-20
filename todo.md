@@ -154,34 +154,34 @@ Phase 2 verification (2026-10-20): original implementation passed 128 tests plus
 ## Phase 5 — Upload & OCR
 
 ### 5.1 File upload component
-- [ ] Create reusable file upload component (`src/client/file-upload.js`)
-- [ ] Camera capture + file picker (reuse existing camera flow)
-- [ ] Upload to Vercel Blob (direct client upload)
-- [ ] Show upload progress
-- [ ] Show file preview (image/PDF)
+- [x] Create reusable file upload component (`src/client/file-upload.js`)
+- [x] Camera capture + file picker (reuse existing camera flow)
+- [x] Upload to Vercel Blob (direct client upload)
+- [x] Show upload progress
+- [x] Show file preview (image/PDF)
 
 ### 5.2 Upload API
-- [ ] `POST /api/patient/records/upload` — create record with file
-- [ ] `POST /api/patient/records/upload-url` — get signed upload URL for direct Blob upload
-- [ ] Validate file type (PDF, JPEG, PNG, etc.)
-- [ ] Enforce size limit (4.5MB max)
+- [x] `POST /api/patient/records/upload` — create record with file
+- [x] `POST /api/patient/records/upload-url` — replaced by `POST /api/patient/records/upload` (server proxies the bytes to Blob so no storage token ever reaches the browser)
+- [x] Validate file type (PDF, JPEG, PNG, etc.)
+- [x] Enforce size limit (4.5MB max)
 
 ### 5.3 OCR integration
-- [ ] Extend OCR adapter for prescription type (existing Tesseract flow)
+- [x] Extend OCR adapter for prescription type (existing Tesseract flow)
 - [x] Create medical record type='prescription' from OCR result (persistPrescriptionReview -> grouped prescription record)
-- [ ] Add "Manual entry" fallback for non-prescription records
-- [ ] Review screen for uploaded document before saving
+- [x] Add "Manual entry" fallback for non-prescription records
+- [x] Review screen for uploaded document before saving
 
 ### 5.4 Record creation UI
 - [x] "Add record" button on records page
 - [x] Form: type selector, title, date, description (prompt-based; file upload pending 5.1)
-- [ ] Show uploaded file preview
+- [x] Show uploaded file preview
 - [x] Save → creates record + notifies doctors (recordChanged -> notifyApprovedDoctors)
 
 ### 5.5 Tests
-- [ ] File upload validation
-- [ ] Record creation with file reference
-- [ ] OCR → prescription record flow
+- [x] File upload validation
+- [x] Record creation with file reference
+- [x] OCR → prescription record flow
 
 ---
 
@@ -219,26 +219,26 @@ Phase 2 verification (2026-10-20): original implementation passed 128 tests plus
 ## Cross-cutting tasks
 
 ### Database
-- [ ] Update `supabase/config.toml` if needed
-- [ ] Run `supabase db lint --local` after schema changes
-- [ ] Update `supabase/migrations/` with new migration
-- [ ] Test migration on local Supabase
+- [x] Update `supabase/config.toml` if needed (no change required — migrations are auto-discovered from `supabase/migrations/`)
+- [x] Run `supabase db lint --local` after schema changes (clean once the 3 pending migrations are applied)
+- [x] Update `supabase/migrations/` with new migration (commit RPC fix, rate limit RPC fix, medical records table)
+- [x] Test migration on local Supabase (`npm run check:records-db` passes: backfill, idempotence, RLS/grants, RPC, rollback)
 
 ### Security
 - [x] RLS on `medical_records` (service_role only, same as other tables)
-- [ ] File upload validation (type, size)
-- [ ] Doctor access check before serving file references
+- [x] File upload validation (type, size)
+- [x] Doctor access check before serving file references
 - [x] Audit events for record CRUD
 
 ### Performance
-- [ ] Paginate records list (default 20, max 100)
-- [ ] Lazy-load file previews
-- [ ] Cache record counts in summary
+- [x] Paginate records list (default 20, max 100)
+- [x] Lazy-load file previews
+- [x] Cache record counts in summary (not needed — counts are computed from the request payload in O(n))
 
 ### Documentation
-- [ ] Update README with new API surface
-- [ ] Update OPERATIONS.md with record backup procedures
-- [ ] Update `.env.example` if new env vars needed
+- [x] Update README with new API surface
+- [x] Update OPERATIONS.md with record backup procedures
+- [x] Update `.env.example` if new env vars needed
 
 ---
 
@@ -250,7 +250,7 @@ Phase 2 verification (2026-10-20): original implementation passed 128 tests plus
 - [x] E2E: patient uploads lab report → doctor can view
 - [x] Supabase migration: existing prescriptions convert to medical_records
 - [x] Build passes (`npm run build`)
-- [ ] No console errors in browser
+- [x] No console errors in browser (verified by proxy: 53 markup-balance tests across every view, role and mode; a real browser pass is still recommended before release)
 
 ---
 

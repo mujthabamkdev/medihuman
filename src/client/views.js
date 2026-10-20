@@ -112,7 +112,8 @@ export function createViewRenderer({ state }) {
     const mobileScrim = state.mobileMenuOpen ? '<div class="mobile-nav-scrim" data-action="toggle-menu" aria-hidden="true"></div>' : '';
      const mobileTrigger = state.mobileMenuOpen ? '' : `<button class="mobile-nav-trigger" data-action="toggle-menu" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">☰</button>`;
      const medicineDialog = state.medicineDialog ? renderMedicineDialog(state.medicineDialog) : '';
-    return `<div class="app-shell"><a class="skip-link" href="#main-content">Skip to main content</a>${mobileTrigger}${mobileScrim}${renderSidebar()}<div class="shell-content">${state.errorMessage ? `<div class="notice notice-error" role="alert" aria-live="assertive"><button class="text-link notice-dismiss" data-action="clear-error">Dismiss</button><span>${state.errorMessage}</span></div>` : ''}<main class="content-page" id="main-content" data-role="${state.role}" data-view="${state.view}"><h1 class="sr-only" tabindex="-1">${escapeHtml(currentViewTitle())}</h1>${renderView()}</main><footer class="app-footer"><span>MediHuman organises information for care conversations. It does not diagnose, prescribe, or replace a clinician or pharmacist.</span><button data-action="privacy" class="footer-link">Privacy and acknowledgments</button></footer></div></div>${exitPrompt}${medicineDialog}`;
+     const recordDialog = renderRecordDialog();
+    return `<div class="app-shell"><a class="skip-link" href="#main-content">Skip to main content</a>${mobileTrigger}${mobileScrim}${renderSidebar()}<div class="shell-content">${state.errorMessage ? `<div class="notice notice-error" role="alert" aria-live="assertive"><button class="text-link notice-dismiss" data-action="clear-error">Dismiss</button><span>${state.errorMessage}</span></div>` : ''}<main class="content-page" id="main-content" data-role="${state.role}" data-view="${state.view}"><h1 class="sr-only" tabindex="-1">${escapeHtml(currentViewTitle())}</h1>${renderView()}</main><footer class="app-footer"><span>MediHuman organises information for care conversations. It does not diagnose, prescribe, or replace a clinician or pharmacist.</span><button data-action="privacy" class="footer-link">Privacy and acknowledgments</button></footer></div></div>${exitPrompt}${medicineDialog}${recordDialog}`;
   }
 
   function renderView() {
@@ -273,7 +274,13 @@ export function createViewRenderer({ state }) {
     const typeFilter = state.recordsTypeFilter || '';
     const typeFiltered = typeFilter ? filtered.filter((r) => r.type === typeFilter) : filtered;
     const types = [...new Set((state.records || []).map((r) => r.type).filter(Boolean))];
-    const recordRows = typeFiltered.map((record) => `<div class="overview-record"><div><strong>${escapeHtml(record.title || record.type || 'Record')}</strong><span>${escapeHtml(record.type || '')}${record.date ? ` · ${escapeHtml(record.date)}` : ''}${record.description ? ` · ${escapeHtml(record.description.slice(0, 80))}` : ''}</span></div><div class="form-actions">${record.fileRef ? `<a class="button button-outline button-small" href="${escapeHtml(record.fileRef)}" target="_blank" rel="noopener">View</a>` : ''}${button('Remove', 'delete-record', 'button button-outline button-small', `data-id="${escapeHtml(record.id)}"`)}</div></div>`).join('');
+    const recordRows = typeFiltered.map((record) => {
+      const isPrescription = record.type === 'prescription';
+      const title = isPrescription
+        ? `<button type="button" class="record-title" data-action="view-record" data-id="${escapeHtml(record.id)}">${escapeHtml(record.title || 'Prescription')}</button>`
+        : `<strong>${escapeHtml(record.title || record.type || 'Record')}</strong>`;
+      return `<div class="overview-record ${isPrescription ? 'is-openable' : ''}"><div>${title}<span>${escapeHtml(record.type || '')}${record.date ? ` · ${escapeHtml(record.date)}` : ''}${record.description ? ` · ${escapeHtml(record.description.slice(0, 80))}` : ''}</span></div><div class="form-actions">${isPrescription ? button('Details', 'view-record', 'button button-outline button-small', `data-id="${escapeHtml(record.id)}"`) : ''}${record.fileRef ? `<a class="button button-outline button-small" href="${escapeHtml(record.fileRef)}" target="_blank" rel="noopener">View file</a>` : ''}${button('Remove', 'delete-record', 'button button-outline button-small', `data-id="${escapeHtml(record.id)}"`)}</div></div>`;
+    }).join('');
     return `<div class="section-intro"><p class="eyebrow">MEDICAL RECORDS</p><h2 class="page-title">Your medical records.</h2><p>Upload and manage all your medical records — prescriptions, lab reports, imaging, notes, and more. Doctors with approved access can view these records.</p></div>
       <section class="card records-editor"><div class="card-heading"><div><h3>Records</h3><p class="muted">${records.length} record${records.length === 1 ? '' : 's'}</p></div><span class="soft-icon">${svgIcon('document')}</span></div>
       <div class="records-toolbar">
@@ -327,13 +334,25 @@ export function createViewRenderer({ state }) {
   function renderPrescriptionDetail() {
     const prescription = state.prescriptions.find((item) => item.id === state.viewingPrescriptionId);
     if (!prescription) return '';
+    return `<section class="card prescription-detail"><div class="card-heading"><div><p class="card-kicker">PRESCRIPTION RECORD</p><h3>${escapeHtml(prescription.condition || 'Prescription')}</h3><p class="muted">Full details of this prescription record.</p></div><span class="soft-icon">${svgIcon('document')}</span></div>${renderPrescriptionFields(prescription)}
+    <div class="form-actions">${button('Close', 'cancel-prescription-view', 'button button-secondary')}</div>
+    </section>`;
+  }
+
+  /**
+   * Shared prescription detail body. The saved-prescription card, the capture
+   * review, and the medical record dialog all use this so a prescription looks
+   * the same wherever it is opened.
+   */
+  function renderPrescriptionFields(prescription) {
     const medicines = Array.isArray(prescription.medicines) ? prescription.medicines : [];
     const tests = Array.isArray(prescription.tests) ? prescription.tests : [];
-    const medicineRows = medicines.map((medicine) => `<li><strong>${escapeHtml(medicine.medicationName || 'Medicine')}</strong><span>${escapeHtml([medicine.strength, medicine.dose, medicine.route, medicine.frequency, medicine.instructions].filter(Boolean).join(' · ') || 'Details not recorded')}</span></li>`).join('');
+    const medicineRows = medicines.map((medicine) => `<li><strong>${escapeHtml(medicine.medicationName || medicine.name || 'Medicine')}</strong><span>${escapeHtml([medicine.strength, medicine.dose, medicine.route, medicine.frequency, medicine.instructions].filter(Boolean).join(' · ') || 'Details not recorded')}</span></li>`).join('');
     const testRows = tests.map((test) => `<li><strong>${escapeHtml(test.name)}</strong><span>${escapeHtml([test.result, test.date].filter(Boolean).join(' · ') || 'No result')}</span></li>`).join('');
-    return `<section class="card prescription-detail"><div class="card-heading"><div><p class="card-kicker">PRESCRIPTION RECORD</p><h3>${escapeHtml(prescription.condition || 'Prescription')}</h3><p class="muted">Full details of this prescription record.</p></div><span class="soft-icon">${svgIcon('document')}</span></div><dl class="record-list">
+    const period = [prescription.startDate, prescription.endDate].filter(Boolean).join(' → ');
+    return `<dl class="record-list">
       <div><dt>Condition</dt><dd>${escapeHtml(prescription.condition || 'Not recorded')}</dd></div>
-      <div><dt>Date</dt><dd>${escapeHtml(prescription.date || (prescription.createdAt ? new Date(prescription.createdAt).toLocaleDateString() : 'Not recorded'))}</dd></div>
+      <div><dt>Date</dt><dd>${escapeHtml(prescription.date || period || (prescription.createdAt ? new Date(prescription.createdAt).toLocaleDateString() : 'Not recorded'))}</dd></div>
       <div><dt>Doctor / Prescriber</dt><dd>${escapeHtml(prescription.doctor || 'Not recorded')}</dd></div>
       <div><dt>General instructions</dt><dd>${escapeHtml(prescription.instructions || 'Not recorded')}</dd></div>
       <div><dt>Notes</dt><dd>${escapeHtml(prescription.notes || 'Not recorded')}</dd></div>
@@ -342,9 +361,41 @@ export function createViewRenderer({ state }) {
     <h4>Medicines (${medicines.length})</h4>
     ${medicines.length ? `<ul class="record-items">${medicineRows}</ul>` : '<p class="result-empty">No medicines recorded.</p>'}
     <h4>Tests (${tests.length})</h4>
-    ${tests.length ? `<ul class="record-items">${testRows}</ul>` : '<p class="result-empty">No tests recorded.</p>'}
-    <div class="form-actions">${button('Close', 'cancel-prescription-view', 'button button-secondary')}</div>
-    </section>`;
+    ${tests.length ? `<ul class="record-items">${testRows}</ul>` : '<p class="result-empty">No tests recorded.</p>'}`;
+  }
+
+  /**
+   * A medical record that mirrors a prescription carries the prescription
+   * fields in its data payload. Normalise it so the dialog shows the same
+   * detail as the saved prescription.
+   */
+  function recordPrescription(record) {
+    const data = record?.data && typeof record.data === 'object' && !Array.isArray(record.data) ? record.data : {};
+    const medicines = Array.isArray(data.medicines) && data.medicines.length
+      ? data.medicines
+      : (data.medicationName || record.title
+        ? [{ medicationName: data.medicationName || record.title, strength: data.strength || '', dose: data.dose || '', route: data.route || '', frequency: data.frequency || '' }]
+        : []);
+    return {
+      id: record.id,
+      condition: data.condition || '',
+      date: data.date || record.date || '',
+      doctor: data.doctor || data.prescriber || '',
+      medicines,
+      tests: Array.isArray(data.tests) ? data.tests : [],
+      fileRef: record.fileRef || data.fileRef || '',
+      instructions: data.instructions || record.description || '',
+      notes: data.notes || '',
+      startDate: data.startDate || '',
+      endDate: data.endDate || '',
+    };
+  }
+
+  function renderRecordDialog() {
+    const record = (state.records || []).find((item) => item.id === state.viewingRecordId);
+    if (!record || record.type !== 'prescription') return '';
+    const prescription = recordPrescription(record);
+    return `<div class="modal-backdrop"><section class="card medicine-dialog record-dialog" role="dialog" aria-modal="true" aria-labelledby="record-dialog-title"><button class="exit-close" data-action="close-record-view" aria-label="Close"><span aria-hidden="true">×</span></button><p class="card-kicker">MEDICAL RECORD</p><h3 id="record-dialog-title">${escapeHtml(record.title || 'Prescription')}</h3><p class="muted">Full details of this prescription record, as captured by the clinician.</p>${renderPrescriptionFields(prescription)}<div class="form-actions">${button('Close', 'close-record-view', 'button button-secondary')}</div></section></div>`;
   }
 
   function renderScanWithPrescriptions() {

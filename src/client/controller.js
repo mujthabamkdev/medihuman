@@ -579,6 +579,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
 
   root.addEventListener('click', async (event) => {
     if (state.medicineDialog && event.target.classList?.contains('modal-backdrop')) { closeMedicineDialog(); return; }
+    if (state.viewingRecordId && event.target.classList?.contains('modal-backdrop')) { state.viewingRecordId = ''; render(); return; }
     const target = event.target.closest('[data-action]');
     if (state.doctorPatientMenuOpen && !event.target.closest('.patient-picker')) { state.doctorPatientMenuOpen = false; render(); }
     if (!target) return; const action = target.dataset.action;
@@ -692,6 +693,8 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'go-reconcile') { state.view = 'reconcile'; render(); return; }
     if (action === 'go-composition') { state.view = 'composition'; render(); return; }
     if (action === 'toggle-records-sort') { state.recordsSort = state.recordsSort === 'asc' ? 'desc' : 'asc'; render(); return; }
+    if (action === 'view-record') { state.viewingRecordId = target.dataset.id; render(); globalThis.document?.querySelector('.record-dialog .exit-close')?.focus(); return; }
+    if (action === 'close-record-view') { state.viewingRecordId = ''; render(); return; }
     if (action === 'upload-record') { await uploadRecord(); return; }
     if (action === 'save-profile') { await saveProfile(); return; }
     if (action === 'add-medicine') { openMedicineDialog('new'); return; }

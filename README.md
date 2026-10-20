@@ -255,11 +255,13 @@ Keep these boundaries strict: views render; controllers coordinate effects; stat
 - `GET|PUT /api/patient/profile`
 - `GET|PUT /api/patient/medicines`
 - `GET|POST /api/patient/records`, `GET|PUT|DELETE /api/patient/records/:id`
+- `POST /api/patient/records/upload` (multipart/form-data, requires `BLOB_READ_WRITE_TOKEN`)
 - `GET /api/doctor/patients/:patientId/records`, `GET /api/doctor/patients/:patientId/records/:id`
 - `GET|POST /api/prescriptions`, `GET|PUT|DELETE /api/prescriptions/:id`
 - `GET|POST /api/reconciliations`, `GET /api/reconciliations/:id`
+- `GET /api/account/export` (`?format=csv` for a spreadsheet-friendly export)
 
-Send JSON with `Content-Type: application/json`. Send `X-CSRF-Token` matching the `mh_csrf` cookie for every state-changing request.
+Send JSON with `Content-Type: application/json`. Send `X-CSRF-Token` matching the `mh_csrf` cookie for every state-changing request. `POST /api/patient/records/upload` instead sends `multipart/form-data` with a `file` part.
 
 ### Generic medical records (Phase 2)
 
@@ -276,9 +278,13 @@ Send JSON with `Content-Type: application/json`. Send `X-CSRF-Token` matching th
 }
 ```
 
-Optional fields: `description` (up to 5,000 characters), `tags` (up to 100 nonempty strings), `source` (`self`, `clinic`, `lab`; defaults to `self`), `fileRef` (absolute HTTPS URL, at most 2,048 characters, no credentials), `mimeType`, `sizeBytes` (integer 0–4,500,000). Title is limited to 200 characters. Identity, ownership, timestamps and structured `data` are server-owned; unknown fields are rejected. File metadata is a reference only: this API does not fetch URLs or upload, validate or serve document bytes. Private storage authorization and uploads remain Phase 5 work; never assume a public URL becomes private merely by recording it here.
+Optional fields: `description` (up to 5,000 characters), `tags` (up to 100 nonempty strings), `source` (`self`, `clinic`, `lab`; defaults to `self`), `fileRef` (absolute HTTPS URL, at most 2,048 characters, no credentials), `mimeType`, `sizeBytes` (integer 0–4,500,000). Title is limited to 200 characters. Identity, ownership, timestamps and structured `data` are server-owned; unknown fields are rejected. File metadata is a reference only: this API does not fetch URLs or upload, validate or serve document bytes. Never assume a public URL becomes private merely by recording it here.
 
-Responses use `{ "record": ... }` for create/read/update and `{ "records": [...] }` for lists. `PUT` accepts a partial update and preserves omitted metadata. `DELETE` returns `{ "ok": true }`. Lists are newest clinical date first, then creation time, with stable ID tie-breaking. Both patient and doctor lists accept `?type=lab_report`; invalid, empty or repeated type filters return 400. Pagination remains a separate task.
+Responses use `{ "record": ... }` for create/read/update and `{ "records": [...], "total": n, "limit": n, "offset": n }` for lists. `PUT` accepts a partial update and preserves omitted metadata. `DELETE` returns `{ "ok": true }`. Lists are newest clinical date first, then creation time, with stable ID tie-breaking. Both patient and doctor lists accept `?type=lab_report`, `?q=search`, `?from=YYYY-MM-DD`, `?to=YYYY-MM-DD`, `?limit=1..100` and `?offset=n`; invalid, empty or repeated type filters return 400, and `limit` outside 1–100 or a negative `offset` return 400.
+
+### File uploads
+
+`POST /api/patient/records/upload` accepts `multipart/form-data` with a `file` part plus optional `type`, `title`, `date`, `description`, `tags`, and `source` fields. Uploads are limited to 4 MB and to PDF, JPEG, PNG, WebP, HEIC, and plain text. The server forwards the bytes to Vercel Blob and stores the returned HTTPS URL as the record's `fileRef`. Set `BLOB_READ_WRITE_TOKEN` to enable uploads; without it the route returns `503 STORAGE_UNAVAILABLE` rather than silently dropping the file. The token stays server-side — the browser never receives it.
 
 Patients can access only their own records. Verified doctors require active patient approval for list/detail access, including file references. Missing or another patient's record returns 404. Creates, updates and deletes generate audit events and notify approved doctors without including document text. Account export includes `records.medicalRecords`; account deletion removes these records too. Summaries expose `sourceCounts.records` and `recordCountsByType` without double-counting the legacy prescription projection.
 

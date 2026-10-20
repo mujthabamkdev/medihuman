@@ -101,7 +101,7 @@ export const api = {
   savePrescription: (prescription) => json('POST', '/prescriptions', prescription),
   updatePrescription: (id, prescription) => json('PUT', `/prescriptions/${encodeURIComponent(id)}`, prescription),
   deletePrescription: (id) => request(`/prescriptions/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  records: () => request('/patient/records'),
+  records: () => request('/patient/records?limit=100'),
   saveRecord: (record) => json('POST', '/patient/records', record),
   updateRecord: (id, record) => json('PUT', `/patient/records/${encodeURIComponent(id)}`, record),
   deleteRecord: (id) => request(`/patient/records/${encodeURIComponent(id)}`, { method: 'DELETE' }),
