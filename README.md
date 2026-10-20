@@ -42,13 +42,23 @@ Then open <http://localhost:4173>.
 
 Supabase is an optional server-side persistence backend. The app uses direct Node `fetch` against PostgREST; no Supabase SDK is bundled into the browser. This keeps dependencies and client egress small, and the service-role key never reaches the frontend.
 
-The checked-in migration creates one locked-down `medihuman_state` row plus an atomic revision function. The app fetches only the row revision at request start and downloads the full JSON state only on cold start or when another instance changed it. Writes return no state payload. This keeps Supabase egress low while preserving the existing backend contract.
+The checked-in migration stores the application state in 11 normalized tables: `users`, `profiles`, `medicines`, `prescriptions`, `reconciliations`, `access_requests`, `indications`, `notifications`, `audit_logs`, `sessions`, and `oauth_states`. Each table has canonical columns for queryable fields plus a `data` JSONB column that preserves the backend record contract. There is no legacy singleton JSON state table or incremental read path.
+
+Writes use the transaction-safe `medihuman_commit_normalized_state(next_state jsonb)` RPC. The RPC takes the complete normalized application state, serializes concurrent commits with a PostgreSQL advisory transaction lock, replaces rows in all 11 tables in one transaction, and returns `true`. The application refreshes all normalized tables before each write and sends the complete state to this RPC.
+
+Persistence is service-role-only. Row-level security is enabled on all 11 tables; `public`, `anon`, and `authenticated` receive no table or RPC privileges. Only `service_role` can read or write normalized tables or execute `medihuman_commit_normalized_state`. Keep `SUPABASE_SERVICE_ROLE_KEY` exclusively in the server/runtime environment; it must never reach browser assets or client-side environment variables.
 
 Apply schema to linked project:
 
 ```sh
 supabase link --project-ref hagplohwjudzbenftljk
 supabase db push
+```
+
+For a local schema check without changing a remote project:
+
+```sh
+supabase db lint --local
 ```
 
 Set server-only environment variables before starting the app or deploying:
@@ -74,7 +84,7 @@ STORE_BACKEND=supabase npm run migrate:supabase
 
 Migration refuses to overwrite a non-empty Supabase state. Set `SUPABASE_MIGRATE_OVERWRITE=1` only after an explicit backup and review.
 
-Create a private JSON backup before migrations or maintenance. Backup files are written outside Git-tracked paths with mode `0600`:
+Create a private JSON backup before migrations or maintenance. `backup:supabase` reads the complete normalized snapshot from all 11 tables and writes one JSON file outside Git-tracked paths with mode `0600`:
 
 ```sh
 STORE_BACKEND=supabase npm run backup:supabase
@@ -87,7 +97,9 @@ DATA_FILE=.supabase-backups/medihuman-YYYY-MM-DDTHH-MM-SS-sssZ.json \
 STORE_BACKEND=supabase SUPABASE_MIGRATE_OVERWRITE=1 npm run migrate:supabase
 ```
 
-The Supabase revision column plus `medihuman_commit_state` RPC provide optimistic multi-instance locking. Conflicting writes retry twice and never fall back to `/tmp` or local JSON. Vercel now defaults to `STORE_BACKEND=supabase`; set `STORE_BACKEND=json` only for intentional local/preview runs.
+Restore is an explicit full-state replacement: the migration command normalizes the reviewed JSON backup and commits it through `medihuman_commit_normalized_state`, replacing rows across all 11 tables in one database transaction. `SUPABASE_MIGRATE_OVERWRITE=1` is required when the destination already contains records; review the backup and target before using it.
+
+Concurrent writes are serialized by the normalized commit RPC's database transaction lock. Conflicting writes do not fall back to `/tmp` or local JSON. Vercel now defaults to `STORE_BACKEND=supabase`; set `STORE_BACKEND=json` only for intentional local/preview runs.
 
 Supabase deployments use `medihuman_rate_limit_hit` for distributed API and authentication throttling. Each request sends one compact counter RPC and receives a boolean; counters contain IP-derived bucket keys only, not patient data. Local JSON mode keeps the in-process limiter for offline tests.
 
