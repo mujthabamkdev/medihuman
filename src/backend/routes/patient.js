@@ -85,8 +85,7 @@ export async function handlePatientRoute(ctx) {
   }
   // Medicines are replaced as a whole list (no per-item POST/PUT/DELETE yet).
   // Concurrent edits by the same client are last-write-wins via the client PUT.
-  if ((pathname === '/api/patient/medicines' || pathname === '/api/medicines') && method === 'PUT') {
-    requireRole(current, 'patient');
+  if ((pathname === '/api/patient/medicines' || pathname === '/api/medicines') && method === 'PUT') {    requireRole(current, 'patient');
     const body = await readJson(request);
     allowedKeys(body, ['medicines']);
     const medicines = medicineListValue(body.medicines);
@@ -99,6 +98,66 @@ export async function handlePatientRoute(ctx) {
     });
     sendJson(response, 200, { medicines });
     return true;
+  }
+
+  // Add a single medicine to the patient's list.
+  if (pathname === '/api/patient/medicines' && method === 'POST') {
+    requireRole(current, 'patient');
+    const input = await readJson(request);
+    allowedKeys(input, ['name', 'strength', 'dose', 'route', 'timing', 'notes']);
+    const medicine = medicineValue(input);
+    const record = { id: newId(), ...medicine, createdAt: new Date(now).toISOString(), updatedAt: new Date(now).toISOString() };
+    await dataStore.transact((state) => {
+      let rec = state.medicines.find((item) => item.userId === current.user.id);
+      if (!rec) { rec = { userId: current.user.id, items: [], updatedAt: new Date(now).toISOString() }; state.medicines.push(rec); }
+      rec.items.push(record);
+      rec.updatedAt = new Date(now).toISOString();
+      notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Medicine added', message: 'A patient medicine was added.', entityType: 'medicine', entityId: record.id }, now);
+      addAuditEvent(state, { actorUserId: current.user.id, action: 'record.medicine_create', entityType: 'medicine', entityId: record.id }, now);
+    });
+    sendJson(response, 201, { medicine: record });
+    return true;
+  }
+
+  // Get / update / delete a single medicine item.
+  const medicineItemMatch = pathname.match(/^\/api\/patient\/medicines\/([^/]+)$/);
+  if (medicineItemMatch) {
+    requireRole(current, 'patient');
+    const id = decodeURIComponent(medicineItemMatch[1]);
+    const existing = await dataStore.read((state) => {
+      const rec = state.medicines.find((item) => item.userId === current.user.id);
+      return rec ? rec.items.find((m) => m.id === id) : null;
+    });
+    if (!existing) throw new HttpError(404, 'NOT_FOUND', 'Medicine not found.');
+    if (method === 'GET') {
+      sendJson(response, 200, { medicine: existing });
+      return true;
+    }
+    if (method === 'PUT') {
+      const input = await readJson(request);
+      allowedKeys(input, ['name', 'strength', 'dose', 'route', 'timing', 'notes']);
+      const medicine = medicineValue(input);
+      await dataStore.transact((state) => {
+        const rec = state.medicines.find((item) => item.userId === current.user.id);
+        const item = rec.items.find((m) => m.id === id);
+        Object.assign(item, medicine, { updatedAt: new Date(now).toISOString() });
+        rec.updatedAt = new Date(now).toISOString();
+        notifyApprovedDoctors(state, current.user.id, { type: 'patient-record', title: 'Medicine updated', message: 'A patient medicine was updated.', entityType: 'medicine', entityId: id }, now);
+        addAuditEvent(state, { actorUserId: current.user.id, action: 'record.medicine_update', entityType: 'medicine', entityId: id }, now);
+      });
+      sendJson(response, 200, { medicine: { ...existing, ...medicine, updatedAt: new Date(now).toISOString() } });
+      return true;
+    }
+    if (method === 'DELETE') {
+      await dataStore.transact((state) => {
+        const rec = state.medicines.find((item) => item.userId === current.user.id);
+        if (rec) rec.items = rec.items.filter((m) => m.id !== id);
+        rec.updatedAt = new Date(now).toISOString();
+        addAuditEvent(state, { actorUserId: current.user.id, action: 'record.medicine_delete', entityType: 'medicine', entityId: id }, now);
+      });
+      sendJson(response, 200, { ok: true });
+      return true;
+    }
   }
 
   if (pathname === '/api/prescriptions' && method === 'GET') {

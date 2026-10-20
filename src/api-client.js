@@ -86,6 +86,7 @@ export const api = {
   saveProfile: (profile) => json('PUT', '/patient/profile', profile),
   medicines: () => request('/patient/medicines'),
   saveMedicines: (medicines) => json('PUT', '/patient/medicines', { medicines }),
+  deleteMedicine: (id) => request(`/patient/medicines/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   prescriptions: () => request('/prescriptions'),
   savePrescription: (prescription) => json('POST', '/prescriptions', prescription),
   updatePrescription: (id, prescription) => json('PUT', `/prescriptions/${encodeURIComponent(id)}`, prescription),

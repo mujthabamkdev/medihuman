@@ -5,8 +5,8 @@ Tests: 69/69 pass (client rendering, clinical/medication logic, server API, Supa
 
 ## Status
 - P0 (data loss/correctness/config): ALL DONE
-- P1 (CRUD flow): ALL DONE except per-item medicine CRUD documented as known limitation
-- P2 (polish/a11y): deferred (focus trap, list search, New-badge, contrast audit)
+- P1 (CRUD flow): ALL DONE — per-item medicine DELETE added; create/update via whole-list PUT (saveMedicines); server exposes POST/PUT/DELETE per medicine item
+- P2 (polish/a11y): DONE — New scan badge clears after first capture; exit-dialog focuses primary button; medicines list search/filter; contrast-safe .notice-error added
 - P3 (ops): health-check store connectivity DONE; maxDuration/backups are monitoring items
 
 ---
@@ -43,10 +43,10 @@ Each item: [ID] location — problem → fix → verify.
 
 ## P1 — CRUD flow completeness
 
-[P1-1] src/backend/routes/patient.js — no per-item medicine CRUD
-- Medicines only whole-list replace (PUT /api/patient/medicines); no POST/PUT/DELETE for a single medicine. Client splices locally then PUTs whole list — concurrent edits clobber.
-→ Document limitation; add per-item medicine endpoints if concurrent edits become an issue.
-→ Verify: GET/PUT /api/patient/medicines contract unchanged.
+[P1-1] src/backend/routes/patient.js + src/client/controller.js — per-item medicine CRUD DONE
+- Server: POST /api/patient/medicines (create one), GET|PUT|DELETE /api/patient/medicines/:id (single item)
+- Client: remove-medicine calls DELETE API (confirm first); add/update persist via saveMedicines whole-list PUT
+→ Verify: add medicine → save → appears; edit field → save → persists; remove → DELETE → gone; empty-name add dropped on save
 
 [P1-2] src/backend/routes/doctor.js — no doctor profile self-update
 - doctorProfile (specialty, registrationId, organization) set at registration only; no PUT to update after signup. Verification status set by admin key only.

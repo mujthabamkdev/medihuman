@@ -18,7 +18,11 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     const focusedId = globalThis.document?.activeElement?.id;
     root.innerHTML = state.screen === 'auth' ? views.renderAuth() : views.renderShell();
     bindCamera();
-    if (focusedId) globalThis.document?.getElementById(focusedId)?.focus();
+    if (state.localExitPrompt) {
+      globalThis.document?.getElementById('local-exit-keep')?.focus();
+    } else if (focusedId) {
+      globalThis.document?.getElementById(focusedId)?.focus();
+    }
   }
 
   function bindCamera() {
@@ -311,7 +315,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     const video = document.querySelector('#camera-video'); if (!video || video.readyState < 2) return;
     const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0); state.scanSource = 'Camera capture · manual confirmation required';
     try {
-      const result = await ocr.recognize(canvas); state.ocrText = result.text || ''; state.view = 'review';
+      const result = await ocr.recognize(canvas); state.ocrText = result.text || ''; state.view = 'review'; state.scanSeen = true;
     } catch {
       state.ocrText = '';
       state.cameraError = 'OCR could not read this frame. Review the prescription manually or capture a clearer image.';
@@ -327,6 +331,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       const result = await ocr.recognize(file);
       state.ocrText = result.text || '';
       state.view = 'review';
+      state.scanSeen = true;
     } catch {
       state.ocrText = '';
       state.cameraError = 'OCR could not read this image. Review it manually or try a clearer, well-lit photo.';
@@ -478,13 +483,13 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'go-composition') { state.view = 'composition'; render(); return; }
     if (action === 'save-profile') { await saveProfile(); return; }
     if (action === 'add-medicine') { state.medicines.push(medicineObject('')); render(); return; }
-    if (action === 'remove-medicine') { if (!window.confirm('Remove this medicine?')) return; state.medicines.splice(Number(target.dataset.index), 1); saveLocal(state); render(); return; }
+    if (action === 'remove-medicine') { if (!window.confirm('Remove this medicine?')) return; const index = Number(target.dataset.index); const item = state.medicines[index]; if (!item) return; if (!state.localOnly && item.id) { try { await api.deleteMedicine(item.id); } catch (error) { state.saveStatus.medicines = `Not saved: ${error.message}`; render(); return; } } state.medicines.splice(index, 1); saveLocal(state); state.saveStatus.medicines = 'Saved to your account'; state.dirty = false; render(); return; }
     if (action === 'save-medicines') { await saveMedicines(); return; }
     if (action === 'camera-start') { await startCamera(); return; }
     if (action === 'camera-stop') { stopCamera(); return; }
     if (action === 'camera-capture') { await captureCamera(); return; }
-    if (action === 'manual-review') { state.prescriptionText = document.querySelector('#manual-prescription')?.value || ''; state.ocrText = state.prescriptionText; state.scanSource = 'Manual entry'; state.view = 'review'; state.dirty = true; saveLocal(state); render(); return; }
-     if (action === 'save-review') { state.prescriptionText = document.querySelector('#review-text')?.value || ''; state.dirty = true; state.view = 'reconcile'; saveLocal(state); await persistPrescriptionReview(); render(); return; }
+    if (action === 'manual-review') { state.prescriptionText = document.querySelector('#manual-prescription')?.value || ''; state.ocrText = state.prescriptionText; state.scanSource = 'Manual entry'; state.view = 'review'; state.scanSeen = true; state.dirty = true; saveLocal(state); render(); return; }
+     if (action === 'save-review') { state.prescriptionText = document.querySelector('#review-text')?.value || ''; state.dirty = true; state.view = 'reconcile'; state.scanSeen = true; saveLocal(state); await persistPrescriptionReview(); render(); return; }
     if (action === 'run-reconcile') { await saveReconciliation(); return; }
     if (action === 'reopen-reconciliation') { const record = state.reconciliations.find((item) => item.id === target.dataset.id); if (record) { state.prescriptionText = (record.prescriptionMedicines || []).join('\n'); state.dispensedText = (record.dispensedMedicines || []).join('\n'); state.view = 'reconcile'; render(); } return; }
     if (action === 'delete-reconciliation') { if (!window.confirm('Remove this reconciliation record?')) return; if (state.localOnly) { state.reconciliations = state.reconciliations.filter((item) => item.id !== target.dataset.id); saveLocal(state); } else { await api.deleteReconciliation(target.dataset.id); state.reconciliations = state.reconciliations.filter((item) => item.id !== target.dataset.id); } render(); return; }
@@ -496,7 +501,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
   });
 
    root.addEventListener('submit', async (event) => { event.preventDefault(); const form = event.target; try { if (form.dataset.form === 'auth') await submitAuth(form); if (form.dataset.form === 'password-reset') await submitPasswordReset(form); if (form.dataset.form === 'mfa') await submitMfa(form); if (form.dataset.form === 'mfa-enrollment') await submitMfaEnrollment(form); if (form.dataset.form === 'prescription-edit') await submitPrescriptionEdit(form); if (form.dataset.form === 'indication-edit') await submitIndicationEdit(form); if (form.dataset.form === 'profile') await saveProfile(); if (form.dataset.form === 'question') submitQuestion(form); if (form.dataset.form === 'doctor-request') await requestPatient(form); if (form.dataset.form === 'doctor-indication') await submitIndication(form); } catch (error) { state.authError = error.message; render(); } });
-  root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); });
+  root.addEventListener('input', (event) => { if (event.target.matches('[data-med-index]')) updateMedicineField(event.target); if (event.target.id === 'medicine-filter') { state.medicineFilter = event.target.value; render(); } });
   root.addEventListener('change', (event) => { if (event.target.id === 'prescription-file') readPhoto(event.target.files?.[0]); if (event.target.id === 'doctor-patient-select') loadDoctorPatient(event.target.value); });
   root.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
