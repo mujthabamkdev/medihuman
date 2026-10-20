@@ -345,9 +345,11 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
   async function requestPatient(form) {
     const patientId = formValues(form).patientId?.trim();
     if (!patientId) return;
+    state.requesting = true;
+    render();
     try {
       if (state.localOnly) {
-        const existing = state.patientRequests.find((request) => request.patientId === patientId && ['pending', 'approved'].includes(request.status));
+        const existing = state.doctorRequests.find((request) => request.patientId === patientId && ['pending', 'approved'].includes(request.status));
         if (existing) throw new Error('An active request already exists for this patient.');
         state.doctorRequests.push({ id: `local-request-${Date.now()}`, patientId, status: 'pending', requestedAt: new Date().toISOString(), doctor: state.doctorProfile });
         state.patientRequests.push({ id: state.doctorRequests.at(-1).id, patientId, status: 'pending', requestedAt: new Date().toISOString(), doctor: state.doctorProfile });
@@ -355,6 +357,21 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
       } else {
         const response = await api.requestPatient(patientId);
         state.doctorRequests = [response.request, ...state.doctorRequests];
+      }
+      render();
+    } catch (error) { showError(error.message); }
+    finally { state.requesting = false; render(); }
+  }
+
+  async function cancelRequest(requestId) {
+    try {
+      if (state.localOnly) {
+        state.doctorRequests = state.doctorRequests.filter((item) => item.id !== requestId);
+        state.patientRequests = state.patientRequests.filter((item) => item.id !== requestId);
+        saveLocal(state);
+      } else {
+        await api.deleteAccessRequest(requestId);
+        state.doctorRequests = state.doctorRequests.filter((item) => item.id !== requestId);
       }
       render();
     } catch (error) { showError(error.message); }
@@ -494,6 +511,7 @@ export function createController({ root, state, views, ocr = createOcrAdapter() 
     if (action === 'reopen-reconciliation') { const record = state.reconciliations.find((item) => item.id === target.dataset.id); if (record) { state.prescriptionText = (record.prescriptionMedicines || []).join('\n'); state.dispensedText = (record.dispensedMedicines || []).join('\n'); state.view = 'reconcile'; render(); } return; }
     if (action === 'delete-reconciliation') { if (!window.confirm('Remove this reconciliation record?')) return; if (state.localOnly) { state.reconciliations = state.reconciliations.filter((item) => item.id !== target.dataset.id); saveLocal(state); } else { await api.deleteReconciliation(target.dataset.id); state.reconciliations = state.reconciliations.filter((item) => item.id !== target.dataset.id); } render(); return; }
     if (action === 'care-request') { await updateCareRequest(target.dataset.id, target.dataset.status); return; }
+    if (action === 'cancel-request') { await cancelRequest(target.dataset.id); return; }
     if (action === 'doctor-refresh-patient') { await loadDoctorPatient(); return; }
     if (action === 'remove-question') { if (!window.confirm('Remove this question?')) return; state.questions.splice(Number(target.dataset.index), 1); saveLocal(state); render(); return; }
     if (action === 'save-consent') { state.consent = Boolean(document.querySelector('#consent-toggle')?.checked); saveLocal(state); if (!state.localOnly) await api.saveConsent(state.consent); render(); return; }

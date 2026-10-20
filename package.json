@@ -9,6 +9,7 @@
     "start": "node server.js",
     "backup:supabase": "node scripts/backup-supabase.js",
     "migrate:supabase": "node scripts/migrate-to-supabase.js",
+    "seed:demo": "node scripts/seed-demo-data.js",
     "test": "node --test"
   },
   "engines": {

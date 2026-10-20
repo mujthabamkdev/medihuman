@@ -42,6 +42,23 @@ export async function handleAccessRoute(ctx) {
     return true;
   }
 
+  const doctorCancelPath = pathname.match(/^\/api\/doctor\/access-requests\/([^/]+)$/);
+  if (doctorCancelPath && method === 'DELETE') {
+    requireVerifiedDoctor(current);
+    const requestId = decodeURIComponent(doctorCancelPath[1]);
+    const existing = await dataStore.read((state) => state.accessRequests.find((item) => item.id === requestId && item.doctorUserId === current.user.id && item.status === 'pending'));
+    if (!existing) throw new HttpError(404, 'NOT_FOUND', 'Pending access request not found.');
+    await dataStore.transact((state) => {
+      const item = state.accessRequests.find((entry) => entry.id === requestId && entry.doctorUserId === current.user.id && entry.status === 'pending');
+      if (!item) throw new HttpError(409, 'INVALID_REQUEST_STATUS', 'Only pending requests can be cancelled.');
+      state.accessRequests = state.accessRequests.filter((entry) => entry.id !== requestId);
+      addNotification(state, existing.patientUserId, { type: 'access-request', title: 'Access request cancelled', message: `${current.user.doctorProfile?.displayName || 'A clinician'} cancelled their access request to your records.`, entityType: 'access_request', entityId: requestId }, now);
+      addAuditEvent(state, { actorUserId: current.user.id, action: 'access.cancel', entityType: 'access_request', entityId: requestId }, now);
+    });
+    sendJson(response, 200, { ok: true });
+    return true;
+  }
+
   const patientAccessAction = pathname.match(/^\/api\/patient\/access-requests\/([^/]+)(?:\/(approve|reject|revoke))?$/);
   if (patientAccessAction && (method === 'PUT' || (method === 'POST' && patientAccessAction[2]))) {
     requireRole(current, 'patient');
@@ -68,6 +85,10 @@ export async function handleAccessRoute(ctx) {
       addAuditEvent(state, { actorUserId: current.user.id, action: `access.${action}`, entityType: 'access_request', entityId: requestId }, now);
     });
     const doctor = await dataStore.read((state) => state.users.find((user) => user.id === existing.doctorUserId));
+    await dataStore.transact((state) => {
+      addNotification(state, existing.doctorUserId, { type: 'access-request', title: `Access request ${status}`, message: `The patient ${status} your access request to their records.`, entityType: 'access_request', entityId: requestId }, now);
+      addAuditEvent(state, { actorUserId: current.user.id, action: `access.notify_doctor_${status}`, entityType: 'access_request', entityId: requestId }, now);
+    });
     sendJson(response, 200, { request: publicAccessRequest(updated, current.user, doctor) });
     return true;
   }

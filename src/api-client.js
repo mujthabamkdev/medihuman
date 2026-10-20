@@ -97,6 +97,7 @@ export const api = {
   deleteReconciliation: (id) => request(`/reconciliations/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   doctorAccessRequests: () => request('/doctor/access-requests'),
   requestPatient: (patientId) => json('POST', '/doctor/access-requests', { patientId }),
+  deleteAccessRequest: (requestId) => request(`/doctor/access-requests/${encodeURIComponent(requestId)}`, { method: 'DELETE' }),
   patientAccessRequests: () => request('/patient/access-requests'),
   updateAccessRequest: (requestId, status) => json('PUT', `/patient/access-requests/${encodeURIComponent(requestId)}`, { status }),
   notifications: () => request('/notifications'),
