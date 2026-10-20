@@ -395,7 +395,7 @@ export function createViewRenderer({ state }) {
     const record = (state.records || []).find((item) => item.id === state.viewingRecordId);
     if (!record || record.type !== 'prescription') return '';
     const prescription = recordPrescription(record);
-    return `<div class="modal-backdrop"><section class="card medicine-dialog record-dialog" role="dialog" aria-modal="true" aria-labelledby="record-dialog-title"><button class="exit-close" data-action="close-record-view" aria-label="Close"><span aria-hidden="true">×</span></button><p class="card-kicker">MEDICAL RECORD</p><h3 id="record-dialog-title">${escapeHtml(record.title || 'Prescription')}</h3><p class="muted">Full details of this prescription record, as captured by the clinician.</p>${renderPrescriptionFields(prescription)}<div class="form-actions">${button('Close', 'close-record-view', 'button button-secondary')}</div></section></div>`;
+    return `<div class="modal-backdrop"><section class="card medicine-dialog record-dialog" role="dialog" aria-modal="true" aria-labelledby="record-dialog-title"><button class="exit-close" data-action="close-record-view" aria-label="Close"><span aria-hidden="true">×</span></button><p class="card-kicker">PRESCRIPTION RECORD</p><h3 id="record-dialog-title">${escapeHtml(record.title || 'Prescription')}</h3><p class="muted">Full details of this prescription record, kept with your medical records.</p>${renderPrescriptionFields(prescription)}<div class="form-actions">${button('Close', 'close-record-view', 'button button-secondary')}</div></section></div>`;
   }
 
   function renderScanWithPrescriptions() {
